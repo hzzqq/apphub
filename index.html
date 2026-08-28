@@ -142,6 +142,14 @@
       <span id="apiState" class="apistate"></span>
       <span class="apihint">所有行情/数据类 App 共用此地址；起后端：<code>cd backend &amp;&amp; python app.py</code></span>
     </div>
+    <div class="apipanel" id="bkPanel">
+      <span class="apilbl">💾 数据备份：</span>
+      <button class="randbtn" id="bkExport" title="把本机所有 App 的数据导出为一个 JSON 文件">导出备份</button>
+      <button class="randbtn" id="bkImportBtn" title="从之前导出的 JSON 备份恢复数据">导入恢复</button>
+      <input type="file" id="bkFile" accept="application/json,.json" style="display:none">
+      <span id="bkState" class="apistate"></span>
+      <span class="apihint">所有 App 的数据只存在这台设备的浏览器里，换设备 / 清缓存 / 重装前请先导出；导入会覆盖同名数据</span>
+    </div>
   </div>
 
   <div class="recent" id="recentWrap" style="display:none">
@@ -497,6 +505,121 @@ function applySharedTheme(){
   }catch(e){}
 }
 applySharedTheme();
+
+/* 备份文件校验（顶层导出以便单测）：format 标记 + data 为对象 + 键名合法 + 值必须为字符串 + 总大小上限 */
+function validateBackup(payload){
+  const KEY_FMT   = /^[A-Za-z0-9_.:-]{1,64}$/;
+  const MAX_BYTES = 8 * 1024 * 1024;
+  if(!payload || typeof payload !== "object")        return { ok:false, msg:"不是有效的 JSON 对象" };
+  if(payload.format !== "apphub-backup")             return { ok:false, msg:"不是 App Hub 备份文件（缺少 format 标记）" };
+  const data = payload.data;
+  if(!data || typeof data !== "object" || Array.isArray(data)) return { ok:false, msg:"备份内容缺失或格式错误" };
+  const keys = Object.keys(data);
+  if(!keys.length)                                   return { ok:false, msg:"备份内容为空" };
+  for(const k of keys){
+    if(!KEY_FMT.test(k))                             return { ok:false, msg:"含非法键名：" + String(k).slice(0, 40) };
+    if(typeof data[k] !== "string")                  return { ok:false, msg:"键值必须为字符串：" + k };
+  }
+  let size = 0;
+  for(const k of keys) size += data[k].length + k.length;
+  if(size > MAX_BYTES) return { ok:false, msg:"备份过大（>" + Math.round(MAX_BYTES / 1048576) + "MB），已中止" };
+  return { ok:true, keys:keys, data:data, size:size };
+}
+
+/* ====================== 数据备份中心（cycle 50） ======================
+ * 背景：26 个 App 的数据全在 localStorage，此前没有任何备份/迁移手段，
+ * 清缓存或换设备即永久丢失。本模块提供一键导出为 JSON + 从备份恢复。
+ * 安全：导入前做格式/键名/类型/大小四重校验，拒绝把任意结构写入 localStorage。 */
+(function initBackup(){
+  const MAX_BYTES = 8 * 1024 * 1024;             // 8MB 上限，防异常/恶意大文件（键名/类型校验见顶层 validateBackup）
+  const state     = document.getElementById("bkState");
+  const fileInput = document.getElementById("bkFile");
+
+  function setState(msg, cls){
+    if(state){ state.textContent = msg; state.className = "apistate" + (cls ? " " + cls : ""); }
+  }
+  /* 收集本 origin 下的全部 localStorage 条目 */
+  function collect(){
+    const out = {}; let n = 0;
+    try{
+      for(let i = 0; i < localStorage.length; i++){
+        const k = localStorage.key(i);
+        if(k == null) continue;
+        out[k] = localStorage.getItem(k);
+        n++;
+      }
+    }catch(e){ return { data:{}, count:0, error:e }; }
+    return { data:out, count:n, error:null };
+  }
+  function stamp(){
+    const d = new Date(), p = x => String(x).padStart(2, "0");
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  }
+  function download(name, text){
+    const blob = new Blob([text], { type: "application/json;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+  }
+  const validate = validateBackup;   // 顶层实现，便于单测
+  function doExport(){
+    const c = collect();
+    if(c.error){ setState("导出失败：" + (c.error.message || c.error), "bad"); return; }
+    if(!c.count){ setState("本浏览器暂无可备份数据", ""); return; }
+    const payload = {
+      format: "apphub-backup", version: 1,
+      exported_at: new Date().toISOString(),
+      source: location.origin || "local",
+      count: c.count, data: c.data
+    };
+    const name = "AppHub备份_" + stamp() + ".json";
+    try{
+      download(name, JSON.stringify(payload, null, 1));
+      setState("已导出 " + c.count + " 项 → " + name, "ok");
+      console.log("[AppHub 备份] 导出 " + c.count + " 项");
+    }catch(e){ setState("导出失败：" + (e.message || e), "bad"); }
+  }
+  function doImport(file){
+    if(!file) return;
+    if(file.size > MAX_BYTES){ setState("文件过大（>" + Math.round(MAX_BYTES / 1048576) + "MB）", "bad"); return; }
+    const reader = new FileReader();
+    reader.onerror = () => setState("读取文件失败", "bad");
+    reader.onload = () => {
+      let payload;
+      try{ payload = JSON.parse(String(reader.result)); }
+      catch(e){ setState("JSON 解析失败，文件可能已损坏", "bad"); return; }
+      const v = validate(payload);
+      if(!v.ok){ setState(v.msg, "bad"); return; }
+      if(!confirm("即将导入 " + v.keys.length + " 项数据并覆盖同名内容，是否继续？")){ setState("已取消导入", ""); return; }
+      let ok = 0, fail = 0;
+      for(const k of v.keys){
+        try{ localStorage.setItem(k, v.data[k]); ok++; }catch(e){ fail++; }
+      }
+      if(fail){
+        setState("已恢复 " + ok + " 项，失败 " + fail + " 项（可能存储空间不足）", "bad");
+      } else {
+        setState("已恢复 " + ok + " 项，正在刷新…", "ok");
+        console.log("[AppHub 备份] 导入 " + ok + " 项");
+        setTimeout(() => location.reload(), 900);
+      }
+    };
+    reader.readAsText(file, "utf-8");
+  }
+
+  const expBtn = document.getElementById("bkExport");
+  const impBtn = document.getElementById("bkImportBtn");
+  if(expBtn)   expBtn.addEventListener("click", doExport);
+  if(impBtn)   impBtn.addEventListener("click", () => fileInput && fileInput.click());
+  if(fileInput) fileInput.addEventListener("change", function(){
+    doImport(this.files && this.files[0]);
+    this.value = "";   // 清空以便重复导入同一文件
+  });
+
+  const c0 = collect();
+  setState(c0.count ? ("本浏览器共 " + c0.count + " 项数据可备份") : "暂无数据", "");
+})();
 loadPrefs();
 syncViewBtn();
 renderSort();
