@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>健身记录</title>
+<style>
+:root{--bg:#0f0f23;--card:#1a1a2e;--card2:#221a3a;--txt:#e6e6f0;--sub:#8a8a9a;--line:#2a2a44;--accent:#667eea;--accent2:#764ba2;--up:#ff4d4f;--down:#00d486;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;min-height:100vh}
+a{color:var(--txt);text-decoration:none}
+.hubhome{position:fixed;top:14px;left:14px;z-index:50;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.wrap{max-width:800px;margin:0 auto;padding:70px 16px 40px}
+.head h1{font-size:26px;margin:0;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;color:transparent}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.inputrow{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.inputrow input,.inputrow select{background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:10px;outline:none}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:600}
+.btn.ghost{background:var(--card2);border:1px solid var(--line);color:var(--txt)}
+.log{display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+.log .info{font-size:14px}
+.log .info b{display:block}
+.log .vol{font-size:18px;font-weight:700;color:var(--accent)}
+.canvaswrap{height:200px;position:relative}
+canvas{width:100%;height:100%}
+.summary{display:flex;justify-content:space-around;text-align:center;margin-top:12px}
+.summary .num{font-size:24px;font-weight:700;color:var(--accent)}
+.summary .lab{font-size:12px;color:var(--sub)}
+.hubfoot{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;font-size:12px;color:var(--sub)}
+</style>
+</head>
+<body>
+<a class="hubhome" href="../index.html">🏠 大厅</a>
+<div class="wrap">
+  <div class="head"><h1>💪 健身记录</h1></div>
+  <div class="card">
+    <h3 style="margin:0 0 12px">添加训练</h3>
+    <div class="inputrow">
+      <input type="date" id="wDate">
+      <select id="wType"><option value="胸">胸</option><option value="背">背</option><option value="腿">腿</option><option value="肩">肩</option><option value="有氧">有氧</option><option value="核心">核心</option></select>
+      <input type="number" id="wKg" placeholder="重量 kg" style="width:90px">
+      <input type="number" id="wReps" placeholder="次数" style="width:80px">
+      <input type="number" id="wSets" placeholder="组数" style="width:80px">
+      <button class="btn" id="addBtn">添加</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="margin:0 0 12px">近 7 天训练容量</h3>
+    <div class="canvaswrap"><canvas id="chart"></canvas></div>
+    <div class="summary">
+      <div><div class="num" id="sTotal">0</div><div class="lab">总容量(kg)</div></div>
+      <div><div class="num" id="sCount">0</div><div class="lab">总组数</div></div>
+      <div><div class="num" id="sDays">0</div><div class="lab">训练天数</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="margin:0 0 12px">历史记录</h3>
+    <div id="logList"></div>
+  </div>
+  <div class="hubfoot">
+    <a href="../index.html">← 返回应用大厅</a>
+    <span>数据存 localStorage</span>
+  </div>
+</div>
+<script>
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);});}
+function safeUrl(u){u=String(u==null?"":u);if(/^\s*javascript:/i.test(u))return"#";return esc(u);}
+
+const KEY="workout_data";
+let logs=JSON.parse(localStorage.getItem(KEY)||"[]");
+document.getElementById("wDate").value=new Date().toISOString().slice(0,10);
+function save(){localStorage.setItem(KEY,JSON.stringify(logs));render();}
+function vol(l){return (l.kg||0)*(l.reps||0)*(l.sets||0);}
+function render(){
+  // 列表
+  const box=document.getElementById("logList");
+  if(!logs.length){box.innerHTML='<div style="color:var(--sub)">还没有记录</div>';}
+  else{box.innerHTML=logs.slice().reverse().map((l,i)=>`
+    <div class="log">
+      <div class="info"><b>${esc(l.date)} · ${esc(l.type)}</b>${l.kg}kg × ${l.reps}次 × ${l.sets}组</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="vol">${vol(l)}</div>
+        <button class="btn ghost" data-del="${logs.length-1-i}" style="padding:4px 10px">删</button>
+      </div>
+    </div>
+  `).join("");}
+  document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{logs.splice(+b.dataset.del,1);save();}));
+  // 统计
+  const last7={}; logs.forEach(l=>{last7[l.date]=(last7[l.date]||0)+vol(l);});
+  const days=Object.keys(last7).length; const total=Object.values(last7).reduce((a,b)=>a+b,0);
+  const count=logs.reduce((a,l)=>a+(+l.sets||0),0);
+  document.getElementById("sTotal").textContent=total; document.getElementById("sCount").textContent=count; document.getElementById("sDays").textContent=days;
+  drawChart(last7);
+}
+function drawChart(data){
+  const cv=document.getElementById("chart"); cv.width=cv.clientWidth*2; cv.height=cv.clientHeight*2;
+  const ctx=cv.getContext("2d"); ctx.scale(2,2); ctx.clearRect(0,0,cv.width,cv.height);
+  const labels=[]; const vals=[]; const d=new Date(); d.setDate(d.getDate()-6);
+  for(let i=0;i<7;i++){labels.push(d.toISOString().slice(5,10)); vals.push(data[d.toISOString().slice(0,10)]||0); d.setDate(d.getDate()+1);}
+  const W=cv.clientWidth,H=cv.clientHeight,pad=30,max=Math.max(...vals,1);
+  ctx.strokeStyle="rgba(255,255,255,.1)"; ctx.beginPath();
+  for(let i=0;i<=4;i++){const y=H-pad-(H-2*pad)*i/4;ctx.moveTo(pad,y);ctx.lineTo(W-pad,y);}
+  ctx.stroke();
+  const bw=(W-2*pad)/vals.length;
+  vals.forEach((v,i)=>{
+    const x=pad+i*bw+bw/2; const h=(v/max)*(H-2*pad); const y=H-pad-h;
+    ctx.fillStyle="#667eea"; ctx.fillRect(x-bw/3,y,bw*2/3,h);
+    ctx.fillStyle="#9a9ab0"; ctx.textAlign="center"; ctx.font="10px sans-serif"; ctx.fillText(labels[i],x,H-pad+12);
+  });
+}
+document.getElementById("addBtn").addEventListener("click",()=>{
+  const l={date:document.getElementById("wDate").value,type:document.getElementById("wType").value,kg:+document.getElementById("wKg").value,reps:+document.getElementById("wReps").value,sets:+document.getElementById("wSets").value};
+  if(!l.date||!l.kg||!l.reps||!l.sets)return alert("请填写完整");
+  logs.push(l); save();
+});
+window.addEventListener("resize",render);
+render();
+</script>
+</body>
+</html>

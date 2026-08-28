@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>持仓体检扫描 · HoldingsCheck</title>
+<style>
+  :root{
+    --bg:#0f0f23; --card:#1a1a2e; --line:#2a2a44;
+    --up:#ff4d4f; --down:#00d486; --accent:#667eea; --accent2:#764ba2;
+    --text:#e8e8f0; --sub:#8a8a9a; --warn:#f6c453; --bad:#ff6b6b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);padding:20px;max-width:1000px;margin:0 auto}
+  h1{font-size:24px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{color:var(--sub);font-size:13px;margin:4px 0 16px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  input{background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px;font-family:inherit}
+  input[type=text]{width:150px}
+  button{cursor:pointer;border:none;border-radius:8px;padding:8px 14px;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;font-weight:600}
+  button.ghost{background:var(--card);border:1px solid var(--line);color:var(--text)}
+  table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;margin-bottom:16px}
+  th,td{padding:10px 12px;font-size:13px;border-bottom:1px solid var(--line);text-align:left}
+  th{color:var(--sub);background:rgba(102,126,234,.08)}
+  .up{color:var(--up)} .down{color:var(--down)}
+  .report{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .report h3{font-size:15px;margin-bottom:10px}
+  .item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .item:last-child{border:none}
+  .dot{width:10px;height:10px;border-radius:99px;flex:none}
+  .dot.bad{background:var(--bad)} .dot.warn{background:var(--warn)} .dot.ok{background:var(--down)}
+  .bar{height:8px;flex:1;background:var(--line);border-radius:99px;overflow:hidden}
+  .bar>span{display:block;height:100%;background:var(--accent)}
+  .score{font-size:40px;font-weight:800;text-align:center;margin:6px 0}
+  footer{margin-top:20px;color:var(--sub);font-size:12px;text-align:center}
+
+  .hubfoot{max-width:1180px;margin:30px auto 0;padding:16px;text-align:center;
+    font-size:12px;color:var(--sub);border-top:1px solid var(--line);line-height:1.8}
+  .hubfoot a{color:var(--g1);text-decoration:none;font-weight:600}
+  .hubfoot a:hover{text-decoration:underline}
+
+  .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35);transition:filter .15s}
+  .hubhome:hover{filter:brightness(1.12)}
+</style>
+</head>
+<body>
+  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+
+<h1>🛡️ 持仓体检扫描</h1>
+<div class="sub">一键扫持仓风险短板：集中度 / 单一行业 / 亏损幅度 · 数据源模仿 StockSignal（I_体检扫描.py）</div>
+
+<div class="row">
+  <input type="text" id="code" placeholder="代码 如600519">
+  <input type="text" id="name" placeholder="名称 如贵州茅台">
+  <input type="text" id="sector" placeholder="行业 如白酒">
+  <input type="number" id="cost" placeholder="成本" style="width:90px">
+  <input type="number" id="price" placeholder="现价" style="width:90px">
+  <input type="number" id="qty" placeholder="股数" style="width:90px">
+  <button id="addBtn">添加</button>
+  <button class="ghost" id="demoBtn">载入示例</button>
+</div>
+
+<table>
+  <thead><tr><th>代码</th><th>名称</th><th>行业</th><th>成本</th><th>现价</th><th>盈亏%</th><th>市值</th><th></th></tr></thead>
+  <tbody id="body"></tbody>
+</table>
+<div style="margin:12px 0;display:flex;gap:10px;flex-wrap:wrap">
+  <button class="ghost" id="expCsv">导出CSV</button>
+  <span style="color:var(--sub);font-size:12px;align-self:center">提示：点击下方表格内的「成本/现价/股数」可直接编辑，回车重算体检。</span>
+</div>
+
+<div class="report">
+  <h3>体检报告</h3>
+  <div class="score" id="score">--</div>
+  <div id="items"></div>
+</div>
+
+<footer>双击即用的零依赖小工具 · 持仓数据为本地录入，仅供自检，不构成投资建议</footer>
+
+<script>
+let HOLD=[];
+try{ HOLD=JSON.parse(localStorage.getItem("hc_hold")||"[]"); }catch(e){ HOLD=[]; }
+function save(){ try{ localStorage.setItem("hc_hold",JSON.stringify(HOLD)); }catch(e){} }
+function add(){
+  const code=document.getElementById("code").value.trim();
+  const name=document.getElementById("name").value.trim();
+  const sector=document.getElementById("sector").value.trim();
+  const cost=parseFloat(document.getElementById("cost").value);
+  const price=parseFloat(document.getElementById("price").value);
+  const qty=parseFloat(document.getElementById("qty").value);
+  if(!code||!name||isNaN(cost)||isNaN(price)||isNaN(qty)){alert("请填完整");return;}
+  HOLD.push({code,name,sector,cost,price,qty});
+  ["code","name","sector","cost","price","qty"].forEach(id=>document.getElementById(id).value="");
+  save(); render();
+}
+function del(i){HOLD.splice(i,1);save();render();}
+function render(){
+  const total=HOLD.reduce((s,h)=>s+h.price*h.qty,0);
+  document.getElementById("body").innerHTML=HOLD.map((h,i)=>{
+    const pct=(h.price-h.cost)/h.cost*100; const up=pct>=0; const mv=h.price*h.qty;
+    return `<tr><td>${h.code}</td><td>${h.name}</td><td>${h.sector||"-"}</td>`+
+      `<td style="cursor:pointer" onclick="editCell(${i},'cost',this)">${h.cost}</td>`+
+      `<td style="cursor:pointer" onclick="editCell(${i},'price',this)">${h.price}</td>`+
+      `<td class="${up?'up':'down'}">${up?'+':''}${pct.toFixed(1)}</td>`+
+      `<td>${mv.toFixed(0)}</td><td><button class="ghost" onclick="del(${i})">删</button></td></tr>`;
+  }).join("");
+  diagnosis(total);
+}
+function editCell(i,field,td){
+  const v=prompt("修改"+field+"：",HOLD[i][field]);
+  if(v===null)return; const n=parseFloat(v);
+  if(isNaN(n)){alert("请输入数字");return;}
+  HOLD[i][field]=n; save(); render();
+}
+function exportCsv(){
+  if(!HOLD.length){alert("暂无数据");return;}
+  const head=["代码","名称","行业","成本","现价","股数","盈亏%","市值"];
+  const rows=HOLD.map(h=>{const pct=(h.price-h.cost)/h.cost*100;const mv=h.price*h.qty;
+    return [h.code,h.name,h.sector||"-",h.cost,h.price,h.qty,pct.toFixed(1),mv.toFixed(0)].join(",");});
+  const csv="\uFEFF"+head.join(",")+"\n"+rows.join("\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="持仓体检.csv";a.click();
+}
+function diagnosis(total){
+  const items=[];
+  if(HOLD.length===0){document.getElementById("score").textContent="--";document.getElementById("items").innerHTML="<div class='item'><span class='dot warn'></span>添加持仓后生成体检报告</div>";return;}
+  // 集中度
+  const maxW=Math.max(...HOLD.map(h=>h.price*h.qty/total));
+  items.push({lvl:maxW>0.5?"bad":maxW>0.3?"warn":"ok",label:`最大单一持仓占比 ${(maxW*100).toFixed(0)}%`,v:maxW});
+  // 行业集中
+  const bySec={};HOLD.forEach(h=>bySec[h.sector||"其他"]=(bySec[h.sector||"其他"]||0)+h.price*h.qty/total);
+  const maxSec=Math.max(...Object.values(bySec));
+  items.push({lvl:maxSec>0.6?"bad":maxSec>0.4?"warn":"ok",label:`最大行业集中度 ${(maxSec*100).toFixed(0)}%`,v:maxSec});
+  // 亏损幅度
+  const maxLoss=Math.min(...HOLD.map(h=>(h.price-h.cost)/h.cost));
+  items.push({lvl:maxLoss<-0.2?"bad":maxLoss<-0.1?"warn":"ok",label:`最大浮亏 ${(maxLoss*100).toFixed(0)}%`,v:Math.max(0,-maxLoss)});
+  // 数量
+  items.push({lvl:HOLD.length<3?"warn":"ok",label:`持仓数量 ${HOLD.length} 只`,v:HOLD.length<3?0.4:0.1});
+  const scoreMap={ok:100,warn:65,bad:30};
+  const score=Math.round(items.reduce((s,it)=>s+scoreMap[it.lvl],0)/items.length);
+  const col=score>=80?"var(--down)":score>=55?"var(--warn)":"var(--bad)";
+  document.getElementById("score").style.color=col;
+  document.getElementById("score").textContent=score+"分";
+  document.getElementById("items").innerHTML=items.map(it=>`
+    <div class="item"><span class="dot ${it.lvl}"></span>
+    <span style="width:200px">${it.label}</span>
+    <span class="bar"><span style="width:${Math.min(100,it.v*100)}%"></span></span></div>`).join("");
+}
+document.getElementById("addBtn").addEventListener("click",add);
+document.getElementById("expCsv").addEventListener("click",exportCsv);
+document.getElementById("demoBtn").addEventListener("click",async()=>{
+  try{
+    const API_ROOT = localStorage.getItem("hub_api")||"http://127.0.0.1:8787";
+    const r=await fetch(API_ROOT+"/api/data?file=holdings.json",{cache:"no-store"});
+    if(r.ok){ const j=await r.json(); if(j.ok&&Array.isArray(j.rows)){ HOLD=j.rows.map(x=>({code:x.code,name:x.name,sector:x.market||"",cost:x.cost,price:x.cost,qty:x.lots*100})); render(); return; } }
+  }catch(e){ console.warn("持仓样本接口失败, 用内置兜底",e); }
+    HOLD=[
+    {code:"600519",name:"贵州茅台",sector:"白酒",cost:1700,price:1480,qty:100},
+    {code:"300750",name:"宁德时代",sector:"电力设备",cost:220,price:185,qty:500},
+    {code:"000858",name:"五粮液",sector:"白酒",cost:160,price:140,qty:800},
+    {code:"601318",name:"中国平安",sector:"非银金融",cost:52,price:55,qty:2000}
+  ];save();render();
+});
+render();
+</script>
+
+  <footer class="hubfoot">
+    <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
+    <span>数据来自公开接口或本地演示，仅供学习与参考，不构成任何投资建议。</span>
+  </footer>
+</body>
+</html>

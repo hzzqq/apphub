@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>盘前收盘速读卡 · A股</title>
+<style>
+  :root{
+    --bg:#0f0f23; --card:#1a1a2e; --card2:#221a3a; --line:#2e2b45;
+    --txt:#e6e6f0; --sub:#9a9ab0; --up:#ff4d4f; --down:#00d486; --purple:#667eea;
+    --gold:#f6c453;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(160deg,#0f0f23,#15132b);color:var(--txt);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;padding:18px;max-width:880px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px;background:linear-gradient(90deg,#667eea,#764ba2);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{color:var(--sub);font-size:13px;margin-bottom:14px}
+  .seg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .seg button{background:none;border:none;color:var(--sub);padding:8px 16px;cursor:pointer;font-size:14px}
+  .seg button.on{background:linear-gradient(90deg,#667eea,#764ba2);color:#fff}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:14px 0}
+  .field{margin:10px 0}
+  .field label{display:block;font-size:13px;color:var(--sub);margin-bottom:6px}
+  .field input,.field textarea,.field select{width:100%;background:var(--card2);border:1px solid var(--line);
+    border-radius:8px;color:var(--txt);padding:9px 11px;font-size:14px;font-family:inherit}
+  .field textarea{min-height:70px;resize:vertical}
+  .btn{background:linear-gradient(90deg,#667eea,#764ba2);color:#fff;border:none;border-radius:9px;
+    padding:9px 16px;cursor:pointer;font-size:14px}
+  .btn.ghost{background:var(--card2);border:1px solid var(--line);color:var(--txt)}
+  .brief{border-left:3px solid var(--purple);padding:10px 14px;margin:10px 0;background:var(--card2);border-radius:0 8px 8px 0}
+  .brief.morning{border-color:var(--up)}
+  .brief.close{border-color:var(--down)}
+  .brief h3{margin:0 0 6px;font-size:15px}
+  .brief .meta{color:var(--sub);font-size:12px;margin-bottom:6px}
+  .brief p{margin:4px 0;font-size:13.5px;line-height:1.6}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;margin-right:6px}
+  .tag.bull{background:rgba(255,77,79,.15);color:var(--up)}
+  .tag.bear{background:rgba(0,212,134,.15);color:var(--down)}
+  .tag.watch{background:rgba(246,196,83,.15);color:var(--gold)}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+  footer{color:var(--sub);font-size:12px;text-align:center;margin-top:18px}
+  .hint{color:var(--sub);font-size:12px;margin-top:8px;line-height:1.5}
+
+  .hubfoot{max-width:1180px;margin:30px auto 0;padding:16px;text-align:center;
+    font-size:12px;color:var(--sub);border-top:1px solid var(--line);line-height:1.8}
+  .hubfoot a{color:var(--g1);text-decoration:none;font-weight:600}
+  .hubfoot a:hover{text-decoration:underline}
+
+  .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35);transition:filter .15s}
+  .hubhome:hover{filter:brightness(1.12)}
+</style>
+</head>
+<body>
+  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+
+  <h1>📋 盘前 / 收盘速读卡</h1>
+  <div class="sub">把每天的盘前要点、收盘复盘做成随身卡 · 源自 FinTech_AI_Dialogue 晨报/复盘结构 · 零依赖</div>
+
+  <div class="seg" id="typeSeg">
+    <button data-v="morning" class="on">🌅 盘前速读</button>
+    <button data-v="close">🌙 收盘复盘</button>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <span style="color:var(--sub);font-size:13px">新建一张：</span>
+    </div>
+    <div class="field"><label>日期（默认今天）</label><input id="bDate" type="date"></div>
+    <div class="field"><label>大盘研判（一句话）</label><input id="bView" placeholder="如：震荡偏强，关注量能"></div>
+    <div class="field"><label>核心要点（每行一条，可带 利好/利空/关注 前缀）</label>
+      <textarea id="bPoints" placeholder="利好：北向净流入&#10;利空：外围科技股回调&#10;关注：券商板块异动"></textarea></div>
+    <div class="field"><label>关注标的（代码或名称，逗号分隔）</label><input id="bWatch" placeholder="600519, 300750"></div>
+    <button class="btn" id="addBtn">保存速读卡</button>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <span style="color:var(--sub);font-size:13px">我的速读卡（按日期倒序）</span>
+      <button class="btn ghost" id="copyAllBtn">📋 复制全部</button>
+      <button class="btn ghost" id="exportBtn">导出JSON</button>
+      <button class="btn ghost" id="importBtn">导入JSON</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+    </div>
+    <div id="list"></div>
+  </div>
+
+  <div class="hint">
+    💡 用法：每天盘前写一张「盘前速读」（计划看什么），收盘写一张「收盘复盘」（实际发生了什么）。
+    一段时间回看，就是你的盘感训练册。数据存本地 localStorage，不上传。
+  </div>
+  <footer>双击即用的零依赖小工具 · 内容仅为个人记录，不构成投资建议</footer>
+
+<script>
+const K="market_brief_v1";
+let type="morning";
+let cards=load();
+
+function load(){ try{return JSON.parse(localStorage.getItem(K))||[]}catch(e){return[]} }
+function save(){ localStorage.setItem(K,JSON.stringify(cards)); }
+function today(){ return new Date().toISOString().slice(0,10); }
+
+document.getElementById("typeSeg").addEventListener("click",e=>{
+  if(e.target.dataset.v){document.querySelectorAll("#typeSeg button").forEach(b=>b.classList.remove("on"));
+    e.target.classList.add("on"); type=e.target.dataset.v;}
+});
+
+document.getElementById("addBtn").addEventListener("click",()=>{
+  const points=document.getElementById("bPoints").value.split("\n").filter(s=>s.trim());
+  const card={id:Date.now()+""+Math.random().toString(36).slice(2,6),
+    type, date:document.getElementById("bDate").value||today(),
+    view:document.getElementById("bView").value.trim(),
+    points, watch:document.getElementById("bWatch").value.split(/[,，]/).map(s=>s.trim()).filter(Boolean),
+    createdAt:Date.now()};
+  cards.push(card); save(); render();
+  document.getElementById("bView").value="";document.getElementById("bPoints").value="";document.getElementById("bWatch").value="";
+});
+
+function tagOf(line){
+  if(/^利好|^多|^涨/.test(line)) return '<span class="tag bull">利好</span>';
+  if(/^利空|^空|^跌/.test(line)) return '<span class="tag bear">利空</span>';
+  if(/^关注|^观察|^盯/.test(line)) return '<span class="tag watch">关注</span>';
+  return '';
+}
+function render(){
+  const sorted=cards.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const box=document.getElementById("list");
+  if(!sorted.length){box.innerHTML='<div style="color:var(--sub);padding:14px">还没有速读卡，写一张试试。</div>';return;}
+  box.innerHTML=sorted.map(c=>{
+    const cls=c.type==="morning"?"morning":"close";
+    const title=c.type==="morning"?"🌅 盘前速读":"🌙 收盘复盘";
+    const pts=c.points.map(p=>`<p>${tagOf(p)}${p.replace(/^(利好|利空|关注|多|空|涨|跌|观察|盯)[：: ]?/,"")}</p>`).join("");
+    const w=c.watch.length?`<p style="color:var(--gold)">👀 关注：${c.watch.join("、")}</p>`:"";
+    return `<div class="brief ${cls}">
+      <h3>${title}</h3>
+      <div class="meta">${c.date} · ${c.view||"—"}</div>
+      ${pts}${w}
+      <div style="margin-top:6px"><button class="btn ghost" onclick="del('${c.id}')" style="padding:4px 10px;font-size:12px">删除</button></div>
+    </div>`;
+  }).join("");
+}
+function del(id){ cards=cards.filter(c=>c.id!==id); save(); render(); }
+function buildText(){
+  const sorted=cards.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  if(!sorted.length) return "";
+  return sorted.map(c=>{
+    const title=c.type==="morning"?"🌅 盘前速读":"🌙 收盘复盘";
+    const head=`【${title}】${c.date} ${c.view||""}`;
+    const pts=c.points.map(p=>"· "+p).join("\n");
+    const w=c.watch.length?("\n👀 关注："+c.watch.join("、")):"";
+    return head+"\n"+pts+w;
+  }).join("\n\n"+"—".repeat(20)+"\n\n");
+}
+document.getElementById("copyAllBtn").addEventListener("click",async()=>{
+  const txt=buildText();
+  if(!txt){ alert("还没有速读卡"); return; }
+  try{ await navigator.clipboard.writeText(txt); toast("已复制全部速读卡到剪贴板"); }
+  catch(e){
+    const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();
+    try{ document.execCommand("copy"); toast("已复制全部速读卡"); }catch(_){ alert("复制失败，请手动选择"); }
+    ta.remove();
+  }
+});
+function toast(msg){ let t=document.getElementById("mbToast"); if(!t){ t=document.createElement("div");t.id="mbToast";t.style.cssText="position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:#2e2e4d;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:99;box-shadow:0 6px 20px rgba(0,0,0,.4)";document.body.appendChild(t);} t.textContent=msg; t.style.display="block"; clearTimeout(t._t); t._t=setTimeout(()=>t.style.display="none",1800); }
+
+document.getElementById("exportBtn").addEventListener("click",()=>{
+  const blob=new Blob([JSON.stringify(cards,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="速读卡.json";a.click();
+});
+document.getElementById("importBtn").addEventListener("click",()=>document.getElementById("importFile").click());
+document.getElementById("importFile").addEventListener("change",e=>{
+  const f=e.target.files[0]; if(!f)return; const rd=new FileReader();
+  rd.onload=()=>{ try{ const j=JSON.parse(rd.result); if(Array.isArray(j)){ const map={};cards.forEach(c=>map[c.id]=c);j.forEach(c=>map[c.id]=c);cards=Object.values(map);save();render(); } }catch(e){alert("导入失败：JSON 格式错误");} };
+  rd.readAsText(f);
+});
+
+document.getElementById("bDate").value=today();
+render();
+</script>
+
+  <footer class="hubfoot">
+    <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
+    <span>数据来自公开接口或本地演示，仅供学习与参考，不构成任何投资建议。</span>
+  </footer>
+</body>
+</html>

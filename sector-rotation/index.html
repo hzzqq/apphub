@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>板块轮动仪 · SectorRotation</title>
+<style>
+  :root{
+    --bg:#0f0f23; --card:#1a1a2e; --line:#2a2a44;
+    --up:#ff4d4f; --down:#00d486; --accent:#667eea; --accent2:#764ba2;
+    --text:#e8e8f0; --sub:#8a8a9a; --gold:#f6c453;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);padding:20px;max-width:1100px;margin:0 auto}
+  h1{font-size:24px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+  .sub{color:var(--sub);font-size:13px;margin-bottom:16px}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  input,select,button{font-family:inherit}
+  input[type=text]{background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px;width:160px}
+  select{background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px}
+  button{cursor:pointer;border:none;border-radius:8px;padding:8px 14px;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;font-weight:600}
+  button.ghost{background:var(--card);border:1px solid var(--line);color:var(--text)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  .sector{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .sector .name{font-weight:700;font-size:15px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+  .tag{font-size:11px;padding:2px 8px;border-radius:99px}
+  .tag.lead{background:rgba(255,77,79,.15);color:var(--up)}
+  .tag.lag{background:rgba(0,212,134,.15);color:var(--down)}
+  .tag.mid{background:rgba(138,138,154,.15);color:var(--sub)}
+  .chg{font-size:22px;font-weight:800;margin:6px 0}
+  .chg.up{color:var(--up)} .chg.down{color:var(--down)}
+  .meter{height:6px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:8px}
+  .meter>span{display:block;height:100%}
+  .row2{display:flex;justify-content:space-between;color:var(--sub);font-size:12px;margin-top:6px}
+  .note{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:16px;font-size:13px;color:var(--sub);line-height:1.7}
+  .note b{color:var(--text)}
+  footer{margin-top:20px;color:var(--sub);font-size:12px;text-align:center}
+  canvas{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-top:16px;width:100%}
+
+  .hubfoot{max-width:1180px;margin:30px auto 0;padding:16px;text-align:center;
+    font-size:12px;color:var(--sub);border-top:1px solid var(--line);line-height:1.8}
+  .hubfoot a{color:var(--g1);text-decoration:none;font-weight:600}
+  .hubfoot a:hover{text-decoration:underline}
+
+  .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35);transition:filter .15s}
+  .hubhome:hover{filter:brightness(1.12)}
+</style>
+</head>
+<body>
+  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+
+<h1>🔄 板块轮动仪</h1>
+<div class="sub">看钱往哪流：哪些板块在领涨、哪些在掉队 · 数据源模仿 StockSignal（演示数据为申万一级行业样本）</div>
+
+<div class="bar">
+  <input type="text" id="kw" placeholder="搜索板块名">
+  <select id="sortBy">
+    <option value="chg">按涨跌幅排序</option>
+    <option value="strength">按轮动强度排序</option>
+    <option value="name">按名称</option>
+  </select>
+  <select id="view">
+    <option value="all">全部板块</option>
+    <option value="lead">只看领涨</option>
+    <option value="lag">只看掉队</option>
+  </select>
+  <button class="ghost" id="cfgBtn">真实数据接口</button>
+  <button id="exportBtn">导出JSON</button>
+</div>
+
+<div class="grid" id="grid"></div>
+<div id="srcTip" style="color:var(--sub);font-size:12px;margin-top:8px"></div>
+<canvas id="chart" height="240"></canvas>
+
+<div class="note">
+  <b>怎么看轮动：</b>领涨板块（红、强度高）往往是资金当前聚集地；掉队板块（绿）可能是上一轮热点退潮。
+  本工具把「当日涨跌幅」与「5日相对强度」合成<b>轮动强度</b>条，帮你快速定位资金切换方向。<br>
+  <b>接真实数据：</b>点「真实数据接口」填后端地址（返回 <code>[{name,chg,strength5}]</code> 的 JSON），即可用 StockSignal 行情源拉真实板块数据。
+</div>
+
+<footer>双击即用的零依赖小工具 · 板块数据为演示样本，仅供复盘参考，不构成投资建议</footer>
+
+<script>
+// 真实数据接入: 优先后端 /api/sector (akshare 板块实时涨跌幅),
+// 失败降级后端静态 data/sector.json, 再降级内置兜底。
+const API_ROOT = localStorage.getItem("hub_api") || "http://127.0.0.1:8787";
+const FALLBACK_SECTORS = [
+  {name:"半导体",chg:3.8,strength5:0.92},{name:"消费电子",chg:2.6,strength5:0.78},
+  {name:"电力设备",chg:2.1,strength5:0.71},{name:"国防军工",chg:1.9,strength5:0.65},
+  {name:"汽车",chg:2.3,strength5:0.73},{name:"计算机",chg:1.4,strength5:0.55},
+  {name:"通信",chg:1.7,strength5:0.62},{name:"有色金属",chg:1.1,strength5:0.48},
+  {name:"机械设备",chg:1.2,strength5:0.5},{name:"农林牧渔",chg:0.9,strength5:0.41},
+  {name:"化工",chg:0.3,strength5:0.25},{name:"医药生物",chg:0.6,strength5:0.32},
+  {name:"食品饮料",chg:-0.2,strength5:0.18},{name:"非银金融",chg:-0.3,strength5:0.08},
+  {name:"建筑装饰",chg:-0.6,strength5:-0.05},{name:"传媒",chg:-0.8,strength5:-0.15},
+  {name:"银行",chg:-0.5,strength5:0.12},{name:"房地产",chg:-1.1,strength5:-0.28},
+  {name:"煤炭",chg:-1.6,strength5:-0.45},{name:"钢铁",chg:-1.9,strength5:-0.55}
+];
+let SECTORS=[];
+let dataSrc="";
+let API_URL = localStorage.getItem("sr_api")||"";
+
+function statusOf(s){
+  if(s.strength5>=0.5) return {cls:"lead",txt:"领涨"};
+  if(s.strength5<=-0.2) return {cls:"lag",txt:"掉队"};
+  return {cls:"mid",txt:"中性"};
+}
+async function loadSectors(){
+  try{
+    const r=await fetch(API_ROOT+"/api/sector",{cache:"no-store"});
+    if(r.ok){
+      const j=await r.json();
+      if(j.ok && Array.isArray(j.rows) && j.rows.length){
+        SECTORS=j.rows.map(x=>({name:x.name,chg:x.chg!=null?x.chg:0,strength5:x.strength5!=null?x.strength5:0}));
+        dataSrc=j.offline?"离线静态样本(本地 data/sector.json)":"真实板块行情(akshare)";
+        render(); return;
+      }
+    }
+  }catch(e){ console.warn("sector 接口失败, 用兜底",e); }
+  SECTORS=FALLBACK_SECTORS; dataSrc="内置兜底样本"; render();
+}
+function render(){
+  const kw=(document.getElementById("kw").value||"").trim().toLowerCase();
+  const sortBy=document.getElementById("sortBy").value;
+  const view=document.getElementById("view").value;
+  let list=SECTORS.filter(s=>!kw||s.name.toLowerCase().includes(kw));
+  if(view==="lead") list=list.filter(s=>s.strength5>=0.5);
+  if(view==="lag") list=list.filter(s=>s.strength5<=-0.2);
+  list.sort((a,b)=>{
+    if(sortBy==="chg") return b.chg-a.chg;
+    if(sortBy==="name") return a.name.localeCompare(b.name,"zh");
+    return b.strength5-a.strength5;
+  });
+  const grid=document.getElementById("grid");
+  grid.innerHTML=list.map(s=>{
+    const st=statusOf(s);
+    const up=s.chg>=0;
+    const w=Math.min(100,Math.abs(s.strength5)*100);
+    const col=s.strength5>=0?"var(--up)":"var(--down)";
+    return `<div class="sector">
+      <div class="name">${s.name}<span class="tag ${st.cls}">${st.txt}</span></div>
+      <div class="chg ${up?'up':'down'}">${up?'+':''}${s.chg.toFixed(2)}%</div>
+      <div class="meter"><span style="width:${w}%;background:${col}"></span></div>
+      <div class="row2"><span>5日强度</span><span>${s.strength5>=0?'+':''}${(s.strength5*100).toFixed(0)}</span></div>
+    </div>`;
+  }).join("");
+  document.getElementById("srcTip").textContent="数据来源："+dataSrc;
+  drawChart(list);
+}
+function drawChart(list){
+  const cv=document.getElementById("chart"); const ctx=cv.getContext("2d");
+  const W=cv.width=cv.clientWidth, H=240; ctx.clearRect(0,0,W,H);
+  const top=list.slice(0,12);
+  const pad=40, bw=(W-pad*2)/top.length;
+  const max=Math.max(...top.map(s=>Math.abs(s.chg)),1);
+  ctx.fillStyle="#8a8a9a"; ctx.font="12px sans-serif"; ctx.textAlign="center";
+  top.forEach((s,i)=>{
+    const x=pad+i*bw+bw/2; const h=Math.abs(s.chg)/max*(H-pad*2);
+    ctx.fillStyle=s.chg>=0?"#ff4d4f":"#00d486";
+    const y=s.chg>=0?(H-pad)-h:pad;
+    ctx.fillRect(x-bw/3,y,bw*2/3,h);
+    ctx.save();ctx.translate(x,H-pad+4);ctx.rotate(-Math.PI/4);
+    ctx.fillStyle="#e8e8f0";ctx.textAlign="right";ctx.fillText(s.name,0,0);ctx.restore();
+  });
+  ctx.strokeStyle="#2a2a44";ctx.beginPath();ctx.moveTo(pad,pad);ctx.lineTo(pad,H-pad);ctx.lineTo(W-pad,H-pad);ctx.stroke();
+}
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(SECTORS,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="板块轮动.json";a.click();
+}
+document.getElementById("kw").addEventListener("input",render);
+document.getElementById("sortBy").addEventListener("change",render);
+document.getElementById("view").addEventListener("change",render);
+document.getElementById("exportBtn").addEventListener("click",exportJSON);
+document.getElementById("cfgBtn").addEventListener("click",()=>{
+  const v=prompt("填真实数据接口地址（返回 [{name,chg,strength5}] JSON）：",API_URL);
+  if(v!==null){API_URL=v.trim();localStorage.setItem("sr_api",API_URL);
+    if(API_URL){fetch(API_URL).then(r=>r.json()).then(d=>{if(Array.isArray(d)){SECTORS=d.map(x=>({name:x.name,chg:x.chg||0,strength5:x.strength5||0}));dataSrc="自定义接口";render();}}).catch(()=>alert("接口不可用，继续使用当前数据"));}
+  }
+});
+loadSectors();
+</script>
+
+  <footer class="hubfoot">
+    <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
+    <span>数据来自公开接口或本地演示，仅供学习与参考，不构成任何投资建议。</span>
+  </footer>
+</body>
+</html>

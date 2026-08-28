@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>书签收藏家</title>
+<style>
+:root{--bg:#0f0f23;--card:#1a1a2e;--card2:#221a3a;--txt:#e6e6f0;--sub:#8a8a9a;--line:#2a2a44;--accent:#667eea;--accent2:#764ba2;--up:#ff4d4f;--down:#00d486;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;min-height:100vh}
+a{color:var(--txt);text-decoration:none}
+.hubhome{position:fixed;top:14px;left:14px;z-index:50;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.wrap{max-width:900px;margin:0 auto;padding:70px 16px 40px}
+.head h1{font-size:26px;margin:0;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;color:transparent}
+.head p{color:var(--sub);margin:8px 0 24px}
+.inputrow{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.inputrow input{background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:10px;outline:none;flex:1}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:600}
+.btn.ghost{background:var(--card2);border:1px solid var(--line);color:var(--txt)}
+.tags{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tag{background:var(--card2);border:1px solid var(--line);padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer}
+.tag.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;transition:.15s}
+.item:hover{border-color:var(--accent)}
+.item .title{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
+.item .url{font-size:12px;color:var(--sub);margin:6px 0;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .meta{display:flex;justify-content:space-between;align-items:center}
+.item .chip{font-size:11px;background:var(--card2);padding:3px 8px;border-radius:6px}
+.hubfoot{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;font-size:12px;color:var(--sub)}
+</style>
+</head>
+<body>
+<a class="hubhome" href="../index.html">🏠 大厅</a>
+<div class="wrap">
+  <div class="head"><h1>🔖 书签收藏家</h1><p>收藏网页、论文、工具，按标签快速检索</p></div>
+  <div class="inputrow">
+    <input id="title" placeholder="标题">
+    <input id="url" placeholder="https://..." style="flex:1.5">
+    <input id="tag" placeholder="标签" style="width:120px">
+    <button class="btn" id="addBtn">添加</button>
+  </div>
+  <div class="tags" id="tags"></div>
+  <div class="inputrow"><input id="search" placeholder="🔍 搜索标题或链接" style="flex:1"></div>
+  <div class="grid" id="grid"></div>
+  <div class="hubfoot">
+    <a href="../index.html">← 返回应用大厅</a>
+    <span>数据存 localStorage</span>
+  </div>
+</div>
+<script>
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);});}
+function safeUrl(u){u=String(u==null?"":u);if(/^\s*javascript:/i.test(u))return"#";return esc(u);}
+
+const KEY="bookmark_data";
+let marks=JSON.parse(localStorage.getItem(KEY)||"null");
+if(!marks){
+  marks=[
+    {id:1,title:"GitHub TradingAgents",url:"https://github.com/virattt/TradingAgents",tag:"投研"},
+    {id:2,title:"akshare 文档",url:"https://www.akshare.xyz/",tag:"数据"},
+    {id:3,title:"Streamlit 组件库",url:"https://docs.streamlit.io/develop/api-reference",tag:"开发"},
+    {id:4,title:"东财行情中心",url:"https://quote.eastmoney.com/",tag:"行情"},
+  ];
+}
+let curTag="全部";
+let curQ="";
+function save(){localStorage.setItem(KEY,JSON.stringify(marks));render();}
+function allTags(){const s=new Set(marks.map(m=>m.tag)); return ["全部",...Array.from(s)];}
+function renderTags(){
+  document.getElementById("tags").innerHTML=allTags().map(t=>`<span class="tag ${t===curTag?'on':''}" data-t="${t}">${t}</span>`).join("");
+  document.querySelectorAll(".tag").forEach(el=>el.addEventListener("click",()=>{curTag=el.dataset.t;render();}));
+}
+function render(){
+  renderTags();
+  const q=curQ.toLowerCase();
+  const list=marks.filter(m=>(curTag==="全部"||m.tag===curTag) && (!q || m.title.toLowerCase().includes(q) || m.url.toLowerCase().includes(q)));
+  document.getElementById("grid").innerHTML=list.map(m=>`
+    <div class="item">
+      <div class="title">🔖 ${esc(m.title)}</div>
+      <a class="url" href="${safeUrl(m.url)}" target="_blank" rel="noopener">${esc(m.url)}</a>
+      <div class="meta">
+        <span class="chip">${esc(m.tag)}</span>
+        <button class="btn ghost" data-del="${m.id}" style="padding:4px 10px">删</button>
+      </div>
+    </div>
+  `).join("")||'<div style="color:var(--sub);grid-column:1/-1;text-align:center">暂无书签</div>';
+  document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{marks=marks.filter(m=>m.id!==+b.dataset.del);save();}));
+}
+document.getElementById("addBtn").addEventListener("click",()=>{
+  const title=document.getElementById("title").value.trim(); const url=document.getElementById("url").value.trim(); const tag=document.getElementById("tag").value.trim()||"未分类";
+  if(!title||!url)return alert("请填写标题和链接");
+  marks.push({id:Date.now(),title,url,tag}); document.getElementById("title").value=""; document.getElementById("url").value=""; document.getElementById("tag").value=""; save();
+});
+document.getElementById("search").addEventListener("input",e=>{curQ=e.target.value.trim();render();});
+render();
+</script>
+</body>
+</html>

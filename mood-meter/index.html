@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>市场情绪温度计 · MoodMeter</title>
+<style>
+  :root{
+    --bg:#0f0f23; --card:#1a1a2e; --card2:#21213a; --radius:12px;
+    --up:#ff4d4f; --down:#00d486; --memo:#8a8a9a;
+    --grad:linear-gradient(135deg,#667eea,#764ba2);
+    --text:#e8e8f0; --sub:#9a9ab0; --line:#2a2a44;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.6;padding:24px;max-width:1000px;margin:0 auto;}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:6px;}
+  .logo{width:42px;height:42px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:22px;}
+  h1{font-size:22px;font-weight:700;}
+  .tag{font-size:12px;color:var(--sub);background:var(--card2);padding:2px 8px;border-radius:20px;}
+  .desc{color:var(--sub);font-size:13px;margin:8px 0 18px;}
+  .panel{background:var(--card);border-radius:var(--radius);padding:18px;border:1px solid var(--line);margin-bottom:16px;}
+  .today{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
+  .today input,.today textarea{background:var(--card2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px;font-size:14px;}
+  .today input[type=date]{color-scheme:dark;}
+  .today textarea{flex:1;min-width:200px;resize:vertical;font-family:inherit;}
+  .btn{background:var(--grad);color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}
+  .btn:hover{opacity:.9;}
+  .gauge{display:flex;align-items:center;gap:18px;margin:10px 0;}
+  .gauge .num{font-size:46px;font-weight:800;}
+  .gauge .lab{font-size:14px;color:var(--sub);}
+  .stage{font-size:13px;padding:3px 10px;border-radius:20px;font-weight:600;}
+  .stage.bull{background:rgba(255,77,79,.15);color:var(--up);}
+  .stage.bear{background:rgba(0,212,134,.15);color:var(--down);}
+  .stage.neutral{background:rgba(138,138,154,.15);color:var(--memo);}
+  canvas{width:100%;height:340px;background:var(--card2);border-radius:10px;margin-top:8px;}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--sub);margin-top:8px;flex-wrap:wrap;}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle;}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+  .stat{background:var(--card2);border-radius:8px;padding:8px 14px;font-size:13px;}
+  .stat b{font-size:18px;}
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px;}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);}
+  th{color:var(--sub);font-weight:500;}
+  .del{color:var(--down);cursor:pointer;font-size:12px;}
+  .hint{font-size:12px;color:var(--memo);margin-top:8px;}
+  .bench{font-size:12px;color:var(--sub);margin-top:10px;line-height:1.7;}
+  .bench b{color:#f5a623;}
+
+  .hubfoot{max-width:1180px;margin:30px auto 0;padding:16px;text-align:center;
+    font-size:12px;color:var(--sub);border-top:1px solid var(--line);line-height:1.8}
+  .hubfoot a{color:var(--g1);text-decoration:none;font-weight:600}
+  .hubfoot a:hover{text-decoration:underline}
+
+  .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35);transition:filter .15s}
+  .hubhome:hover{filter:brightness(1.12)}
+</style>
+</head>
+<body>
+  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+
+<header>
+  <div class="logo">🌡️</div>
+  <div><h1>市场情绪温度计 <span class="tag">MoodMeter</span></h1></div>
+</header>
+<div class="desc">每天给市场打 0–100 分（恐慌←0……100→贪婪），叠加到 2008 年以来的牛熊基准上，看清完整周期。数据存本地。</div>
+
+<div class="panel">
+  <div class="today">
+    <input type="date" id="d" />
+    <input type="number" id="score" min="0" max="100" placeholder="0-100 分" style="width:120px" />
+    <textarea id="note" placeholder="今天的市场感受 / 关键事件（可选）" rows="1"></textarea>
+    <button class="btn" id="add">记一笔</button>
+  </div>
+  <div class="gauge">
+    <div class="num" id="lastNum" style="color:var(--memo)">--</div>
+    <div>
+      <div class="lab">最近一次记录</div>
+      <div class="stage neutral" id="stageTag">暂无记录</div>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat">记录数 <b id="sCount">0</b></div>
+    <div class="stat">均值 <b id="sAvg">--</b></div>
+    <div class="stat">最高 <b id="sMax">--</b></div>
+    <div class="stat">最低 <b id="sMin">--</b></div>
+  </div>
+</div>
+
+<div class="panel">
+  <h3 style="font-size:15px;margin-bottom:4px;">情绪趋势（2008 起 · 含牛熊基准）</h3>
+  <canvas id="chart"></canvas>
+  <div class="legend">
+    <span><i style="background:#f5a623"></i>你的每日记录</span>
+    <span><i style="background:rgba(255,77,79,.55)"></i>牛市阶段</span>
+    <span><i style="background:rgba(0,212,134,.5)"></i>熊市阶段</span>
+    <span><i style="background:#667eea"></i>牛熊分界(50)</span>
+  </div>
+  <div class="bench" id="bench"></div>
+</div>
+
+<div class="panel">
+  <h3 style="font-size:15px;margin-bottom:4px;">我的记录</h3>
+  <table id="tbl"><thead><tr><th>日期</th><th>分数</th><th>备注</th><th></th></tr></thead><tbody></tbody></table>
+  <div class="hint">数据保存在本浏览器 localStorage，导出可备份 / 迁移。</div>
+  <div style="margin-top:10px;display:flex;gap:8px;">
+    <button class="btn" id="exp" style="background:var(--card2);color:var(--text);">导出 JSON</button>
+    <button class="btn" id="imp" style="background:var(--card2);color:var(--text);">导入 JSON</button>
+    <input type="file" id="file" accept="application/json" style="display:none" />
+  </div>
+</div>
+
+<div class="bench">
+  <b>📜 内置 A股牛熊基准（2008 起，公开历史数据）</b><br/>
+  数据来源：公开历史牛熊节点（上证指数）：2008.10 见底 1664 → 2009 反弹至 3478 → 2013 探底 1849 → 2015.6 杠杆牛顶 5178 → 2016 熔断底 2638 → 2018 底 2440 → 2019–2021 结构牛至 3731 → 2021–2024 长熊 → 2024 起新一轮。这些阶段作为背景底色，帮助你定位自己记录的情绪处在周期的哪个位置。
+</div>
+
+<footer style="margin-top:20px;color:var(--sub);font-size:12px;text-align:center;">双击即用的零依赖小工具 · 情绪分仅供自我复盘，不构成投资建议 · 行情类工具统一数据源：新浪 hq.sinajs.cn + akshare（模仿 StockSignal）</footer>
+
+<script>
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);});}
+function safeUrl(u){u=String(u==null?"":u);if(/^\s*javascript:/i.test(u))return"#";return esc(u);}
+
+// ===== 2008 起牛熊基准（公开历史节点，month 精度）=====
+// stage: bull=牛市(偏多) bear=熊市(偏空) 用上证指数主要阶段近似
+const BENCH = [
+  {start:"2008-01", end:"2008-10", stage:"bear", label:"6124→1664 金融危机熊市"},
+  {start:"2008-10", end:"2009-08", stage:"bull", label:"四万亿反弹 1664→3478"},
+  {start:"2009-08", end:"2013-06", stage:"bear", label:"漫长阴跌 3478→1849"},
+  {start:"2013-06", end:"2015-06", stage:"bull", label:"杠杆牛/改革牛 1849→5178"},
+  {start:"2015-06", end:"2016-01", stage:"bear", label:"股灾+熔断 5178→2638"},
+  {start:"2016-01", end:"2018-01", stage:"bull", label:"慢牛修复 2638→3587"},
+  {start:"2018-01", end:"2019-01", stage:"bear", label:"贸易战熊市 3587→2440"},
+  {start:"2019-01", end:"2021-02", stage:"bull", label:"结构牛/核心资产 2440→3731"},
+  {start:"2021-02", end:"2024-02", stage:"bear", label:"长熊 3731→2638"},
+  {start:"2024-02", end:"2026-12", stage:"bull", label:"新一轮回暖 2638→"}
+];
+
+const KEY="mood_records_v1";
+let recs = load();
+
+function load(){ try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return [];} }
+function persist(){ localStorage.setItem(KEY, JSON.stringify(recs)); }
+
+function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+document.getElementById("d").value = todayStr();
+
+function stageOf(s){
+  if(s>=66) return {cls:"bull",txt:"贪婪"};
+  if(s>=50) return {cls:"bull",txt:"偏多"};
+  if(s>=34) return {cls:"neutral",txt:"中性"};
+  if(s>=17) return {cls:"bear",txt:"偏空"};
+  return {cls:"bear",txt:"恐慌"};
+}
+function colorOf(s){ return s>=50 ? "#ff4d4f" : "#00d486"; }
+
+function renderStats(){
+  document.getElementById("sCount").textContent=recs.length;
+  if(!recs.length){ document.getElementById("sAvg").textContent="--";document.getElementById("sMax").textContent="--";document.getElementById("sMin").textContent="--";return; }
+  const arr=recs.map(r=>r.score);
+  const avg=Math.round(arr.reduce((a,b)=>a+b,0)/arr.length);
+  document.getElementById("sAvg").textContent=avg;
+  document.getElementById("sMax").textContent=Math.max(...arr);
+  document.getElementById("sMin").textContent=Math.min(...arr);
+  const last=recs[recs.length-1];
+  document.getElementById("lastNum").textContent=last.score;
+  document.getElementById("lastNum").style.color=colorOf(last.score);
+  const st=stageOf(last.score);
+  const tag=document.getElementById("stageTag");
+  tag.className="stage "+st.cls; tag.textContent=st.txt+" · "+last.date;
+}
+
+function renderTable(){
+  const tb=document.querySelector("#tbl tbody");
+  tb.innerHTML=recs.slice().reverse().map(r=>`
+    <tr><td>${esc(r.date)}</td><td style="color:${colorOf(r.score)};font-weight:600">${r.score}</td><td>${esc(r.note||"")}</td><td><span class="del" data-id="${r.id}">删除</span></td></tr>
+  `).join("");
+  tb.querySelectorAll(".del").forEach(el=>el.onclick=()=>{
+    if(confirm("删除这条记录？")){ recs=recs.filter(r=>r.id!==el.dataset.id); persist(); renderAll(); }
+  });
+}
+
+// ===== 趋势图（含牛熊基准底色）=====
+function drawChart(){
+  const c=document.getElementById("chart");
+  const ctx=c.getContext("2d");
+  const DPR=window.devicePixelRatio||1;
+  const W=c.clientWidth, H=c.clientHeight;
+  c.width=W*DPR; c.height=H*DPR; ctx.scale(DPR,DPR);
+  ctx.clearRect(0,0,W,H);
+
+  const padL=36,padR=12,padT=14,padB=24;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const yMin=0,yMax=100;
+  const yOf=v=>padT+plotH*(1-(v-yMin)/(yMax-yMin));
+
+  // X 轴范围：2008-01 ~ max(2026-12, 最新记录)
+  const start=new Date(2008,0,1);
+  const endRec=recs.length?new Date(recs[recs.length-1].date):null;
+  let end=new Date(2026,11,31);
+  if(endRec && endRec>end) end=endRec;
+  const xOf=dt=>padL+plotW*( (dt-start)/(end-start) );
+
+  // 牛熊底色
+  BENCH.forEach(b=>{
+    const bs=new Date(b.start), be=new Date(b.end);
+    const x1=xOf(bs), x2=xOf(be);
+    ctx.fillStyle = b.stage==="bull" ? "rgba(255,77,79,.12)" : "rgba(0,212,134,.10)";
+    ctx.fillRect(x1,padT,x2-x1,plotH);
+  });
+  // 牛熊分界 50
+  ctx.strokeStyle="rgba(102,126,234,.5)"; ctx.setLineDash([5,4]); ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(padL,yOf(50)); ctx.lineTo(W-padR,yOf(50)); ctx.stroke(); ctx.setLineDash([]);
+
+  // 网格 + Y 刻度
+  ctx.strokeStyle="rgba(255,255,255,.06)"; ctx.fillStyle="#6a6a82"; ctx.font="10px sans-serif"; ctx.textAlign="right";
+  [0,25,50,75,100].forEach(v=>{
+    ctx.beginPath(); ctx.moveTo(padL,yOf(v)); ctx.lineTo(W-padR,yOf(v)); ctx.stroke();
+    ctx.fillText(v,padL-6,yOf(v)+3);
+  });
+  // X 刻度（每2年）
+  ctx.textAlign="center";
+  for(let y=2008;y<=end.getFullYear();y+=2){
+    const dt=new Date(y,0,1); const x=xOf(dt);
+    ctx.fillText(y,x, H-8);
+  }
+
+  // 用户记录折线
+  if(recs.length){
+    ctx.strokeStyle="#f5a623"; ctx.lineWidth=2; ctx.beginPath();
+    recs.forEach((r,i)=>{
+      const dt=new Date(r.date); const x=xOf(dt), y=yOf(r.score);
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    });
+    ctx.stroke();
+    recs.forEach(r=>{
+      const dt=new Date(r.date); const x=xOf(dt), y=yOf(r.score);
+      ctx.fillStyle=colorOf(r.score); ctx.beginPath(); ctx.arc(x,y,3,0,7); ctx.fill();
+    });
+  } else {
+    ctx.fillStyle="#6a6a82"; ctx.textAlign="center"; ctx.font="13px sans-serif";
+    ctx.fillText("还没有记录，记一笔后这里会画出你的情绪曲线", W/2, H/2);
+  }
+  // bench 文字
+  document.getElementById("bench").innerHTML = "<b>📜 当前基准定位：</b>" + BENCH.map(b=>`<span style="color:${b.stage==='bull'?'#ff4d4f':'#00d486'}">${b.start}~${b.end} ${b.label}</span>`).join(" ｜ ");
+}
+
+function renderAll(){ renderStats(); renderTable(); drawChart(); }
+
+// ===== 事件 =====
+document.getElementById("add").onclick=()=>{
+  const date=document.getElementById("d").value||todayStr();
+  const score=parseInt(document.getElementById("score").value,10);
+  const note=document.getElementById("note").value.trim();
+  if(isNaN(score)||score<0||score>100){ alert("请输入 0-100 之间的分数"); return; }
+  recs.push({id:Date.now()+"_"+Math.random().toString(36).slice(2,6), date, score, note});
+  recs.sort((a,b)=>a.date.localeCompare(b.date));
+  persist();
+  document.getElementById("score").value=""; document.getElementById("note").value="";
+  renderAll();
+};
+document.getElementById("exp").onclick=()=>{
+  const blob=new Blob([JSON.stringify(recs,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="mood_records.json"; a.click();
+};
+document.getElementById("imp").onclick=()=>document.getElementById("file").click();
+document.getElementById("file").onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{ const arr=JSON.parse(rd.result); const map={}; recs.forEach(r=>map[r.id]=r);
+      arr.forEach(r=>{if(r&&r.id)map[r.id]={id:r.id,date:r.date,score:r.score,note:r.note||""};});
+      recs=Object.values(map).sort((a,b)=>a.date.localeCompare(b.date)); persist(); renderAll();
+    }catch(err){ alert("导入失败：JSON 格式错误"); }
+  };
+  rd.readAsText(f);
+};
+
+window.addEventListener("resize",drawChart);
+renderAll();
+</script>
+
+  <footer class="hubfoot">
+    <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
+    <span>数据来自公开接口或本地演示，仅供学习与参考，不构成任何投资建议。</span>
+  </footer>
+</body>
+</html>

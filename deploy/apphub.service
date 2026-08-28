@@ -1,0 +1,25 @@
+# App Hub 生产服务单元 (腾讯云轻量/CloudBase/Lighthouse 等 systemd 主机)
+# 用法:
+#   sudo cp deploy/apphub.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now apphub
+# 效果: 开机自启 + 崩溃自动重启 + 后台自动刷新真实数据 (REFRESH_HOURS)
+[Unit]
+Description=App Hub (Flask 微应用 + 真实行情后端)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/apphub
+Environment=OFFLINE_MODE=False
+Environment=REFRESH_HOURS=6
+Environment=PORT=8787
+ExecStart=/usr/bin/python3 /opt/apphub/backend/app.py
+Restart=always
+RestartSec=5
+StandardOutput=journalctl
+StandardError=journalctl
+
+[Install]
+WantedBy=multi-user.target

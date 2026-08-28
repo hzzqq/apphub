@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>价格预警小工具 · PriceAlert</title>
+<style>
+  :root{
+    --bg:#0f0f23; --card:#1a1a2e; --card2:#21213a; --radius:12px;
+    --up:#ff4d4f; --down:#00d486; --memo:#8a8a9a;
+    --grad:linear-gradient(135deg,#667eea,#764ba2);
+    --text:#e8e8f0; --sub:#9a9ab0; --line:#2a2a44;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.6;padding:24px;max-width:1000px;margin:0 auto;}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:6px;}
+  .logo{width:42px;height:42px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:22px;}
+  h1{font-size:22px;font-weight:700;}
+  .tag{font-size:12px;color:var(--sub);background:var(--card2);padding:2px 8px;border-radius:20px;}
+  .desc{color:var(--sub);font-size:13px;margin:8px 0 18px;}
+  .panel{background:var(--card);border-radius:var(--radius);padding:18px;border:1px solid var(--line);margin-bottom:16px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .row input,.row select{background:var(--card2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px;font-size:14px;}
+  .btn{background:var(--grad);color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}
+  .btn:hover{opacity:.9;}
+  .btn.ghost{background:var(--card2);color:var(--text);}
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px;}
+  th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);}
+  th{color:var(--sub);font-weight:500;}
+  .up{color:var(--up);} .down{color:var(--down);} .memo{color:var(--memo);}
+  .del{color:var(--down);cursor:pointer;font-size:12px;}
+  .reset{color:var(--accent);cursor:pointer;font-size:12px;margin-left:8px;}
+  .trig{color:#f5a623;font-weight:600;}
+  .hint{font-size:12px;color:var(--memo);margin-top:8px;}
+  .cfg{margin-top:12px;border-top:1px solid var(--line);padding-top:12px;}
+  .cfg input{flex:1;min-width:200px;}
+  .stat{background:var(--card2);border-radius:8px;padding:8px 14px;font-size:13px;}
+  .stat b{font-size:18px;}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+  #toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#2a1f2e;border:1px solid #5a2a40;color:#f0b8c8;padding:12px 20px;border-radius:10px;display:none;z-index:99;font-size:14px;max-width:80%;}
+  .live{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--down);margin-left:6px;}
+  .live.on{background:var(--up);animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .hubfoot{max-width:1180px;margin:30px auto 0;padding:16px;text-align:center;
+    font-size:12px;color:var(--sub);border-top:1px solid var(--line);line-height:1.8}
+  .hubfoot a{color:var(--g1);text-decoration:none;font-weight:600}
+  .hubfoot a:hover{text-decoration:underline}
+
+  .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35);transition:filter .15s}
+  .hubhome:hover{filter:brightness(1.12)}
+</style>
+</head>
+<body>
+  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+
+<header>
+  <div class="logo">📈</div>
+  <div><h1>价格预警小工具 <span class="tag">PriceAlert</span></h1></div>
+</header>
+<div class="desc">设自选股 + 目标价 + 涨/跌方向，接入实时行情自动监控，触发时弹窗 + 微信提醒。数据存本地。</div>
+
+<div id="toast"></div>
+
+<div class="panel">
+  <h3 style="font-size:15px;margin-bottom:10px;">➕ 添加预警</h3>
+  <div class="row">
+    <input id="code" placeholder="股票代码 如 sh600519 / 600519" style="width:170px" />
+    <input id="name" placeholder="名称（可选）" style="width:130px" />
+    <select id="dir"><option value="up">涨到 ≥</option><option value="down">跌到 ≤</option></select>
+    <input id="target" type="number" step="0.01" placeholder="目标价格" style="width:130px" />
+    <button class="btn" id="add">添加</button>
+  </div>
+  <div class="hint">代码支持带市场前缀（sh600519 / sz000001）或纯数字（自动识别沪/深）。</div>
+</div>
+
+<div class="panel">
+  <h3 style="font-size:15px;margin-bottom:6px;">⚙️ 实时监控设置 <span class="live" id="liveDot"></span></h3>
+  <div class="row">
+    <label class="hint" style="margin:0">行情刷新间隔</label>
+    <select id="interval"><option value="0">关闭</option><option value="15">15秒</option><option value="30">30秒</option><option value="60" selected>60秒</option><option value="300">5分钟</option></select>
+    <button class="btn ghost" id="apply">应用</button>
+  </div>
+  <div class="cfg row">
+    <input id="src" placeholder="行情源URL模板，留空用内置新浪接口。如 https://hq.sinajs.cn/list=" />
+    <button class="btn ghost" id="saveSrc">保存行情源</button>
+  </div>
+  <div class="cfg row">
+    <input id="wx" placeholder="微信提醒 Webhook（企业微信群机器人 / Server酱 SCKey 接口），留空不推送" />
+    <button class="btn ghost" id="saveWx">保存微信</button>
+  </div>
+  <div class="hint">📱 微信提醒：填入企业微信群机器人 webhook 完整地址，或 Server酱 «https://sctapi.ftqq.com/你的SCKey.send»。触发预警时自动 POST 提醒。浏览器弹窗需在首次打开时授权通知权限。</div>
+  <div class="cfg row" style="align-items:center">
+    <label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--txt)"><input type="checkbox" id="soundOn" checked /> 🔊 声音提醒（触发时蜂鸣）</label>
+    <button class="btn ghost" id="testSound">测试声音</button>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="stats">
+    <div class="stat">预警数 <b id="cTotal">0</b></div>
+    <div class="stat">已触发 <b id="cTrig" style="color:#f5a623">0</b></div>
+    <div class="stat">监控中 <b id="cLive">关</b></div>
+  </div>
+  <table id="tbl"><thead><tr><th>代码</th><th>名称</th><th>方向</th><th>目标</th><th>现价</th><th>距触发</th><th>状态</th><th></th></tr></thead><tbody></tbody></table>
+  <div style="margin-top:10px;display:flex;gap:8px;">
+    <button class="btn ghost" id="exp">导出</button>
+    <button class="btn ghost" id="imp">导入</button>
+    <button class="btn ghost" id="testWx">测试微信</button>
+    <input type="file" id="file" accept="application/json" style="display:none" />
+  </div>
+</div>
+
+<footer style="margin-top:20px;color:var(--sub);font-size:12px;text-align:center;">双击即用的零依赖小工具 · 实时行情依赖公开接口，仅供参考，不构成投资建议</footer>
+
+<script>
+const KEY="pa_alerts_v1", SRCKEY="pa_src_v1", WXKEY="pa_wx_v1", SNDKEY="pa_sound_v1";
+let alerts=load();
+let srcUrl=localStorage.getItem(SRCKEY)||"";
+let wxUrl=localStorage.getItem(WXKEY)||"";
+let soundOn=localStorage.getItem(SNDKEY)!=="0";
+document.getElementById("src").value=srcUrl;
+document.getElementById("wx").value=wxUrl;
+document.getElementById("soundOn").checked=soundOn;
+let timer=null;
+
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return [];}}
+function persist(){localStorage.setItem(KEY,JSON.stringify(alerts));}
+function beep(){
+  if(!soundOn) return;
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type="sine"; o.frequency.value=880;
+    g.gain.setValueAtTime(0.001,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.3,ctx.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.4);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime+0.42);
+    // 双声提醒
+    const o2=ctx.createOscillator(), g2=ctx.createGain();
+    o2.type="sine"; o2.frequency.value=1320;
+    g2.gain.setValueAtTime(0.001,ctx.currentTime+0.45);
+    g2.gain.exponentialRampToValueAtTime(0.3,ctx.currentTime+0.47);
+    g2.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.8);
+    o2.connect(g2); g2.connect(ctx.destination);
+    o2.start(ctx.currentTime+0.45); o2.stop(ctx.currentTime+0.82);
+  }catch(e){console.warn("beep 失败",e);}
+}
+
+function normCode(c){
+  c=c.trim().toLowerCase();
+  if(c.startsWith("sh")||c.startsWith("sz")) return c;
+  if(/^\d{6}$/.test(c)) return (c[0]==="6"?"sh":"sz")+c;
+  return c;
+}
+function toast(msg){
+  const t=document.getElementById("toast"); t.textContent=msg; t.style.display="block";
+  setTimeout(()=>t.style.display="none",6000);
+}
+function sendWx(text){
+  if(!wxUrl) return;
+  // 企业微信机器人
+  if(wxUrl.includes("qyapi.weixin.qq.com")){
+    fetch(wxUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({msgtype:"text",text:{content:text}})}).catch(()=>{});
+  } else if(wxUrl.includes("ftqq.com")){ // Server酱
+    const u=wxUrl+(wxUrl.includes("?")?"&":"?")+"title="+encodeURIComponent("价格预警")+"&desp="+encodeURIComponent(text);
+    fetch(u).catch(()=>{});
+  } else {
+    fetch(wxUrl,{method:"POST",body:JSON.stringify({text})}).catch(()=>{});
+  }
+}
+function notify(title,body){
+  if("Notification" in window && Notification.permission==="granted"){ new Notification(title,{body}); }
+  sendWx(title+"\n"+body);
+}
+
+// ===== 实时行情获取（模仿 StockSignal 数据源：新浪 hq.sinajs.cn + GBK 解码 + Referer）=====
+// StockSignal 真实实现(fetcher.get_realtime_quote)：
+//   url = https://hq.sinajs.cn/list={前缀+代码}
+//   headers = { Referer: https://finance.sina.com.cn, UA: ... }
+//   响应以 GBK 解码（否则中文名称乱码）
+async function fetchQuote(code){
+  const c=normCode(code);
+  // 后端模式：若行情源填的是本后端根地址(http://127.0.0.1:8787)，走 /api/quote
+  if(srcUrl && /:\d{2,5}\/?$/.test(srcUrl.replace(/\/api.*$/,"")) || (srcUrl&&srcUrl.includes("127.0.0.1"))){
+    try{
+      const base=srcUrl.replace(/\/api.*$/,"").replace(/\/$/,"");
+      const r=await fetch(base+"/api/quote?code="+encodeURIComponent(c),{cache:"no-store"});
+      if(r.ok){ const j=await r.json(); if(j.ok&&j.price){ return {name:j.name, price:j.price, prev:j.prev, chg:j.chg, offline: !!j.offline}; } }
+    }catch(e){ console.warn("后端行情失败，回退新浪",e); }
+  }
+  let url = "https://hq.sinajs.cn/list="+c;
+  try{
+    const r=await fetch(url,{
+      headers:{ "Referer":"https://finance.sina.com.cn", "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" }
+    });
+    // 新浪返回 GBK，需按字节解码避免中文乱码
+    const buf=await r.arrayBuffer();
+    const txt=new TextDecoder("gbk").decode(new Uint8Array(buf));
+    // 新浪格式：var hq_str_sh600519="名称,现价,昨收,今开,最高,最低,...,现价,...";
+    const m=txt.match(/="(.+)"/);
+    if(!m) return null;
+    const p=m[1].split(",");
+    const name=p[0], price=parseFloat(p[3]);
+    const prev=parseFloat(p[2]);
+    if(isNaN(price)) return null;
+    return {name, price, prev, chg: prev?((price-prev)/prev*100):0};
+  }catch(e){
+    // akshare 兜底提示：若新浪不可达，可配置后端（akshare.stock_zh_a_spot 等）
+    console.warn("新浪行情获取失败，可改用 akshare 后端源",e); return null;
+  }
+}
+
+// ===== 检查触发 =====
+async function checkAll(){
+  let triggeredNow=false, usedOffline=false;
+  for(const a of alerts){
+    if(a.triggered) continue;
+    const q=await fetchQuote(a.code);
+    if(!q) continue;
+    if(q.offline) usedOffline=true;
+    a.last=q.price;
+    if(q.name && !a.name) a.name=q.name;
+    const hit = a.dir==="up" ? q.price>=a.target : q.price<=a.target;
+    if(hit){
+      a.triggered=true; triggeredNow=true;
+      const msg=`「${a.name||a.code}」已${a.dir==="up"?"涨到":"跌到"} ${a.target}（现价 ${q.price}）`;
+      toast("🔔 "+msg);
+      notify("价格预警触发",msg);
+      beep();
+    }
+  }
+  persist(); renderTable();
+  if(triggeredNow){ renderStats(); }
+  if(usedOffline && !window.__warnedOffline){
+    toast("⚠ 当前价格含后端离线样本（模拟价），非真实行情");
+    window.__warnedOffline=true;
+  }
+}
+
+function startMonitor(sec){
+  if(timer) clearInterval(timer);
+  if(!sec){ document.getElementById("cLive").textContent="关"; document.getElementById("liveDot").className="live"; return; }
+  document.getElementById("cLive").textContent=sec+"s";
+  document.getElementById("liveDot").className="live on";
+  timer=setInterval(checkAll, sec*1000);
+  checkAll();
+}
+
+// ===== 渲染 =====
+function renderStats(){
+  document.getElementById("cTotal").textContent=alerts.length;
+  document.getElementById("cTrig").textContent=alerts.filter(a=>a.triggered).length;
+}
+function renderTable(){
+  const tb=document.querySelector("#tbl tbody");
+  tb.innerHTML=alerts.map(a=>{
+    let dist="--", cls="memo";
+    if(a.last!=null){
+      const d=((a.target-a.last)/a.last*100);
+      dist=(a.dir==="up"?"还差 ":"还高 ")+Math.abs(d).toFixed(2)+"%";
+      cls=a.dir==="up"?(a.last>=a.target?"up":"memo"):(a.last<=a.target?"down":"memo");
+    }
+    return `<tr>
+      <td>${a.code}</td><td>${a.name||""}</td>
+      <td class="${a.dir==="up"?"up":"down"}">${a.dir==="up"?"涨到≥":"跌到≤"}</td>
+      <td>${a.target}</td>
+      <td class="${a.last>=0?'':''}">${a.last!=null?a.last:"--"}</td>
+      <td class="${cls}">${dist}</td>
+      <td>${a.triggered?'<span class="trig">已触发</span>':'<span class="memo">监控中</span>'}</td>
+      <td><span class="del" data-id="${a.id}">删除</span>${a.triggered?'<span class="reset" data-id="'+a.id+'">重置</span>':''}</td>
+    </tr>`;
+  }).join("");
+  tb.querySelectorAll(".del").forEach(el=>el.onclick=()=>{
+    if(confirm("删除这条预警？")){ alerts=alerts.filter(a=>a.id!==el.dataset.id); persist(); renderStats(); renderTable(); }
+  });
+  tb.querySelectorAll(".reset").forEach(el=>el.onclick=()=>{
+    const a=alerts.find(x=>x.id===el.dataset.id);
+    if(a){ a.triggered=false; persist(); renderTable(); toast("已重置，继续监控中"); }
+  });
+}
+
+// ===== 事件 =====
+document.getElementById("add").onclick=()=>{
+  const code=document.getElementById("code").value.trim();
+  const name=document.getElementById("name").value.trim();
+  const dir=document.getElementById("dir").value;
+  const target=parseFloat(document.getElementById("target").value);
+  if(!code||isNaN(target)){ alert("请填代码和目标价"); return; }
+  alerts.push({id:Date.now()+"_"+Math.random().toString(36).slice(2,5),code:normCode(code),name,dir,target,last:null,triggered:false});
+  persist();
+  document.getElementById("code").value="";document.getElementById("name").value="";document.getElementById("target").value="";
+  renderStats(); renderTable();
+};
+document.getElementById("apply").onclick=()=>{ startMonitor(parseInt(document.getElementById("interval").value,10)); toast("监控已应用"); };
+document.getElementById("saveSrc").onclick=()=>{ srcUrl=document.getElementById("src").value.trim(); localStorage.setItem(SRCKEY,srcUrl); toast("行情源已保存"); };
+document.getElementById("saveWx").onclick=()=>{ wxUrl=document.getElementById("wx").value.trim(); localStorage.setItem(WXKEY,wxUrl); toast("微信提醒已保存"); };
+document.getElementById("soundOn").onchange=()=>{ soundOn=document.getElementById("soundOn").checked; localStorage.setItem(SNDKEY,soundOn?"1":"0"); toast("声音提醒已"+(soundOn?"开启":"关闭")); };
+document.getElementById("testSound").onclick=()=>{ beep(); };
+document.getElementById("testWx").onclick=()=>{
+  if(!wxUrl){ alert("请先填写微信 Webhook"); return; }
+  sendWx("【PriceAlert 测试】这是一条测试提醒，若收到说明配置成功。");
+  toast("测试提醒已发送，请查收微信");
+};
+document.getElementById("exp").onclick=()=>{
+  const blob=new Blob([JSON.stringify(alerts,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="price_alerts.json"; a.click();
+};
+document.getElementById("imp").onclick=()=>document.getElementById("file").click();
+document.getElementById("file").onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{ const arr=JSON.parse(rd.result); const map={}; alerts.forEach(a=>map[a.id]=a);
+    arr.forEach(a=>{if(a&&a.id)map[a.id]=a;}); alerts=Object.values(map); persist(); renderStats(); renderTable();
+  }catch(err){alert("导入失败");} };
+  rd.readAsText(f);
+};
+
+if("Notification" in window && Notification.permission==="default"){ Notification.requestPermission(); }
+renderStats(); renderTable();
+</script>
+
+  <footer class="hubfoot">
+    <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
+    <span>数据来自公开接口或本地演示，仅供学习与参考，不构成任何投资建议。</span>
+  </footer>
+</body>
+</html>

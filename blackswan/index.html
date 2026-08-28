@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>黑天鹅档案 · Black Swan Archive</title>
+<style>
+:root{ --bg:#0f0f23; --panel:#1a1a2e; --panel2:#22223b; --line:#2e2e4d;
+  --c-red:#ff4d4f; --c-green:#00d486; --c-purple:#667eea; --c-teal:#37c0c9;
+  --c-amber:#f6c453; --c-gray:#8a8a9a; --text:#e8e8f0; --sub:#9a9ab0;
+  --up:#ff4d4f; --down:#00d486; --g1:#667eea; --g2:#764ba2; --card2:#22223b; --txt:#e8e8f0;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"Microsoft YaHei","Segoe UI",sans-serif;padding:18px;line-height:1.5}
+h1{font-size:22px;font-weight:700;background:linear-gradient(90deg,#667eea,#764ba2);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--sub);font-size:13px;margin-top:4px;margin-bottom:16px}
+.wrap{max-width:1120px;margin:0 auto}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;align-items:center}
+.btn{background:linear-gradient(90deg,#667eea,#764ba2);color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+.btn.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+.btn.sm{padding:6px 10px;font-size:12px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{background:var(--panel2);color:var(--sub);border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer;font-size:12.5px}
+.seg button.on{background:linear-gradient(90deg,#667eea,#764ba2);color:#fff;border-color:transparent}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.panel h2{font-size:15px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dot{width:10px;height:10px;border-radius:50%}
+.stat-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.stat{background:var(--panel2);border-radius:10px;padding:10px 14px;flex:1;min-width:120px;border:1px solid var(--line)}
+.stat .n{font-size:24px;font-weight:700}
+.stat .l{font-size:12px;color:var(--sub)}
+.gauge{display:flex;align-items:center;gap:16px}
+.gauge svg{flex:none}
+.gauge .verdict{font-size:15px}
+.gauge .verdict b{font-size:20px}
+.searchbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.searchbar input[type=text],.searchbar input[type=date]{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px;font-size:13px;font-family:inherit}
+.searchbar input[type=text]{flex:1;min-width:220px}
+.searchbar select{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px;font-size:13px}
+.timeline{position:relative;padding-left:0}
+.evt{background:var(--panel2);border-left:4px solid var(--c-amber);border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.evt.s-high{border-left-color:var(--c-red)}
+.evt.s-mid{border-left-color:#ff8c42}
+.evt.s-low{border-left-color:var(--c-purple)}
+.evt .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.evt .title{font-size:14.5px;font-weight:700}
+.evt .date{color:var(--sub);font-size:12px;white-space:nowrap}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.tag{font-size:11px;padding:2px 8px;border-radius:6px;background:rgba(255,255,255,.08);color:var(--sub)}
+.tag.mkt{background:rgba(55,192,201,.14);color:var(--c-teal)}
+.tag.cat{background:rgba(102,126,234,.16);color:#9db0ff}
+.sev{font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;white-space:nowrap}
+.sev-high{background:rgba(255,77,79,.15);color:var(--c-red)}
+.sev-mid{background:rgba(246,196,83,.15);color:var(--c-amber)}
+.sev-low{background:rgba(0,212,134,.15);color:var(--c-green)}
+.evt .impact{font-size:13px;margin-top:8px;color:#e8e8f0}
+.evt .impact b{color:var(--c-red)}
+.evt-more{margin-top:8px;background:rgba(0,0,0,.18);border-radius:8px;padding:4px 10px;font-size:12.5px}
+.evt-more summary{cursor:pointer;color:var(--sub);user-select:none}
+.evt-more .desc{margin-top:8px;color:#cfcfe0;line-height:1.7}
+.evt .del{margin-top:8px}
+.evt .del a{color:var(--c-red);font-size:12px;text-decoration:none}
+mark{background:rgba(246,196,83,.38);color:inherit;border-radius:3px;padding:0 1px}
+.tip{color:var(--sub);font-size:12px;margin-top:8px}
+.footnote{color:var(--sub);font-size:11px;margin-top:18px;text-align:center;line-height:1.7}
+.warn{background:rgba(246,196,83,.1);border:1px solid rgba(246,196,83,.4);border-radius:8px;padding:10px;font-size:12px;color:var(--c-amber);margin-bottom:14px}
+.empty{text-align:center;color:var(--sub);padding:30px 10px;font-size:13px}
+.hubfoot{max-width:1180px;margin:30px auto 0;padding:16px;text-align:center;font-size:12px;color:var(--sub);border-top:1px solid var(--line);line-height:1.8}
+.hubfoot a{color:var(--g1);text-decoration:none;font-weight:600}
+.hubfoot a:hover{text-decoration:underline}
+.hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35)}
+.hubhome:hover{filter:brightness(1.12)}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;z-index:50}
+.modal.show{display:flex}
+.modal-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;width:520px;max-width:94vw;max-height:90vh;overflow:auto}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-grid .full{grid-column:1/3}
+.form-grid input,.form-grid select,.form-grid textarea{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;width:100%}
+.form-grid textarea{resize:vertical;min-height:54px}
+label{font-size:12px;color:var(--sub);display:block;margin-bottom:4px}
+.mkt-chk{display:flex;gap:8px;flex-wrap:wrap}
+.mkt-chk label{display:flex;align-items:center;gap:4px;margin:0;color:var(--text);font-size:12.5px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 9px;cursor:pointer}
+.mkt-chk input{width:auto}
+.span2{grid-column:1/3}
+#testBadge{position:fixed;bottom:14px;left:14px;z-index:90;font-size:11px;padding:6px 10px;border-radius:8px;display:none}
+#testBadge.ok{display:block;background:rgba(0,212,134,.15);color:var(--c-green);border:1px solid rgba(0,212,134,.4)}
+#testBadge.err{display:block;background:rgba(255,77,79,.15);color:var(--c-red);border:1px solid rgba(255,77,79,.4)}
+</style>
+</head>
+<body>
+  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+
+<div class="wrap">
+  <h1>🦢 黑天鹅档案 · Black Swan Archive</h1>
+  <div class="sub">极端风险事件库 · 可检索 / 可筛选 / 可排序 / 可导出 · 双击即用 · 纯本地零依赖</div>
+  <div class="warn">⚠️ 内置事件库为历史公开资料梳理（1987–2024），仅供复盘与风险研究参考；非实时预警，不构成任何投资建议。</div>
+
+  <!-- 检索与筛选 -->
+  <div class="panel">
+    <h2><span class="dot" style="background:#37c0c9"></span>🔍 检索 · 筛选 · 排序</h2>
+    <div class="searchbar">
+      <input id="searchInput" type="text" placeholder="关键词搜索：事件名 / 板块 / 市场，如 股灾 / 原油 / A股 / 雷曼">
+      <select id="sevFilter" class="btn ghost">
+        <option value="all">全部等级</option>
+        <option value="high">仅高危</option>
+        <option value="mid">中危及以上</option>
+      </select>
+      <select id="sortSel" class="btn ghost">
+        <option value="date">排序：时间（新→旧）</option>
+        <option value="impact">排序：冲击幅度</option>
+        <option value="sev">排序：风险等级</option>
+      </select>
+    </div>
+    <div class="toolbar" style="margin-bottom:0">
+      <div class="seg" id="marketFilter">
+        <button data-m="all" class="on">全部市场</button>
+        <button data-m="cn">A股</button>
+        <button data-m="us">美股</button>
+        <button data-m="global">全球</button>
+        <button data-m="commodity">商品</button>
+        <button data-m="fx">外汇</button>
+        <button data-m="bond">债券</button>
+      </div>
+      <span class="tip">时间区间：</span>
+      <input id="dateFrom" type="date" title="起始日期">
+      <input id="dateTo" type="date" title="结束日期">
+      <div class="seg" id="presetFilter">
+        <button data-p="all" class="on">不限</button>
+        <button data-p="5y">近5年</button>
+        <button data-p="10y">近10年</button>
+        <button data-p="2000">2000年后</button>
+      </div>
+      <select id="catFilter" class="btn ghost">
+        <option value="all">全部类别</option>
+        <option value="macro">系统性黑天鹅</option>
+        <option value="company">公司黑天鹅</option>
+        <option value="custom">我的记录</option>
+      </select>
+    </div>
+    <div class="toolbar" style="margin-top:12px;margin-bottom:0">
+      <button class="btn" id="addBtn">＋ 记录我的事件</button>
+      <button class="btn ghost sm" id="exportBtn">⬇ 导出 JSON</button>
+      <button class="btn ghost sm" id="exportCsvBtn">⬇ 导出 CSV</button>
+      <button class="btn ghost sm" id="copyTextBtn">📋 复制文本</button>
+      <button class="btn ghost sm" id="importBtn">⬆ 导入 JSON</button>
+      <input id="fileInput" type="file" accept="application/json,.json" style="display:none">
+      <button class="btn ghost sm" id="runTestBtn">✔ 运行自检</button>
+      <button class="btn ghost sm" id="resetBtn">↺ 重置筛选</button>
+      <span class="tip" id="resultCount" style="margin-left:auto"></span>
+    </div>
+  </div>
+
+  <div class="stat-row" id="statRow"></div>
+
+  <div class="panel">
+    <h2><span class="dot" style="background:#ff4d4f"></span>筛选集风险强度</h2>
+    <div class="gauge">
+      <svg width="150" height="90"><defs>
+        <linearGradient id="gg" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#00d486"/><stop offset="1" stop-color="#ff4d4f"/></linearGradient></defs>
+        <circle cx="75" cy="75" r="60" fill="none" stroke="#2e2e4d" stroke-width="14" stroke-dasharray="188" stroke-dashoffset="188" transform="rotate(-90 75 75)"/>
+        <circle id="gaugeArc" cx="75" cy="75" r="60" fill="none" stroke="url(#gg)" stroke-width="14" stroke-linecap="round" stroke-dasharray="188" stroke-dashoffset="188" transform="rotate(-90 75 75)"/>
+        <text id="gaugeTxt" x="75" y="80" text-anchor="middle" fill="#e8e8f0" font-size="26" font-weight="700">0</text>
+      </svg>
+      <div class="verdict" id="verdict"><b>—</b><br><span class="tip">基于当前筛选集加权</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="dot" style="background:#f6c453"></span>事件档案 <span class="tip" id="listTip"></span></h2>
+    <div class="timeline" id="timeline"></div>
+  </div>
+
+  <!-- 录入弹窗 -->
+  <div class="modal" id="modal">
+    <div class="modal-box">
+      <h2 style="margin-bottom:12px">记录我的黑天鹅事件</h2>
+      <div class="form-grid">
+        <div><label>日期</label><input id="f_date" type="date"></div>
+        <div><label>类别</label><select id="f_cat"><option value="macro">系统性黑天鹅</option><option value="company">公司黑天鹅</option></select></div>
+        <div class="full"><label>标题</label><input id="f_title" placeholder="如：某行业突发政策收紧"></div>
+        <div><label>等级</label><select id="f_sev"><option value="high">高危</option><option value="mid">中危</option><option value="low">低危</option></select></div>
+        <div><label>冲击幅度（可选，% 数值用于排序）</label><input id="f_drop" type="number" step="0.1" placeholder="如 45 表示下跌 45%"></div>
+        <div class="span2"><label>涉及市场（可多选）</label>
+          <div class="mkt-chk" id="f_markets">
+            <label><input type="checkbox" value="cn">A股</label>
+            <label><input type="checkbox" value="us">美股</label>
+            <label><input type="checkbox" value="global">全球</label>
+            <label><input type="checkbox" value="commodity">商品</label>
+            <label><input type="checkbox" value="fx">外汇</label>
+            <label><input type="checkbox" value="bond">债券</label>
+          </div>
+        </div>
+        <div class="full"><label>冲击描述</label><input id="f_impact" placeholder="如：相关板块单日 -5%"></div>
+        <div class="full"><label>涉及板块/关键词（逗号分隔，便于搜索）</label><input id="f_sectors" placeholder="如：房地产,银行,A股"></div>
+        <div class="full"><label>详情补充（可选）</label><textarea id="f_desc" placeholder="背景、成因、后续演变等"></textarea></div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn ghost" id="cancelBtn">取消</button>
+        <button class="btn" id="saveBtn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    数据来源：公开历史资料（Bloomberg / 证券时报 / 新浪财经 / 维基百科等）梳理 · 口径见各条目<br>
+    黑天鹅本质是低概率高冲击事件，历史不会简单重演，但规律可复盘 · StockSignal 系列微型 App
+  </div>
+</div>
+
+<div id="testBadge"></div>
+
+<script>
+/* =========================================================================
+ * 内置黑天鹅事件库（历史公开资料梳理，非实时）。
+ * 字段约定：
+ *   id        唯一标识
+ *   date      事件日期 YYYY-MM-DD（未知填 "-"）
+ *   cat       macro=系统性 / company=公司黑天鹅
+ *   sev       high / mid / low
+ *   markets   涉及市场键：cn,us,global,commodity,fx,bond
+ *   title     标题
+ *   drop      代表性回撤幅度（数值，正负皆可；用于“冲击幅度”排序，缺失为 null）
+ *   impact    冲击描述（支持 <b> 高亮）
+ *   sectors   板块/关键词数组（便于搜索）
+ *   desc      详情补充
+ *   source    资料来源简述
+ * ========================================================================= */
+const EVENTS = [
+  {id:"e1987-blackmonday",date:"1987-10-19",cat:"macro",sev:"high",markets:["global","us"],title:"1987 黑色星期一",drop:22.6,
+   impact:"道琼斯指数单日暴跌 <b>22.6%</b>，史上最大单日跌幅；伦敦、东京、香港同日重挫。",
+   sectors:["美股","全球股市","程序化交易"],desc:"组合保险与程序化交易在下跌中集中抛售，流动性瞬间枯竭，引发全球连锁暴跌。",
+   source:"公开历史数据"},
+  {id:"e1997-asia",date:"1997-07-02",cat:"macro",sev:"high",markets:["global","fx"],title:"1997 亚洲金融风暴",drop:null,
+   impact:"泰铢失守引发东南亚货币与股市崩盘，恒指 1997-10 单月跌逾 <b>30%</b>。",
+   sectors:["外汇","新兴市场","银行"],desc:"国际游资冲击，泰国、韩国、印尼、马来西亚汇率与股市暴跌，IMF 介入救助。",
+   source:"公开历史数据"},
+  {id:"e2000-dotcom",date:"2000-03-10",cat:"macro",sev:"high",markets:["us"],title:"2000 互联网泡沫见顶",drop:78,
+   impact:"纳斯达克从 5048 高点至 2002-10 跌去约 <b>78%</b>，科网公司大量破产。",
+   sectors:["科技股","美股"],desc:"估值与盈利严重背离的泡沫破裂，风险资本退潮，互联网寒冬来临。",
+   source:"公开历史数据"},
+  {id:"e2001-911",date:"2001-09-11",cat:"macro",sev:"high",markets:["us","global"],title:"2001 9·11 事件",drop:14,
+   impact:"纽交所停市 4 天，重开首日道指 <b>-7.1%</b>，当周累计约 -14%。",
+   sectors:["美股","航空","保险"],desc:"恐怖袭击引发全球避险，航空与保险板块重挫，地缘政治风险溢价骤升。",
+   source:"公开历史数据"},
+  {id:"e2007-subprime",date:"2007-08-09",cat:"macro",sev:"high",markets:["global","us"],title:"2007 美国次贷危机爆发",drop:null,
+   impact:"A股上证从 6124（2007-10）见顶，至 2008-10-28 跌至 1664，最大回撤约 <b>72.8%</b>。",
+   sectors:["房地产","银行","A股"],desc:"次级贷款违约率飙升，巴黎银行冻结相关基金，流动性危机蔓延至全球。",
+   source:"公开历史数据"},
+  {id:"e2008-lehman",date:"2008-09-15",cat:"macro",sev:"high",markets:["global","us"],title:"2008 雷曼兄弟破产",drop:18,
+   impact:"雷曼破产后数周道指再跌约 <b>18%</b>，全球信贷市场近乎冻结。",
+   sectors:["投行","全球银行"],desc:"拥有 158 年历史的投行申请破产保护，系统性风险集中爆发，金融危机全面扩散。",
+   source:"公开历史数据"},
+  {id:"e2010-flashcrash",date:"2010-05-06",cat:"macro",sev:"mid",markets:["us"],title:"2010 美股闪崩",drop:9,
+   impact:"道指盘中瞬间暴跌约 <b>1000 点（约 9%）</b>，随后快速收复。",
+   sectors:["美股","算法交易"],desc:"高频交易与止损单连锁触发，揭示程序化交易在极端行情下的脆弱性。",
+   source:"公开历史数据"},
+  {id:"e2011-usdowngrade",date:"2011-08-05",cat:"macro",sev:"mid",markets:["us","global","bond"],title:"2011 美债降级 + 欧债危机",drop:null,
+   impact:"标普首次剥夺美国 AAA 评级，全球股市剧烈震荡，避险资产受捧。",
+   sectors:["债券","全球股市","欧元"],desc:"欧债危机（希腊等）叠加美债上限僵局，滞涨与主权信用风险升温。",
+   source:"公开历史数据"},
+  {id:"e2013-ebs",date:"2013-08-16",cat:"macro",sev:"mid",markets:["cn"],title:"2013 光大证券“乌龙指”",drop:null,
+   impact:"交易系统错误致大盘瞬间拉升超 <b>5%</b> 后回落，权重股集体异动。",
+   sectors:["A股","券商","量化"],desc:"风控缺失引发 A 股史上最大乌龙指，推动量化交易风控与监管完善。",
+   source:"公开历史数据"},
+  {id:"e2015-crash",date:"2015-06-12",cat:"macro",sev:"high",markets:["cn"],title:"2015 杠杆牛崩塌 / 股灾",drop:45,
+   impact:"上证 5178 见顶，8-26 见底 2850，约两月 <b>-45%</b>；8-24 单日逾 2000 只个股跌停。",
+   sectors:["A股","杠杆资金"],desc:"清理场外配资触发去杠杆螺旋，千股跌停/停牌频发，国家队入场救市。",
+   source:"公开历史数据"},
+  {id:"e2016-circuit",date:"2016-01-04",cat:"macro",sev:"high",markets:["cn"],title:"2016 熔断机制“磁吸”",drop:7,
+   impact:"1-4 沪深300 跌 7% 触发熔断提前收盘；1-7 全市场仅交易约 15 分钟即休市。",
+   sectors:["A股","机制设计"],desc:"熔断阈值过窄加剧恐慌“磁吸效应”，实施 4 个交易日后紧急暂停。",
+   source:"公开历史数据"},
+  {id:"e2018-tradewar",date:"2018-03-23",cat:"macro",sev:"high",markets:["cn","global"],title:"2018 中美贸易战",drop:null,
+   impact:"3-23 上证 <b>-3.39%</b>，2018 全年 A 股 -24.6%，沪指最低 2449。",
+   sectors:["出口链","A股","关税"],desc:"美对华加征关税，出口链盈利预期恶化，外资阶段性撤离。",
+   source:"公开历史数据"},
+  {id:"e2020-covid",date:"2020-02-03",cat:"macro",sev:"high",markets:["cn","global"],title:"2020 新冠疫情冲击",drop:7.72,
+   impact:"春节后首日 A 股 <b>-7.72%</b>，深成指 -8.45%，超 3000 只个股跌停。",
+   sectors:["A股","全球风险资产","医药"],desc:"COVID-19 全球扩散引发风险资产抛售，随后流动性宽松推动修复。",
+   source:"公开历史数据"},
+  {id:"e2020-oilneg",date:"2020-04-20",cat:"macro",sev:"high",markets:["commodity","global"],title:"2020 原油负价奇观",drop:null,
+   impact:"4-20 WTI 原油结算价史上首次跌为 <b>负值（-37.63 美元/桶）</b>。",
+   sectors:["原油","商品","期货"],desc:"沙特-俄罗斯价格战叠加需求崩塌，期货交割挤仓，负油价成历史奇观。",
+   source:"公开历史数据"},
+  {id:"e2022-ukraine",date:"2022-02-24",cat:"macro",sev:"high",markets:["global","commodity"],title:"2022 俄乌冲突 + 美联储加息",drop:null,
+   impact:"2-24 俄乌开战，全球股市下挫，原油、天然气、粮食价格飙涨。",
+   sectors:["能源","农产品","全球股市"],desc:"地缘冲突推升滞涨与避险情绪，北向资金阶段性流出，高估值承压。",
+   source:"公开历史数据"},
+  {id:"e2024-microcap",date:"2024-02-05",cat:"macro",sev:"mid",markets:["cn"],title:"2024 微盘股流动性踩踏",drop:null,
+   impact:"2 月中证2000/微盘股连续暴跌，量化与雪球结构化产品集中出清。",
+   sectors:["A股小微盘","量化","雪球"],desc:"小微盘流动性枯竭叠加雪球敲入，部分产品单周回撤超 20%。",
+   source:"公开历史数据"},
+
+  /* ---- 公司黑天鹅（真实重大个案）---- */
+  {id:"c2001-enron",date:"2001-12-02",cat:"company",sev:"high",markets:["us"],title:"2001 安然（Enron）破产",drop:null,
+   impact:"市值从峰值约 800 亿美元归零，创下当时美国最大破产案。",
+   sectors:["能源","财务造假"],desc:"通过特殊目的实体隐藏债务、虚增利润，审计机构安达信随之崩塌。",
+   source:"公开历史数据"},
+  {id:"c2002-worldcom",date:"2002-07-21",cat:"company",sev:"high",markets:["us"],title:"2002 世通（WorldCom）丑闻",drop:null,
+   impact:"虚增利润约 <b>110 亿美元</b>，破产时为美国史上最大破产案。",
+   sectors:["电信","财务造假"],desc:"资本支出费用化以粉饰利润，暴露上市公司治理与审计失效。",
+   source:"公开历史数据"},
+  {id:"c2018-kangmei",date:"2018-12-28",cat:"company",sev:"high",markets:["cn"],title:"2018 康美药业财务造假",drop:null,
+   impact:"虚增货币资金 <b>887 亿元</b>、营收 291 亿元，市值从 1300 亿缩至约 187 亿。",
+   sectors:["中药","A股","财务造假"],desc:"A 股史上最大规模财务造假之一，2021 年特别代表人诉讼判赔 24.59 亿。",
+   source:"公开历史数据"},
+  {id:"c2019-leshi",date:"2019-04-30",cat:"company",sev:"high",markets:["cn"],title:"2019 乐视网退市",drop:null,
+   impact:"资金链断裂、巨亏，2020-05 被终止上市，投资者损失惨重。",
+   sectors:["创业板","A股","资金链"],desc:"盲目扩张致资金链断裂，商誉与关联交易风险集中爆发。",
+   source:"公开历史数据"},
+  {id:"c2018-changsheng",date:"2018-07-15",cat:"company",sev:"high",markets:["cn"],title:"2018 长生生物疫苗造假",drop:null,
+   impact:"狂犬疫苗造假被查，被吊销药品批文并强制退市。",
+   sectors:["生物疫苗","A股","信披违规"],desc:"突破质量底线引发行业信任危机，推动疫苗生产与流通强监管。",
+   source:"公开历史数据"},
+  {id:"c2020-luckin",date:"2020-04-02",cat:"company",sev:"high",markets:["us","cn"],title:"2020 瑞幸咖啡财务造假",drop:75,
+   impact:"自曝虚增营收约 22 亿元，股价单日 <b>暴跌 75%</b>，后从纳斯达克退市。",
+   sectors:["中概股","消费","财务造假"],desc:"门店销量造假被做空报告揭穿，中概股信誉受冲击，后转板粉单市场。",
+   source:"公开历史数据"},
+
+  /* ---- 增补：可考重大系统性黑天鹅 ---- */
+  {id:"e1982-latam",date:"1982-08-12",cat:"macro",sev:"high",markets:["global"],title:"1982 拉美债务危机",drop:null,
+   impact:"墨西哥宣布无力偿债，引爆发展中国家 <b>主权债务违约潮</b>，拉美“失去的十年”开启。",
+   sectors:["新兴市场","主权债务","银行"],desc:"油价下跌与利率上行叠加，拉美外债链条断裂，国际银行体系承压。",
+   source:"公开历史数据"},
+  {id:"e1992-blackweds",date:"1992-09-16",cat:"macro",sev:"high",markets:["fx","global"],title:"1992 黑色星期三（英镑退出 ERM）",drop:null,
+   impact:"英镑遭投机攻击被迫退出欧洲汇率机制（ERM），单日 <b>贬值约 4%</b>，英国央行耗资数百亿防御失败。",
+   sectors:["外汇","英镑","汇率机制"],desc:"索罗斯等对冲基金做空英镑，英国被迫弃守挂钩汇率，货币政策信誉受损。",
+   source:"公开历史数据"},
+  {id:"e1994-bond",date:"1994-02-04",cat:"macro",sev:"mid",markets:["bond","us"],title:"1994 债市大屠杀",drop:null,
+   impact:"美联储开启加息周期，美国长期国债收益率飙升，债市市值 <b>蒸发逾 1 万亿美元</b>。",
+   sectors:["债券","利率","美国"],desc:"出乎市场意料的快速加息使持有长债的投资者与机构（含衍生品头寸）巨额亏损。",
+   source:"公开历史数据"},
+  {id:"e1998-russia",date:"1998-08-17",cat:"macro",sev:"high",markets:["global","fx"],title:"1998 俄罗斯债务违约",drop:null,
+   impact:"俄罗斯宣布卢布贬值并暂停偿付外债，引发全球避险与流动性骤紧。",
+   sectors:["主权债务","外汇","新兴市场"],desc:"油价低迷与财政失衡致违约，直接冲击高杠杆对冲基金，并殃及全球市场。",
+   source:"公开历史数据"},
+  {id:"e1998-ltcm",date:"1998-09-23",cat:"macro",sev:"high",markets:["global","us"],title:"1998 长期资本管理（LTCM）崩盘",drop:null,
+   impact:"高杠杆套利基金巨额亏损，美联储牵头 <b>14 家投行联合注资 36 亿美元</b> 救助以防系统性崩塌。",
+   sectors:["对冲基金","衍生品","流动性"],desc:"模型低估极端相关性与流动性风险，小概率事件叠加杠杆放大成系统性隐患。",
+   source:"公开历史数据"},
+  {id:"e2008-iceland",date:"2008-10-06",cat:"macro",sev:"high",markets:["global"],title:"2008 冰岛银行业崩溃",drop:null,
+   impact:"三大银行相继国有化，冰岛银行业规模超 GDP 十倍，克朗 <b>暴跌、国家濒临破产</b>。",
+   sectors:["银行","北欧","汇率"],desc:"过度扩张的银行体系在危机中瞬间挤兑，政府接管并引发跨国存款争端。",
+   source:"公开历史数据"},
+  {id:"e2022-ukgilt",date:"2022-09-23",cat:"macro",sev:"high",markets:["bond","global","fx"],title:"2022 英国养老金 LDI 危机",drop:null,
+   impact:"Mini-budget 引发英国国债收益率飙升，养老金 LDI 策略 <b>爆仓、英镑跌至历史新低</b>，英央行紧急购债。",
+   sectors:["债券","养老金","外汇"],desc:"利率互换保证金螺旋迫使英央行介入，暴露衍生品杠杆在利率急升下的脆弱性。",
+   source:"公开历史数据"},
+  {id:"e2023-svb",date:"2023-03-10",cat:"macro",sev:"high",markets:["us","global"],title:"2023 硅谷银行（SVB）倒闭",drop:60,
+   impact:"久期错配叠加挤兑，48 小时内倒闭，成为 <b>美国史上第二大银行破产案</b>，触发区域银行震荡。",
+   sectors:["银行","科技","流动性"],desc:"加息导致持有美债浮亏兑现，社交媒体加速挤兑，引发全球对中小银行信心的重估。",
+   source:"公开历史数据"}
+];
+
+const SEV_W = {high:3, mid:2, low:1};
+const SEV_LABEL = {high:"高危", mid:"中危", low:"低危"};
+const CAT_LABEL = {macro:"系统性", company:"公司", custom:"我的"};
+const MARKET_LABEL = {cn:"A股", us:"美股", global:"全球", commodity:"商品", fx:"外汇", bond:"债券"};
+const VALID_MARKETS = ["cn","us","global","commodity","fx","bond"];
+const VALID_SEV = ["high","mid","low"];
+
+/* ---------- 状态 ---------- */
+let CUSTOM = loadCustom();
+let state = { q:"", market:"all", sev:"all", cat:"all", dateFrom:"", dateTo:"", sort:"date" };
+
+function loadCustom(){
+  try{
+    const raw = localStorage.getItem("bs_custom");
+    if(!raw) return [];
+    const arr = JSON.parse(raw);
+    if(!Array.isArray(arr)) return [];
+    return arr.filter(e=>validateEvent(e).ok);
+  }catch(e){ return []; }
+}
+function saveCustom(){
+  try{ localStorage.setItem("bs_custom", JSON.stringify(CUSTOM)); }
+  catch(e){ /* 隐私模式/配额满：内存态仍保留 */ }
+}
+
+/* ---------- 筛选状态持久化（刷新后保留用户视图）---------- */
+const FILTER_KEY = "bs_filter";
+const FILTER_FIELDS = ["q","market","sev","cat","dateFrom","dateTo","sort"];
+function saveFilterState(){
+  try{ localStorage.setItem(FILTER_KEY, JSON.stringify(state)); }
+  catch(e){ /* 隐私模式/配额满：忽略 */ }
+}
+function loadFilterState(){
+  try{
+    const raw = localStorage.getItem(FILTER_KEY);
+    if(!raw) return;
+    const s = JSON.parse(raw);
+    if(!s || typeof s!=="object") return;
+    FILTER_FIELDS.forEach(k=>{ if(typeof s[k]==="string") state[k]=s[k]; });
+  }catch(e){ /* 损坏数据兜底：不污染内存态 */ }
+}
+function applyFilterUI(){
+  const g = id=>document.getElementById(id);
+  if(g("searchInput")) g("searchInput").value = state.q||"";
+  if(g("sevFilter")) g("sevFilter").value = state.sev||"all";
+  if(g("sortSel")) g("sortSel").value = state.sort||"date";
+  if(g("catFilter")) g("catFilter").value = state.cat||"all";
+  if(g("dateFrom")) g("dateFrom").value = state.dateFrom||"";
+  if(g("dateTo")) g("dateTo").value = state.dateTo||"";
+  document.querySelectorAll("#marketFilter button").forEach(b=>b.classList.toggle("on", b.dataset.m===(state.market||"all")));
+  // 预设与 dateFrom 弱关联：有区间时不强行高亮某预设
+  document.querySelectorAll("#presetFilter button").forEach(b=>b.classList.toggle("on", !state.dateFrom && b.dataset.p==="all"));
+}
+
+/* ---------- 纯逻辑：合并 / 筛选 / 排序（便于单测）---------- */
+function allEvents(){ return EVENTS.concat(CUSTOM); }
+
+function filterEvents(evs, st){
+  const q = (st.q||"").trim().toLowerCase();
+  const qtokens = q ? q.split(/\s+/).filter(Boolean) : [];
+  return evs.filter(e=>{
+    if(st.market && st.market!=="all" && !(e.markets||[]).includes(st.market)) return false;
+    if(st.cat && st.cat!=="all"){
+      if(st.cat==="custom"){ if(!e._custom) return false; }
+      else if(e.cat!==st.cat) return false;
+    }
+    if(st.sev && st.sev!=="all"){
+      const ok = st.sev==="high" ? ["high"] : ["high","mid"];
+      if(!ok.includes(e.sev)) return false;
+    }
+    if(st.dateFrom && (e.date||"")!=="-" && (e.date||"") < st.dateFrom) return false;
+    if(st.dateTo && (e.date||"")!=="-" && (e.date||"") > st.dateTo) return false;
+    if(qtokens.length){
+      const hay = [e.title, e.impact, e.desc, (e.sectors||[]).join(" "), (e.markets||[]).map(m=>MARKET_LABEL[m]||m).join(" "), (e.date||"")].join(" ").toLowerCase();
+      if(!qtokens.every(t=>hay.includes(t))) return false;
+    }
+    return true;
+  });
+}
+
+function sortEvents(evs, key){
+  const arr = evs.slice();
+  const byDate = (a,b)=> (b.date||"") > (a.date||"") ? 1 : (b.date||"") < (a.date||"") ? -1 : 0;
+  if(key==="impact") arr.sort((a,b)=> (b.drop||0)-(a.drop||0) || byDate(a,b));
+  else if(key==="sev") arr.sort((a,b)=> (SEV_W[b.sev]||0)-(SEV_W[a.sev]||0) || byDate(a,b));
+  else arr.sort(byDate);
+  return arr;
+}
+
+function validateEvent(e){
+  if(!e || typeof e!=="object") return {ok:false, err:"不是对象"};
+  if(!e.title || typeof e.title!=="string" || !e.title.trim()) return {ok:false, err:"标题不能为空"};
+  if(!VALID_SEV.includes(e.sev)) return {ok:false, err:"等级非法"};
+  const mk = Array.isArray(e.markets) ? e.markets.filter(m=>VALID_MARKETS.includes(m)) : [];
+  if(mk.length===0) return {ok:false, err:"至少选择一个有效市场"};
+  if(e.date && e.date!=="-" && !/^\d{4}-\d{2}-\d{2}$/.test(e.date)) return {ok:false, err:"日期格式应为 YYYY-MM-DD"};
+  return {ok:true, err:""};
+}
+
+function normalizeEvent(e, isCustom){
+  const segs = Array.isArray(e.sectors) ? e.sectors : String(e.sectors||"").split(/[,，]/).map(s=>s.trim()).filter(Boolean);
+  const mk = (Array.isArray(e.markets)?e.markets:[]).filter(m=>VALID_MARKETS.includes(m));
+  const d = (typeof e.drop==="number") ? e.drop : parseFloat(e.drop);
+  return {
+    id: e.id || ("c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
+    date: e.date || "-",
+    cat: e.cat || "macro",
+    sev: VALID_SEV.includes(e.sev) ? e.sev : "mid",
+    markets: mk.length?mk:["global"],
+    title: String(e.title||"未命名事件").trim(),
+    drop: (isFinite(d)) ? d : null,
+    impact: String(e.impact||""),
+    sectors: segs,
+    desc: String(e.desc||""),
+    source: e.source ? String(e.source) : (isCustom?"用户记录":"公开历史数据"),
+    _custom: !!isCustom
+  };
+}
+
+/* ---------- 导入 / 导出 ---------- */
+function buildExport(){
+  return {
+    app:"blackswan-archive",
+    version:1,
+    exportedAt:new Date().toISOString(),
+    events: CUSTOM.map(e=>{ const x=Object.assign({},e); delete x._custom; return x; })
+  };
+}
+function importData(payload){
+  let arr;
+  if(Array.isArray(payload)) arr = payload;
+  else if(payload && Array.isArray(payload.events)) arr = payload.events;
+  else return {added:0, updated:0, skipped:0, ok:false, err:"数据格式无法识别"};
+  let added=0, updated=0, skipped=0;
+  arr.forEach(raw=>{
+    const v = validateEvent(raw);
+    if(!v.ok){ skipped++; return; }
+    const e = normalizeEvent(raw, true);
+    const idx = CUSTOM.findIndex(x=>x.id===e.id);
+    if(idx>=0){ CUSTOM[idx]=e; updated++; } else { CUSTOM.push(e); added++; }
+  });
+  saveCustom();
+  return {added, updated, skipped, ok:true};
+}
+
+/* ---------- 渲染 ---------- */
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
+
+/* 冲击描述允许 <b> 高亮，但必须白名单过滤：剥离其余所有标签并对文本转义，
+ * 防止用户自定义记录里写入 <img onerror> / <script> 等注入（自 XSS 加固）。 */
+function sanitizeImpact(s){
+  if(typeof s!=="string") return "";
+  const OPEN="\u0000BS_OPEN\u0000", CLOSE="\u0000BS_CLOSE\u0000";
+  let t = s.replace(/<\s*b\s*>/gi, OPEN).replace(/<\s*\/\s*b\s*>/gi, CLOSE);
+  t = t.replace(/<[^>]*>/g, "");        // 去除所有残留标签
+  t = esc(t);                           // 文本转义
+  return t.replace(OPEN,"<b>").replace(CLOSE,"</b>");
+}
+
+/* 在已转义文本中高亮命中关键词（先 esc 再包裹，绝不引入注入）；无关键词原样返回 */
+function highlight(s, tokens){
+  const safe = esc(s);
+  if(!tokens || !tokens.length) return safe;
+  const pat = tokens.map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).join("|");
+  if(!pat) return safe;
+  return safe.replace(new RegExp("("+pat+")","gi"), "<mark>$1</mark>");
+}
+
+function render(){
+  let evs = filterEvents(allEvents(), state);
+  evs = sortEvents(evs, state.sort);
+  const hlTokens = (state.q||"").trim().toLowerCase().split(/\s+/).filter(Boolean);
+
+  // 统计
+  const tot = evs.length;
+  const high = evs.filter(e=>e.sev==="high").length;
+  const mid = evs.filter(e=>e.sev==="mid").length;
+  const mktSet = {};
+  evs.forEach(e=>(e.markets||[]).forEach(m=>mktSet[m]=1));
+  const mktCount = Object.keys(mktSet).length;
+  document.getElementById("statRow").innerHTML = `
+    <div class="stat"><div class="n">${tot}</div><div class="l">命中事件</div></div>
+    <div class="stat"><div class="n" style="color:#ff4d4f">${high}</div><div class="l">高危</div></div>
+    <div class="stat"><div class="n" style="color:#f6c453">${mid}</div><div class="l">中危</div></div>
+    <div class="stat"><div class="n" style="color:#37c0c9">${mktCount}</div><div class="l">涉及市场</div></div>`;
+  document.getElementById("resultCount").textContent = "共 "+tot+" 条";
+
+  // 风险强度
+  const score = evs.reduce((s,e)=> s + (SEV_W[e.sev]||0), 0);
+  const maxScore = Math.max(1, evs.length*3);
+  const pct = Math.min(100, Math.round(score/maxScore*100));
+  document.getElementById("gaugeArc").setAttribute("stroke-dashoffset", 188 - 188*pct/100);
+  document.getElementById("gaugeTxt").textContent = pct;
+  const v = document.getElementById("verdict");
+  if(tot===0){ v.innerHTML = `<b style="color:#8a8a9a">—</b><br><span class="tip">当前筛选无事件</span>`; }
+  else if(pct>=60){ v.innerHTML = `<b style="color:#ff4d4f">🔴 高密度</b><br><span class="tip">筛选集内高危事件密集，重点复盘</span>`; }
+  else if(pct>=30){ v.innerHTML = `<b style="color:#f6c453">🟡 中密度</b><br><span class="tip">存在中高危事件</span>`; }
+  else { v.innerHTML = `<b style="color:#00d486">🟢 低密度</b><br><span class="tip">当前筛选集风险相对分散</span>`; }
+
+  // 列表
+  const tl = document.getElementById("timeline");
+  document.getElementById("listTip").textContent = "(共 "+EVENTS.length+" 条内置 + "+CUSTOM.length+" 条我的记录)";
+  if(!tot){
+    tl.innerHTML = `<div class="empty">😶 没有命中事件，试试放宽筛选或清空关键词。</div>`;
+    return;
+  }
+  tl.innerHTML = evs.map(e=>{
+    const cls = "s-"+e.sev;
+    const mktTags = (e.markets||[]).map(m=>`<span class="tag mkt">${MARKET_LABEL[m]||m}</span>`).join("");
+    const secTags = (e.sectors||[]).slice(0,5).map(s=>`<span class="tag">${highlight(s, hlTokens)}</span>`).join("");
+    const delLink = e._custom ? `<div class="del"><a href="#" data-edit="${e.id}">编辑</a> · <a href="#" data-del="${e.id}">删除该记录</a></div>` : "";
+    const detail = (e.desc||e.source) ? `<details class="evt-more"><summary>详情 / 来源</summary>
+        ${e.desc?`<div class="desc">${esc(e.desc)}</div>`:""}
+        <div class="desc" style="color:#8a8a9a">📚 ${esc(e.source||"")}</div></details>` : "";
+    return `<div class="evt ${cls}">
+      <div class="top">
+        <div class="title">${highlight(e.title, hlTokens)}</div>
+        <span class="sev sev-${e.sev}">${SEV_LABEL[e.sev]}</span>
+      </div>
+      <div class="date">📅 ${esc(e.date)} · ${CAT_LABEL[e.cat]||""}</div>
+      <div class="tags">${mktTags}${secTags}</div>
+      ${e.impact?`<div class="impact">💥 ${sanitizeImpact(e.impact)}</div>`:""}
+      ${detail}
+      ${delLink}
+    </div>`;
+  }).join("");
+
+  document.querySelectorAll("[data-del]").forEach(a=>a.onclick=(ev)=>{
+    ev.preventDefault();
+    CUSTOM = CUSTOM.filter(x=>x.id!==a.dataset.del); saveCustom(); render();
+  });
+  document.querySelectorAll("[data-edit]").forEach(a=>a.onclick=(ev)=>{
+    ev.preventDefault(); openModal(a.dataset.edit);
+  });
+  saveFilterState();   // 每次渲染后持久化当前筛选视图
+}
+
+/* ---------- 交互绑定 ---------- */
+function presetToDate(p){
+  if(p==="all") return "";
+  const now = new Date();
+  let from = null;
+  if(p==="5y"){ from = new Date(now.getFullYear()-5, now.getMonth(), now.getDate()); }
+  else if(p==="10y"){ from = new Date(now.getFullYear()-10, now.getMonth(), now.getDate()); }
+  else if(p==="2000"){ return "2000-01-01"; }
+  if(!from) return "";
+  const y = from.getFullYear(), mo = String(from.getMonth()+1).padStart(2,"0"), d = String(from.getDate()).padStart(2,"0");
+  return y + "-" + mo + "-" + d;
+}
+function syncPreset(){
+  document.querySelectorAll("#presetFilter button").forEach(x=>x.classList.remove("on"));
+}
+
+let editingId = null;
+
+/* 新增或按 id 更新一条用户记录（核心可单测逻辑） */
+function upsertCustom(e){
+  const v = validateEvent(e);
+  if(!v.ok) return {ok:false, err:v.err};
+  const ne = normalizeEvent(e, true);
+  const idx = CUSTOM.findIndex(x=>x.id===ne.id);
+  if(idx>=0) CUSTOM[idx]=ne; else CUSTOM.push(ne);
+  saveCustom();
+  return {ok:true};
+}
+
+function bind(){
+  document.getElementById("searchInput").addEventListener("input", e=>{ state.q=e.target.value; render(); });
+  document.getElementById("sevFilter").addEventListener("change", e=>{ state.sev=e.target.value; render(); });
+  document.getElementById("sortSel").addEventListener("change", e=>{ state.sort=e.target.value; render(); });
+  document.getElementById("catFilter").addEventListener("change", e=>{ state.cat=e.target.value; render(); });
+  document.getElementById("dateFrom").addEventListener("change", e=>{ state.dateFrom=e.target.value; syncPreset(); render(); });
+  document.getElementById("dateTo").addEventListener("change", e=>{ state.dateTo=e.target.value; syncPreset(); render(); });
+  document.querySelectorAll("#marketFilter button").forEach(b=>b.onclick=()=>{
+    document.querySelectorAll("#marketFilter button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); state.market=b.dataset.m; render();
+  });
+  document.querySelectorAll("#presetFilter button").forEach(b=>b.onclick=()=>{
+    document.querySelectorAll("#presetFilter button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    const d = presetToDate(b.dataset.p);
+    state.dateFrom = d; state.dateTo = "";
+    document.getElementById("dateFrom").value = d;
+    document.getElementById("dateTo").value = "";
+    render();
+  });
+  document.getElementById("resetBtn").onclick=()=>{
+    state = { q:"", market:"all", sev:"all", cat:"all", dateFrom:"", dateTo:"", sort:"date" };
+    document.getElementById("searchInput").value="";
+    document.getElementById("sevFilter").value="all";
+    document.getElementById("sortSel").value="date";
+    document.getElementById("catFilter").value="all";
+    document.getElementById("dateFrom").value="";
+    document.getElementById("dateTo").value="";
+    document.querySelectorAll("#marketFilter button,#presetFilter button").forEach(x=>x.classList.remove("on"));
+    document.querySelector('#marketFilter button[data-m="all"]').classList.add("on");
+    document.querySelector('#presetFilter button[data-p="all"]').classList.add("on");
+    render();
+  };
+  // 键盘：弹窗内 Esc 关闭、Ctrl/Cmd+Enter 保存
+  document.addEventListener("keydown", e=>{
+    const modal = document.getElementById("modal");
+    if(!modal.classList.contains("show")) return;
+    if(e.key==="Escape"){ closeModal(); }
+    else if((e.ctrlKey||e.metaKey) && e.key==="Enter"){ e.preventDefault(); saveFromModal(); }
+  });
+
+  // 录入
+  document.getElementById("addBtn").onclick=()=>openModal();
+  document.getElementById("cancelBtn").onclick=()=>closeModal();
+  document.getElementById("saveBtn").onclick=saveFromModal;
+
+  // 导出 / 导入
+  document.getElementById("exportBtn").onclick=exportJson;
+  document.getElementById("exportCsvBtn").onclick=exportCsv;
+  document.getElementById("copyTextBtn").onclick=copyText;
+  document.getElementById("importBtn").onclick=()=>document.getElementById("fileInput").click();
+  document.getElementById("fileInput").addEventListener("change", importJson);
+  document.getElementById("runTestBtn").onclick=()=>runSelfTest(true);
+}
+
+function openModal(id){
+  editingId = id || null;
+  let e = null;
+  if(editingId){ e = CUSTOM.find(x=>x.id===editingId); }
+  document.getElementById("f_date").value = e ? e.date : "";
+  document.getElementById("f_cat").value = e ? e.cat : "macro";
+  document.getElementById("f_title").value = e ? e.title : "";
+  document.getElementById("f_sev").value = e ? e.sev : "high";
+  document.getElementById("f_drop").value = (e && e.drop!=null) ? e.drop : "";
+  document.getElementById("f_impact").value = e ? e.impact : "";
+  document.getElementById("f_sectors").value = e ? (e.sectors||[]).join(",") : "";
+  document.getElementById("f_desc").value = e ? e.desc : "";
+  document.querySelectorAll("#f_markets input").forEach(c=>{ c.checked = e ? (e.markets||[]).includes(c.value) : false; });
+  document.getElementById("modal").classList.add("show");
+}
+function closeModal(){ editingId=null; document.getElementById("modal").classList.remove("show"); }
+function saveFromModal(){
+  const markets = Array.from(document.querySelectorAll("#f_markets input:checked")).map(c=>c.value);
+  const dropRaw = parseFloat(document.getElementById("f_drop").value);
+  const e = {
+    id: editingId || ("c"+Date.now().toString(36)),
+    date: document.getElementById("f_date").value || "-",
+    cat: document.getElementById("f_cat").value,
+    sev: document.getElementById("f_sev").value,
+    markets: markets.length?markets:["global"],
+    title: document.getElementById("f_title").value.trim() || "未命名事件",
+    drop: isFinite(dropRaw)?dropRaw:null,
+    impact: document.getElementById("f_impact").value.trim(),
+    sectors: document.getElementById("f_sectors").value,
+    desc: document.getElementById("f_desc").value.trim(),
+    source: "用户记录"
+  };
+  const r = upsertCustom(e);
+  if(!r.ok){ alert("无法保存：" + r.err); return; }
+  closeModal(); render();
+}
+
+function exportJson(){
+  const data = JSON.stringify(buildExport(), null, 2);
+  try{
+    const blob = new Blob([data], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "blackswan-export-"+new Date().toISOString().slice(0,10)+".json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }catch(e){
+    // 兜底：复制到剪贴板
+    if(navigator.clipboard) navigator.clipboard.writeText(data).then(()=>alert("已复制到剪贴板"));
+    else alert("导出失败："+e.message);
+  }
+}
+
+/* CSV：当前筛选集 → 表格（BOM + 防公式注入） */
+function csvCell(s){
+  let v = String(s==null?"":s);
+  if(/^[=+\-@]/.test(v)) v = "'" + v;            // 防 Excel 公式注入
+  if(/[",\n\r]/.test(v)) v = '"' + v.replace(/"/g,'""') + '"';
+  return v;
+}
+function buildCsv(evs){
+  const head = ["日期","类别","等级","涉及市场","标题","冲击幅度(%)","冲击描述","涉及板块","详情","来源"];
+  const lines = [head.map(csvCell).join(",")];
+  evs.forEach(e=>{
+    lines.push([
+      e.date||"-",
+      CAT_LABEL[e.cat]||"",
+      SEV_LABEL[e.sev]||"",
+      (e.markets||[]).map(m=>MARKET_LABEL[m]||m).join("/"),
+      e.title||"",
+      (e.drop==null?"":e.drop),
+      (e.impact||"").replace(/<[^>]+>/g,""),
+      (e.sectors||[]).join("/"),
+      (e.desc||"").replace(/<[^>]+>/g,""),
+      e.source||""
+    ].map(csvCell).join(","));
+  });
+  return "﻿" + lines.join("\r\n");   // BOM 保证 Excel 中文不乱码
+}
+function exportCsv(){
+  const evs = sortEvents(filterEvents(allEvents(), state), state.sort);
+  const csv = buildCsv(evs);
+  try{
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "blackswan-"+new Date().toISOString().slice(0,10)+".csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }catch(e){
+    if(navigator.clipboard) navigator.clipboard.writeText(csv).then(()=>alert("已复制到剪贴板"));
+    else alert("导出失败："+e.message);
+  }
+}
+
+/* 可读文本摘要（便于粘贴到笔记/聊天） */
+function buildText(evs){
+  const lines = ["🦢 黑天鹅档案 · 当前筛选集（共 "+evs.length+" 条）"];
+  evs.forEach((e,i)=>{
+    const mkt = (e.markets||[]).map(m=>MARKET_LABEL[m]||m).join("/");
+    lines.push((i+1)+". ["+ (e.date||"-") +"] "+ SEV_LABEL[e.sev] +" · "+ mkt +" · "+ e.title);
+    if(e.impact) lines.push("   冲击：" + e.impact.replace(/<[^>]+>/g,""));
+  });
+  lines.push("—— 数据来自公开历史资料梳理，仅供复盘参考，不构成投资建议。");
+  return lines.join("\n");
+}
+function copyText(){
+  const evs = sortEvents(filterEvents(allEvents(), state), state.sort);
+  const txt = buildText(evs);
+  const done = ()=>{ const r=document.getElementById("resultCount"); if(r){ r.textContent="已复制 "+evs.length+" 条文本"; } };
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done, ()=>fallbackCopy(txt, done));
+    } else { fallbackCopy(txt, done); }
+  }catch(e){ fallbackCopy(txt, done); }
+}
+function fallbackCopy(txt, done){
+  try{
+    const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); document.body.removeChild(ta); done();
+  }catch(e){ alert("复制失败，请手动选择导出 CSV/JSON"); }
+}
+function importJson(ev){
+  const file = ev.target.files && ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const payload = JSON.parse(reader.result);
+      const r = importData(payload);
+      if(r.ok){
+        render();
+        const msg = `导入完成：新增 ${r.added}，更新 ${r.updated}，跳过 ${r.skipped}`;
+        document.getElementById("resultCount").textContent = msg;
+        alert(msg);
+      } else {
+        alert("导入失败："+r.err);
+      }
+    }catch(e){ alert("导入失败：JSON 解析错误"); }
+    ev.target.value="";
+  };
+  reader.readAsText(file);
+}
+
+/* ---------- 轻量自检（浏览器内 + node 单测共用核心）---------- */
+function runSelfTest(verbose){
+  const out = [];
+  const ok = (c,m)=> out.push({pass:c, m});
+
+  // 1. 内置库完整性
+  ok(Array.isArray(EVENTS) && EVENTS.length>=28, "内置事件库 >=28 条 ("+EVENTS.length+")");
+  ok(EVENTS.every(e=>validateEvent(e).ok), "全部内置事件通过校验");
+  ok(new Set(EVENTS.map(e=>e.id)).size===EVENTS.length, "内置事件 id 唯一");
+
+  // 2. 筛选
+  ok(filterEvents(EVENTS,{market:"cn"}).every(e=>(e.markets||[]).includes("cn")), "按市场(A股)筛选正确");
+  ok(filterEvents(EVENTS,{sev:"high"}).every(e=>e.sev==="high"), "按高危筛选正确");
+  ok(filterEvents(EVENTS,{cat:"company"}).every(e=>e.cat==="company"), "按公司类别筛选正确");
+  ok(filterEvents(EVENTS,{q:"原油"}).length>0, "关键词“原油”可命中");
+  ok(filterEvents(EVENTS,{dateFrom:"2015-01-01",dateTo:"2016-12-31"}).every(e=>e.date==="-"||(e.date>="2015-01-01"&&e.date<="2016-12-31")), "日期区间筛选正确");
+
+  // 3. 排序
+  const byImpact = sortEvents(EVENTS,"impact");
+  const idxNull = byImpact.findIndex(e=>e.drop==null);
+  const idxNum = byImpact.findIndex(e=>e.drop!=null);
+  ok(idxNull===-1 || idxNum===-1 || idxNum<idxNull, "按冲击幅度排序把有数值的排在前面");
+  const bySev = sortEvents(EVENTS,"sev");
+  ok((SEV_W[bySev[0].sev]||0) >= (SEV_W[bySev[bySev.length-1].sev]||0), "按等级排序降序");
+
+  // 4. 校验
+  ok(!validateEvent({title:"",sev:"high",markets:["cn"]}).ok, "空标题被拒");
+  ok(!validateEvent({title:"x",sev:"x",markets:["cn"]}).ok, "非法等级被拒");
+  ok(!validateEvent({title:"x",sev:"high",markets:[]}).ok, "空市场被拒");
+  ok(validateEvent({title:"x",sev:"high",markets:["cn"]}).ok, "合法事件通过");
+
+  // 5. 导入导出往返
+  const before = CUSTOM.length;
+  const r = importData([{id:"t1",title:"测试事件",sev:"mid",markets:["us"],date:"2021-01-01",impact:"x",sectors:"测试"}]);
+  ok(r.added===1 && CUSTOM.length===before+1, "导入新增 1 条");
+  const exp = buildExport();
+  ok(exp.events.some(e=>e.id==="t1"), "导出包含刚导入的事件");
+  CUSTOM = CUSTOM.filter(e=>e.id!=="t1"); saveCustom();
+  ok(CUSTOM.length===before, "清理测试数据");
+
+  const passN = out.filter(o=>o.pass).length;
+  const failN = out.length - passN;
+  if(verbose){
+    const badge = document.getElementById("testBadge");
+    badge.className = failN? "err":"ok";
+    badge.textContent = `自检 ${passN}/${out.length} 通过` + (failN? "（见控制台）":" ✅");
+    console.log("[BlackSwan 自检] "+(failN? "存在失败":"全部通过"));
+    out.forEach(o=> console.log((o.pass?"  ✅ ":"  ❌ ")+o.m));
+  }
+  return {pass:passN, fail:failN, total:out.length, out};
+}
+
+/* ---------- 启动 ---------- */
+bind();
+loadFilterState();   // 恢复上次筛选视图
+applyFilterUI();
+render();
+
+// 测试钩子（node vm 单测与浏览器自检共用）
+if(typeof globalThis!=="undefined"){
+  globalThis.__BS_TEST__ = {
+    EVENTS, get CUSTOM(){return CUSTOM;}, set CUSTOM(v){CUSTOM=v;},
+    SEV_W, MARKET_LABEL, VALID_MARKETS, VALID_SEV,
+    filterEvents, sortEvents, validateEvent, normalizeEvent,
+    buildExport, importData, allEvents, runSelfTest, buildCsv, csvCell, presetToDate, buildText, upsertCustom, sanitizeImpact,
+    saveFilterState, loadFilterState, getState:()=>state, setState:(s)=>{ state = Object.assign({}, state, s); },
+    highlight
+  };
+}
+</script>
+
+  <footer class="hubfoot">
+    <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
+    <span>数据来自公开历史资料梳理，仅供学习与参考，不构成任何投资建议。</span>
+  </footer>
+</body>
+</html>

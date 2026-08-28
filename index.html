@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>微应用大厅 · App Hub</title>
+<style>
+  :root{
+    --bg:#0f0f23; --card:#1a1a2e; --card2:#221a3a; --line:#2e2e4d;
+    --txt:#e6e6f0; --sub:#9a9ab0; --g1:#667eea; --g2:#764ba2;
+    --up:#ff4d4f; --down:#00d486; --inv:#f6c453; --accent:#7c5cff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(160deg,#0f0f23,#15152e 60%,#1a1a2e);
+       color:var(--txt);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+       min-height:100vh;padding:32px 20px 60px}
+  .head{max-width:1180px;margin:0 auto 26px;text-align:center}
+  .head h1{font-size:30px;margin:0 0 6px;
+    background:linear-gradient(90deg,var(--g1),var(--g2));-webkit-background-clip:text;background-clip:text;color:transparent;
+    letter-spacing:1px}
+  .head p{color:var(--sub);margin:0;font-size:14px}
+  .stat{display:inline-flex;gap:18px;margin-top:14px}
+  .stat .b{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 16px;font-size:13px;color:var(--sub)}
+  .stat .b b{color:var(--txt);font-size:18px;margin-right:4px}
+  .grid{max-width:1180px;margin:0 auto;display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:18px;display:flex;flex-direction:column;gap:10px;position:relative;
+    transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+  .card:hover{transform:translateY(-4px);border-color:var(--accent);
+    box-shadow:0 10px 30px rgba(124,92,255,.18)}
+  .ctop{display:flex;align-items:center;gap:10px}
+  .ico{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+    font-size:20px;background:linear-gradient(135deg,var(--g1),var(--g2));flex-shrink:0}
+  .cname{font-size:16px;font-weight:600;line-height:1.2}
+  .ctag{font-size:11px;color:var(--sub);margin-top:2px}
+  .cat{font-size:10px;padding:3px 8px;border-radius:20px;
+    border:1px solid var(--line);color:var(--sub);background:var(--card2)}
+  .cat.fin{color:var(--inv);border-color:#5a4a2a}
+  .cat.life{color:var(--down);border-color:#2a5a4a}
+  .cat.tool{color:var(--g1);border-color:#3a3a6a}
+  .desc{font-size:12.5px;color:var(--sub);line-height:1.55;flex:1;min-height:42px}
+  .open{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;text-decoration:none;
+    border:none;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;
+    transition:filter .15s}
+  .open:hover{filter:brightness(1.12)}
+  .ft{text-align:center;color:var(--sub);font-size:12px;margin-top:34px}
+  .ft code{background:var(--card2);padding:2px 6px;border-radius:6px;color:var(--txt)}
+  /* 搜索 + 筛选 */
+  .controls{max-width:1180px;margin:0 auto 22px;display:flex;flex-direction:column;gap:12px}
+  .searchbar{display:flex;gap:10px;align-items:center}
+  .searchbar input{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:12px 16px;color:var(--txt);font-size:14px;outline:none;transition:border-color .15s}
+  .searchbar input:focus{border-color:var(--accent)}
+  .randbtn{background:var(--card2);border:1px solid var(--line);color:var(--txt);
+    border-radius:12px;padding:12px 16px;font-size:14px;cursor:pointer;white-space:nowrap;transition:all .15s}
+  .randbtn:hover{border-color:var(--accent);filter:brightness(1.15)}
+  .filters{display:flex;gap:8px;flex-wrap:wrap}
+  .filters button{background:var(--card);border:1px solid var(--line);color:var(--sub);
+    border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer;transition:all .15s}
+  .filters button:hover{border-color:var(--accent);color:var(--txt)}
+  .filters button.on{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;border-color:transparent}
+  .recent{max-width:1180px;margin:0 auto 26px}
+  .recent h3{font-size:14px;color:var(--sub);margin:0 0 10px;font-weight:600}
+  .recent .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .recent .chip{background:var(--card2);border:1px solid var(--line);border-radius:20px;
+    padding:6px 12px;font-size:12.5px;color:var(--txt);text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:border-color .15s}
+  .recent .chip:hover{border-color:var(--accent)}
+  .recent .chip .x{color:var(--sub);cursor:pointer;font-size:14px;line-height:1}
+  .empty{color:var(--sub);font-size:13px;text-align:center;padding:30px;grid-column:1/-1}
+  .apipanel{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+  .apilbl{font-size:13px;color:var(--txt);white-space:nowrap}
+  .apipanel input{flex:1;min-width:220px;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--txt);font-size:13px;outline:none}
+  .apipanel input:focus{border-color:var(--accent)}
+  .apistate{font-size:12px;font-weight:600}
+  .apistate.ok{color:var(--down)} .apistate.bad{color:var(--up)}
+  .apihint{font-size:11.5px;color:var(--sub)}
+  .apihint code{background:var(--card2);padding:1px 5px;border-radius:5px;color:var(--txt)}
+  /* ===== 迭代改进新增样式（全部使用 CSS 变量，无硬编码颜色） ===== */
+  .topright{position:absolute;top:12px;right:12px;display:flex;gap:6px;align-items:center}
+  .fav{background:transparent;border:1px solid var(--line);border-radius:20px;color:var(--sub);
+    font-size:13px;line-height:1;padding:3px 7px;cursor:pointer;transition:border-color .15s,color .15s}
+  .fav:hover{border-color:var(--accent);color:var(--txt)}
+  .card.faved{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset,0 10px 30px rgba(124,92,255,.15)}
+  .card.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),0 10px 30px rgba(124,92,255,.22);background:var(--card2)}
+  .ctag{cursor:pointer;transition:color .15s}
+  .ctag:hover{color:var(--accent);text-decoration:underline}
+  .cact{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .copybtn{background:var(--card2);border:1px solid var(--line);color:var(--sub);border-radius:10px;
+    padding:8px 10px;font-size:12px;cursor:pointer;transition:border-color .15s,color .15s}
+  .copybtn:hover{border-color:var(--accent);color:var(--txt)}
+  .filters button .cnt{opacity:.75;font-size:11px;margin-left:3px}
+  .sortbar{display:flex;gap:8px;align-items:center}
+  .sortlbl{font-size:12px;color:var(--sub);margin-right:2px}
+  .sortbar button{background:var(--card);border:1px solid var(--line);color:var(--sub);
+    border-radius:20px;padding:6px 12px;font-size:12.5px;cursor:pointer;transition:all .15s}
+  .sortbar button:hover{border-color:var(--accent);color:var(--txt)}
+  .sortbar button.on{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;border-color:transparent}
+  .clrbtn{margin-top:14px;background:var(--card2);border:1px solid var(--line);color:var(--txt);
+    border-radius:10px;padding:9px 18px;font-size:13px;cursor:pointer;transition:all .15s}
+  .clrbtn:hover{border-color:var(--accent);filter:brightness(1.15)}
+  .grid.list{grid-template-columns:1fr;gap:10px}
+  .card.list{flex-direction:row;align-items:center;gap:14px;padding:12px 16px}
+  .card.list .desc{display:none}
+  .card.list .ctop{flex:1;min-width:0}
+  .card.list .cact{margin-left:auto}
+  .card.list .topright{top:50%;transform:translateY(-50%)}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .card.fade{animation:fadeUp .42s ease both}
+</style>
+</head>
+<body>
+  <div class="head">
+    <h1>🛠️ 微应用大厅 App Hub</h1>
+    <p>零依赖单文件小工具集合 · 双击即开 · 数据本地存储</p>
+    <div class="stat">
+      <div class="b"><b id="cnt">0</b>个应用</div>
+      <div class="b"><b id="cntFin">0</b>金融</div>
+      <div class="b"><b id="cntLife">0</b>生活</div>
+      <div class="b"><b id="cntTool">0</b>效率</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="searchbar">
+      <input id="search" placeholder="🔍 搜索应用名称 / 标签 / 分类，如 期货 / 预警 / 宠物 / ETF · 按 / 聚焦" autocomplete="off">
+      <button class="randbtn" id="randBtn" title="随机打开一个应用">🎲 随便逛逛</button>
+      <button class="randbtn" id="viewBtn" title="切换网格 / 列表视图">▦ 网格</button>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div class="sortbar" id="sortbar">
+      <span class="sortlbl">排序</span>
+      <button data-sort="name" class="on">名称</button>
+      <button data-sort="recent">最近打开</button>
+      <button data-sort="cat">分类</button>
+    </div>
+    <div class="apipanel" id="apiPanel">
+      <span class="apilbl">🔌 真实数据接口（统一后端）：</span>
+      <input id="apiInput" placeholder="http://127.0.0.1:8787（留空则各 App 用本地静态样本/离线演示）">
+      <button class="randbtn" id="apiSave">保存</button>
+      <span id="apiState" class="apistate"></span>
+      <span class="apihint">所有行情/数据类 App 共用此地址；起后端：<code>cd backend &amp;&amp; python app.py</code></span>
+    </div>
+  </div>
+
+  <div class="recent" id="recentWrap" style="display:none">
+    <h3>🕘 最近打开</h3>
+    <div class="chips" id="recentChips"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="ft">
+    新增 App 后，在 <code>APPS</code> 数组里加一行即可自动出现在大厅。所有应用均为单文件 HTML，数据存于浏览器 localStorage。
+  </div>
+
+<script>
+window.addEventListener("error", function(e){ appFatal(e.message); });
+window.addEventListener("unhandledrejection", function(e){ appFatal((e.reason && e.reason.message) || "未知错误"); });
+function appFatal(msg){
+  var d = document.getElementById("appFatalBar");
+  if(!d){ d = document.createElement("div"); d.id="appFatalBar";
+    d.style.cssText="position:fixed;left:0;right:0;bottom:0;background:#ff4d4f;color:#fff;font-size:12px;padding:10px 14px;z-index:9999;box-shadow:0 -2px 10px rgba(0,0,0,.5)";
+    (document.body||document.documentElement).appendChild(d); }
+  d.textContent = "⚠ 页面出错：" + msg;
+}
+/* ====================== 应用清单（新增 App 在此加一行） ====================== */
+const APPS = [
+  // —— 金融类 ——
+  {dir:"stocknote",         name:"股事贴",        ico:"📝", cat:"fin",  tag:"个股事件速记", desc:"记录个股利好/利空事件卡片，按股票分组、搜索、JSON 导出导入。"},
+  {dir:"price-alert",       name:"价格预警",      ico:"🔔", cat:"fin",  tag:"实时行情提醒", desc:"监控股票价格，突破阈值浏览器弹窗 + 微信/企业微信提醒。"},
+  {dir:"kpattern",          name:"K线形态速查卡", ico:"📈", cat:"fin",  tag:"技术分析",     desc:"14 种 K 线形态图解（金三角/老鸭头/死亡谷等），多空信号速查。"},
+  {dir:"mood-meter",        name:"市场情绪温度计",ico:"🌡️", cat:"fin",  tag:"牛熊情绪",     desc:"从 2008 起 A股牛熊基准叠加每日情绪打分，贪婪/恐惧一目了然。"},
+  {dir:"earnings-calendar", name:"财报跟踪器",    ico:"📑", cat:"fin",  tag:"财报日历",     desc:"财报披露日历，临近高亮提醒，可查往年财报 + 接口钩子。"},
+  {dir:"futures-inventory", name:"期库镜",        ico:"🪞", cat:"fin",  tag:"期货×库存",    desc:"期货 K线×库存双轴透视，皮尔逊相关性 + 品种搜索 + 全球合计视图。"},
+  {dir:"futures-spread",    name:"期货价差望远镜",ico:"🔭", cat:"fin",  tag:"跨期价差",     desc:"横轴=同品种跨月价差（可正可负），纵轴=价格/指数；股指自动映射大盘指数。"},
+  {dir:"market-brief",      name:"盘前收盘速读",  ico:"☀️", cat:"fin",  tag:"盘前/收盘",    desc:"A股盘前策略与收盘复盘要点卡，利好/利空/关注标签 + 导出。"},
+  {dir:"shepherd-index",    name:"牧羊人指标",    ico:"🐑", cat:"fin",  tag:"情绪研判",     desc:"复刻 StockSignal 股海牧羊人 8 项情绪指标，温度计打分走势研判。"},
+  {dir:"blackswan",         name:"黑天鹅预警",    ico:"🦢", cat:"fin",  tag:"风险扫描",     desc:"宏观黑天鹅时间轴 + 个股业绩雷/监管异动扫描 + 搜索预警。"},
+  {dir:"sector-rotation",   name:"板块轮动仪",    ico:"🔄", cat:"fin",  tag:"板块强弱",     desc:"申万行业涨跌与轮动强度可视化，捕捉资金主线。"},
+  {dir:"etf-picker",        name:"ETF筛选器",     ico:"🧮", cat:"fin",  tag:"基金筛选",     desc:"按类型/规模/收益筛选 ETF，20+ 样本，导出 JSON。"},
+  {dir:"holdings-check",    name:"持仓体检",      ico:"💼", cat:"fin",  tag:"组合诊断",     desc:"持仓集中度/行业集中/浮亏 4 维诊断评分，短板一目了然。"},
+  {dir:"smart-order",       name:"智能条件单",    ico:"⚡", cat:"fin",  tag:"条件触发",     desc:"涨破/跌破触发规则，浏览器 Notification 弹窗，模拟测试。"},
+  // —— 生活类 ——
+  {dir:"desktop-pet",       name:"桌面宠物豆豆",  ico:"🐱", cat:"life", tag:"桌面陪伴",     desc:"心情/饱食/精力三态宠物，喂食玩耍，30s 自然衰减。"},
+  {dir:"trip-planner",      name:"行程规划卡",    ico:"🧳", cat:"life", tag:"出行模板",     desc:"按城市+天数+风格生成每日上/下/晚骨架，可编辑导出。"},
+  {dir:"health-check",      name:"健康体检单",    ico:"🩺", cat:"life", tag:"自检评分",     desc:"个人/品牌 4 维自检清单，算分 + 短板诊断。"},
+  // —— 新增 10 个 App ——
+  {dir:"trading-agents",    name:"TradingAgents",  ico:"🤖", cat:"fin",  tag:"多智能体投研", desc:"模拟投行投研团队：基本面/技术/舆情/新闻/多空/风控协同出结论。"},
+  {dir:"theme-studio",      name:"主题工坊",       ico:"🎨", cat:"tool", tag:"主题切换",     desc:"类似 Miku Codex 的主题更换器，一键切换并导出配色配置。"},
+  {dir:"code-teacher",      name:"小狐狸讲代码",   ico:"🦊", cat:"tool", tag:"代码讲解",     desc:"输入代码，输出给妈妈听的生活类比版 + 给弟弟听的童趣拟人版。"},
+  {dir:"habit-tracker",     name:"习惯打卡",       ico:"✅", cat:"life", tag:"习惯养成",     desc:"每日打卡 + 连续天数 + 30 天热力图。"},
+  {dir:"focus-timer",       name:"专注番茄钟",     ico:"🍅", cat:"tool", tag:"专注效率",     desc:"25/5/15 分钟番茄钟，统计今日与累计番茄数。"},
+  {dir:"recipe-box",        name:"菜谱收藏盒",     ico:"🍳", cat:"life", tag:"菜谱管理",     desc:"收藏菜谱，按分类与食材搜索，查看食材步骤。"},
+  {dir:"workout-log",       name:"健身记录",       ico:"💪", cat:"life", tag:"训练容量",     desc:"记录训练组数/重量，统计近 7 天容量与分类柱状图。"},
+  {dir:"bookmark-manager",  name:"书签收藏家",     ico:"🔖", cat:"tool", tag:"书签管理",     desc:"收藏网页/工具/论文，按标签检索，一键访问。"},
+  {dir:"password-vault",    name:"密码保险库",     ico:"🔐", cat:"tool", tag:"密码生成",     desc:"本地生成强密码 + 保存账号，数据不上传。"},
+  {dir:"expense-ledger",    name:"随手记账本",     ico:"🧾", cat:"life", tag:"收支记账",     desc:"记录收入支出，分类统计，月度结余一目了然。"},
+];
+
+/* ====================== 渲染 ====================== */
+const CAT_LABEL = {fin:"金融", life:"生活", tool:"效率"};
+const RECENT_KEY = "hub_recent";
+let curCat = "all", curQ = "", curView = "grid", curSort = "name", selIdx = -1, firstPaint = true;
+
+function getRecent(){
+  try{ return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); }catch(e){ return []; }
+}
+function pushRecent(dir){
+  let r = getRecent().filter(d=>d!==dir);
+  r.unshift(dir);
+  r = r.slice(0, 6);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(r));
+  renderRecent();
+}
+function clearRecent(){ localStorage.removeItem(RECENT_KEY); renderRecent(); }
+
+function renderRecent(){
+  const wrap = document.getElementById("recentWrap");
+  const box = document.getElementById("recentChips");
+  const r = getRecent();
+  if(!r.length){ wrap.style.display="none"; return; }
+  wrap.style.display="block";
+  box.innerHTML = r.map(dir=>{
+    const a = APPS.find(x=>x.dir===dir);
+    if(!a) return "";
+    return `<a class="chip" href="${a.dir}/index.html" target="_blank" rel="noopener" onclick="pushRecent('${a.dir}')">${a.ico} ${a.name}<span class="x" data-dir="${a.dir}" title="移除">×</span></a>`;
+  }).join("");
+  box.querySelectorAll(".x").forEach(x=>x.addEventListener("click",e=>{
+    e.preventDefault(); e.stopPropagation();
+    localStorage.setItem(RECENT_KEY, JSON.stringify(getRecent().filter(d=>d!==x.dataset.dir)));
+    renderRecent();
+  }));
+}
+
+/* ============ 迭代改进：收藏 / 排序 / 视图 / 键盘导航 / 复制路径 / 标签筛选 ============ */
+function getFav(){
+  try{ return JSON.parse(localStorage.getItem("hub_fav") || "[]"); }catch(e){ return []; }
+}
+function isFav(dir){ return getFav().indexOf(dir) >= 0; }
+
+function renderFilters(){
+  const box = document.getElementById("filters");
+  if(!box) return;
+  const defs = [
+    {cat:"all",  label:"全部"},
+    {cat:"fin",  label:"金融"},
+    {cat:"life", label:"生活"},
+    {cat:"tool", label:"效率"},
+    {cat:"fav",  label:"⭐ 收藏"},
+  ];
+  box.innerHTML = defs.map(function(f){
+    let n = 0;
+    if(f.cat==="all") n = APPS.length;
+    else if(f.cat==="fav") n = getFav().length;
+    else n = APPS.filter(function(a){ return a.cat===f.cat; }).length;
+    return '<button data-cat="'+f.cat+'" class="'+(curCat===f.cat?"on":"")+'">'+f.label+' <span class="cnt">'+n+'</span></button>';
+  }).join("");
+}
+
+function renderSort(){
+  const sb = document.getElementById("sortbar");
+  if(!sb) return;
+  Array.prototype.slice.call(sb.querySelectorAll("button")).forEach(function(b){
+    b.classList.toggle("on", b.dataset.sort === curSort);
+  });
+}
+
+function syncViewBtn(){
+  const v = document.getElementById("viewBtn");
+  if(v) v.textContent = (curView==="list") ? "📋 列表" : "▦ 网格";
+}
+
+function loadPrefs(){
+  curView = localStorage.getItem("hub_view") || "grid";
+  curSort = localStorage.getItem("hub_sort") || "name";
+}
+
+function openApp(dir){
+  pushRecent(dir);
+  window.open(dir + "/index.html", "_blank", "noopener");
+}
+
+function copyPath(e, dir){
+  const btn = e.currentTarget;
+  const old = btn.textContent;
+  const path = dir + "/index.html";
+  function done(txt){ btn.textContent = txt; setTimeout(function(){ btn.textContent = old; }, 1200); }
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(path).then(function(){ done("已复制"); }, function(){ done("复制失败"); });
+    } else { done("不可用"); }
+  }catch(err){ done("复制失败"); }
+}
+
+function toggleFav(e, dir){
+  e.preventDefault(); e.stopPropagation();
+  let fav = getFav();
+  if(fav.indexOf(dir) >= 0) fav = fav.filter(function(d){ return d!==dir; });
+  else fav.push(dir);
+  localStorage.setItem("hub_fav", JSON.stringify(fav));
+  render();
+}
+
+function tagFilter(e, tag){
+  e.preventDefault(); e.stopPropagation();
+  curQ = tag;
+  const s = document.getElementById("search"); if(s) s.value = tag;
+  render();
+}
+
+function clearFilters(){
+  curCat = "all"; curQ = "";
+  const s = document.getElementById("search"); if(s) s.value = "";
+  render();
+}
+
+function applySel(){
+  const cards = Array.prototype.slice.call(document.querySelectorAll("#grid .card"));
+  cards.forEach(function(c){ c.classList.remove("sel"); });
+  if(selIdx >= 0 && selIdx < cards.length){
+    cards[selIdx].classList.add("sel");
+    try{ cards[selIdx].scrollIntoView({block:"nearest"}); }catch(e){}
+  }
+}
+
+function render(){
+  const grid = document.getElementById("grid");
+  grid.classList.toggle("list", curView === "list");
+  grid.innerHTML = "";
+  renderFilters();
+  let cFin=0,cLife=0,cTool=0, shown=0;
+  const q = curQ.trim().toLowerCase();
+  const favArr = getFav();
+  const favSet = favArr.length ? new Set(favArr) : new Set();
+  const firstAnim = firstPaint;
+  let list = APPS.slice();
+  if(curSort==="name") list.sort(function(a,b){ return a.name.localeCompare(b.name,"zh"); });
+  else if(curSort==="recent"){ const r = getRecent(); const rank = function(d){ const i = r.indexOf(d); return i < 0 ? Infinity : i; }; list.sort(function(a,b){ return rank(a.dir) - rank(b.dir); }); }
+  else if(curSort==="cat"){ const ord = {fin:0, life:1, tool:2}; list.sort(function(a,b){ const d = ord[a.cat]-ord[b.cat]; return d!==0 ? d : a.name.localeCompare(b.name,"zh"); }); }
+  if(curCat==="all"){ list.sort(function(a,b){ return (favSet.has(b.dir)?1:0) - (favSet.has(a.dir)?1:0); }); }
+  list.forEach(function(a){
+    if(a.cat==="fin") cFin++; else if(a.cat==="life") cLife++; else cTool++;
+    const matchCat = (curCat==="all") || (curCat==="fav" ? favSet.has(a.dir) : a.cat===curCat);
+    const matchQ = !q || a.name.toLowerCase().includes(q) || a.tag.toLowerCase().includes(q)
+                   || CAT_LABEL[a.cat].includes(q) || a.desc.toLowerCase().includes(q);
+    if(!(matchCat && matchQ)) return;
+    shown++;
+    const el = document.createElement("div");
+    el.className = "card" + (curView==="list" ? " list" : "") + (isFav(a.dir) ? " faved" : "") + (firstAnim ? " fade" : "");
+    el.dataset.dir = a.dir;
+    const star = isFav(a.dir) ? "⭐" : "☆";
+    el.innerHTML =
+      '<div class="topright">' +
+        '<button class="fav" type="button" title="收藏" onclick="toggleFav(event,\'' + a.dir + '\')">' + star + '</button>' +
+        '<span class="cat ' + a.cat + '">' + CAT_LABEL[a.cat] + '</span>' +
+      '</div>' +
+      '<div class="ctop">' +
+        '<div class="ico">' + a.ico + '</div>' +
+        '<div>' +
+          '<div class="cname">' + a.name + '</div>' +
+          '<div class="ctag" title="点击按标签筛选" onclick="tagFilter(event,\'' + a.tag + '\')">' + a.tag + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="desc">' + a.desc + '</div>' +
+      '<div class="cact">' +
+        '<a class="open" href="' + a.dir + '/index.html" target="_blank" rel="noopener" onclick="pushRecent(\'' + a.dir + '\')">打开应用 →</a>' +
+        '<button class="copybtn" type="button" onclick="copyPath(event,\'' + a.dir + '\')">📋 复制路径</button>' +
+      '</div>';
+    grid.appendChild(el);
+  });
+  if(shown===0){
+    grid.innerHTML = '<div class="empty">没有匹配的应用，试试其他关键词～<br><button type="button" class="clrbtn" id="clearFilterBtn">清除筛选</button></div>';
+    const cb = document.getElementById("clearFilterBtn");
+    if(cb) cb.addEventListener("click", clearFilters);
+  }
+  firstPaint = false;
+  document.getElementById("cnt").textContent = APPS.length;
+  document.getElementById("cntFin").textContent = cFin;
+  document.getElementById("cntLife").textContent = cLife;
+  document.getElementById("cntTool").textContent = cTool;
+  applySel();
+}
+
+/* 视图切换 / 排序 / 键盘导航 事件绑定 */
+(function(){
+  const vb = document.getElementById("viewBtn");
+  if(vb) vb.addEventListener("click", function(){
+    curView = (curView==="list") ? "grid" : "list";
+    localStorage.setItem("hub_view", curView);
+    syncViewBtn(); render();
+  });
+  const sb = document.getElementById("sortbar");
+  if(sb) sb.addEventListener("click", function(e){
+    const b = e.target.closest("button"); if(!b) return;
+    curSort = b.dataset.sort; localStorage.setItem("hub_sort", curSort);
+    renderSort(); render();
+  });
+  document.addEventListener("keydown", function(e){
+    const ae = document.activeElement;
+    const inInput = ae && (ae.tagName==="INPUT" || ae.tagName==="TEXTAREA" || ae.tagName==="SELECT" || ae.isContentEditable);
+    if(e.key==="/" && !inInput){ e.preventDefault(); const s=document.getElementById("search"); if(s) s.focus(); return; }
+    if(inInput) return;
+    const cards = Array.prototype.slice.call(document.querySelectorAll("#grid .card"));
+    if(!cards.length) return;
+    if(e.key==="ArrowDown" || e.key==="ArrowRight"){
+      e.preventDefault(); selIdx = (selIdx<0) ? 0 : Math.min(cards.length-1, selIdx+1); applySel();
+    } else if(e.key==="ArrowUp" || e.key==="ArrowLeft"){
+      if(selIdx<0) return; e.preventDefault(); selIdx = Math.max(0, selIdx-1); applySel();
+    } else if(e.key==="Enter"){
+      if(selIdx>=0 && selIdx<cards.length){ e.preventDefault(); openApp(cards[selIdx].dataset.dir); }
+    } else if(e.key==="Escape"){
+      selIdx = -1; applySel();
+    }
+  });
+})();
+
+// 搜索框
+document.getElementById("search").addEventListener("input", e=>{ curQ = e.target.value; render(); });
+// 分类筛选
+document.getElementById("filters").addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  document.querySelectorAll("#filters button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on"); curCat = b.dataset.cat; render();
+});
+// 随机打开
+document.getElementById("randBtn").addEventListener("click", ()=>{
+  const list = APPS.filter(a=>{
+    const q = curQ.trim().toLowerCase();
+    const mc = (curCat==="all"||a.cat===curCat);
+    const mq = !q || a.name.toLowerCase().includes(q) || a.tag.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q);
+    return mc && mq;
+  });
+  if(!list.length) return;
+  const a = list[Math.floor(Math.random()*list.length)];
+  pushRecent(a.dir);
+  window.open(a.dir+"/index.html", "_blank", "noopener");
+});
+
+// 真实数据接口（统一后端）配置：写入 localStorage.hub_api，所有 App 共用
+// 部署即同源：通过 http(s) 打开站点时，后端已托管前端，API 默认走同源(location.origin)，
+// 对方无需手填地址；仅本地双击 file:// 打开才默认指向本机 127.0.0.1:8787。
+(function initApi(){
+  const DEF = (location.protocol === "file:") ? "http://127.0.0.1:8787" : location.origin;
+  const input = document.getElementById("apiInput");
+  const state = document.getElementById("apiState");
+  // 自动默认指向统一后端（只写一次，不覆盖用户自定义）
+  if(!localStorage.getItem("hub_api")) localStorage.setItem("hub_api", DEF);
+  input.value = localStorage.getItem("hub_api") || DEF;
+  async function probe(){
+    const v = (input.value.trim().replace(/\/+$/,"")) || DEF;
+    state.textContent="检测中…"; state.className="apistate";
+    try{
+      const c = new AbortController(); const t = setTimeout(()=>c.abort(), 3000);
+      const r = await fetch(v + "/api/health", {cache:"no-store", signal:c.signal});
+      clearTimeout(t);
+      if(r.ok){
+        const j = await r.json().catch(()=>({}));
+        state.textContent = (j.offline ? "✓ 已连接（离线样本模式）" : "✓ 已连接（真实数据）");
+        state.className="apistate ok";
+      } else { state.textContent="✗ 接口无响应"; state.className="apistate bad"; }
+    }catch(e){
+      state.textContent="⚪ 后端未启动（App 自动用本地样本/离线演示）"; state.className="apistate";
+    }
+  }
+  function save(){
+    const v = input.value.trim().replace(/\/+$/,"");
+    localStorage.setItem("hub_api", v);
+    if(!v){ state.textContent="已清除，App 将用本地静态样本"; state.className="apistate"; return; }
+    probe();
+  }
+  document.getElementById("apiSave").addEventListener("click", save);
+  input.addEventListener("keydown", e=>{ if(e.key==="Enter") save(); });
+  probe();
+})();
+
+// 全局主题：读取主题工坊写入的共享配置，覆盖 :root 变量并刷新大厅背景
+function applySharedTheme(){
+  try{
+    const t = JSON.parse(localStorage.getItem("theme_config")||"null");
+    if(!t) return;
+    const r = document.documentElement.style;
+    r.setProperty("--bg", t.bg);
+    r.setProperty("--card", t.card);
+    r.setProperty("--card2", t.card2);
+    if(t.line)  r.setProperty("--line", t.line);
+    if(t.txt)   r.setProperty("--txt", t.txt);
+    if(t.sub)   r.setProperty("--sub", t.sub);
+    r.setProperty("--g1", t.accent);
+    r.setProperty("--g2", t.accent2);
+    r.setProperty("--accent", t.accent);
+    r.setProperty("--up", t.up);
+    r.setProperty("--down", t.down);
+    if(t.inv)   r.setProperty("--inv", t.inv);
+    document.body.style.background = "linear-gradient(160deg,"+t.bg+","+t.card+" 70%,"+t.card2+")";
+  }catch(e){}
+}
+applySharedTheme();
+loadPrefs();
+syncViewBtn();
+renderSort();
+render();
+renderRecent();
+</script>
+</body>
+</html>

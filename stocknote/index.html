@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>股事贴 StockNote · 个股事件速记卡</title>
+<style>
+  :root{
+    --bg:#0f0f23; --card:#1a1a2e; --radius:12px;
+    --grad-a:#667eea; --grad-b:#764ba2;
+    --up:#ff4d4f;   /* 利好 红 */
+    --down:#00d486; /* 利空 绿 */
+    --memo:#8a8a9a; /* 备忘 灰 */
+    --text:#e8e8f0; --sub:#9a9ab0; --line:#2a2a44;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,sans-serif;
+    background:var(--bg); color:var(--text); line-height:1.5; padding:24px;
+  }
+  .wrap{max-width:880px; margin:0 auto;}
+  header{
+    display:flex; align-items:center; gap:12px; margin-bottom:6px;
+  }
+  header h1{
+    font-size:22px; margin:0;
+    background:linear-gradient(90deg,var(--grad-a),var(--grad-b));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .tag{font-size:12px; color:var(--sub);}
+  .stats{
+    display:flex; gap:10px; flex-wrap:wrap; margin:14px 0 18px;
+  }
+  .stat{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:8px 14px; font-size:13px;
+  }
+  .stat b{font-size:16px;}
+  .stat.up b{color:var(--up);} .stat.down b{color:var(--down);} .stat.memo b{color:var(--memo);}
+
+  /* 表单 */
+  .panel{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; margin-bottom:18px;
+  }
+  .panel h2{font-size:15px; margin:0 0 12px; color:var(--sub); font-weight:600;}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .field{display:flex; flex-direction:column; gap:4px;}
+  .field.full{grid-column:1 / -1;}
+  label{font-size:12px; color:var(--sub);}
+  input,textarea,select{
+    background:#0f0f1e; border:1px solid var(--line); color:var(--text);
+    border-radius:8px; padding:9px 10px; font-size:14px; font-family:inherit;
+  }
+  input:focus,textarea:focus,select:focus{outline:none; border-color:var(--grad-a);}
+  textarea{resize:vertical; min-height:64px;}
+  .seg{display:flex; gap:8px;}
+  .seg label{
+    flex:1; text-align:center; padding:9px; border:1px solid var(--line); border-radius:8px;
+    cursor:pointer; font-size:13px; color:var(--sub); transition:.15s; user-select:none;
+  }
+  .seg input{display:none;}
+  .seg label.l-up.active{background:rgba(255,77,79,.15); border-color:var(--up); color:var(--up);}
+  .seg label.l-down.active{background:rgba(0,212,134,.15); border-color:var(--down); color:var(--down);}
+  .seg label.l-memo.active{background:rgba(138,138,154,.15); border-color:var(--memo); color:var(--memo);}
+
+  .actions{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;}
+  button{
+    border:none; border-radius:8px; padding:9px 16px; font-size:13px; cursor:pointer;
+    font-family:inherit; transition:.15s; color:#fff;
+  }
+  .btn-primary{background:linear-gradient(90deg,var(--grad-a),var(--grad-b));}
+  .btn-ghost{background:#23233e; color:var(--sub);}
+  .btn-ghost:hover{color:var(--text);}
+  button:hover{transform:translateY(-1px); opacity:.95;}
+
+  /* 工具栏 */
+  .toolbar{display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:center;}
+  .toolbar input[type=text]{
+    flex:1; min-width:180px;
+  }
+  .toolbar .btn-ghost{background:#23233e;}
+
+  /* 卡片列表 */
+  .cards{display:flex; flex-direction:column; gap:12px;}
+  .group-title{
+    font-size:13px; color:var(--sub); margin:14px 0 4px; padding-left:4px;
+    border-left:3px solid var(--grad-a);
+  }
+  .note{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 16px; position:relative; overflow:hidden;
+  }
+  .note::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px;}
+  .note.up::before{background:var(--up);}
+  .note.down::before{background:var(--down);}
+  .note.memo::before{background:var(--memo);}
+  .note .row1{display:flex; justify-content:space-between; align-items:baseline; gap:10px;}
+  .note .code{font-size:16px; font-weight:700;}
+  .note .name{font-size:13px; color:var(--sub); margin-left:8px;}
+  .note .date{font-size:12px; color:var(--sub);}
+  .note .type{
+    font-size:11px; padding:2px 8px; border-radius:20px; margin-left:8px;
+  }
+  .note.up .type{background:rgba(255,77,79,.18); color:var(--up);}
+  .note.down .type{background:rgba(0,212,134,.18); color:var(--down);}
+  .note.memo .type{background:rgba(138,138,154,.18); color:var(--memo);}
+  .note .content{margin-top:8px; font-size:14px; white-space:pre-wrap; word-break:break-word;}
+  .note .ops{margin-top:10px; display:flex; gap:8px;}
+  .note .ops button{padding:5px 12px; font-size:12px;}
+  .empty{text-align:center; color:var(--sub); padding:40px 0; font-size:14px;}
+  .file-hidden{display:none;}
+
+  /* 撤销提示 toast */
+  .toast{
+    position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px);
+    background:#23233e; border:1px solid var(--line); border-radius:10px;
+    padding:10px 14px; display:flex; align-items:center; gap:12px;
+    box-shadow:0 8px 24px rgba(0,0,0,.45); opacity:0; pointer-events:none;
+    transition:.2s; z-index:50; font-size:13px; color:var(--text);
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto;}
+  .toast-undo{
+    background:linear-gradient(90deg,var(--grad-a),var(--grad-b)); color:#fff;
+    border:none; border-radius:8px; padding:5px 14px; cursor:pointer; font-size:12px; font-family:inherit;
+  }
+
+  .hubfoot{max-width:1180px;margin:30px auto 0;padding:16px;text-align:center;
+    font-size:12px;color:var(--sub);border-top:1px solid var(--line);line-height:1.8}
+  .hubfoot a{color:var(--g1);text-decoration:none;font-weight:600}
+  .hubfoot a:hover{text-decoration:underline}
+
+  .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35);transition:filter .15s}
+  .hubhome:hover{filter:brightness(1.12)}
+</style>
+</head>
+<body>
+  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+
+<div class="wrap">
+  <header>
+    <h1>股事贴 StockNote</h1>
+    <span class="tag">个股事件速记卡 · 本地保存 · 零依赖</span>
+  </header>
+
+  <div class="stats" id="stats"></div>
+
+  <!-- 新增/编辑表单 -->
+  <div class="panel">
+    <h2 id="formTitle">➕ 新增速记卡</h2>
+    <input type="hidden" id="editId" value="" />
+    <div class="grid">
+      <div class="field">
+        <label>股票代码</label>
+        <input id="fCode" placeholder="如 600519" />
+      </div>
+      <div class="field">
+        <label>股票名称</label>
+        <input id="fName" placeholder="如 贵州茅台" />
+      </div>
+      <div class="field">
+        <label>事件日期</label>
+        <input id="fDate" type="date" />
+      </div>
+      <div class="field">
+        <label>事件类型</label>
+        <div class="seg" id="fTypeSeg">
+          <label class="l-up active"><input type="radio" name="ftype" value="up" checked />利好</label>
+          <label class="l-down"><input type="radio" name="ftype" value="down" />利空</label>
+          <label class="l-memo"><input type="radio" name="ftype" value="memo" />备忘</label>
+        </div>
+      </div>
+      <div class="field full">
+        <label>事件内容</label>
+        <textarea id="fContent" placeholder="发生了什么？例如：北向资金大幅净流入，盘中创历史新高。"></textarea>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-primary" id="btnSave">保存速记卡</button>
+      <button class="btn-ghost" id="btnCancel" style="display:none">取消编辑</button>
+    </div>
+  </div>
+
+  <!-- 工具栏 -->
+  <div class="toolbar">
+    <input type="text" id="search" placeholder="🔍 按代码 / 名称 / 内容实时筛选…" />
+    <select id="typeFilter" class="btn-ghost" title="按类型筛选">
+      <option value="">全部类型</option>
+      <option value="up">利好</option>
+      <option value="down">利空</option>
+      <option value="memo">备忘</option>
+    </select>
+    <button class="btn-ghost" id="btnClear" style="display:none">清除筛选</button>
+    <button class="btn-ghost" id="btnGroup">按股票分组：关</button>
+    <button class="btn-ghost" id="btnExport">导出 JSON</button>
+    <button class="btn-ghost" id="btnExportCsv">导出 CSV</button>
+    <button class="btn-ghost" id="btnCopyText">复制为文本</button>
+    <button class="btn-ghost" id="btnImport">导入 JSON</button>
+    <input type="file" id="fileInput" accept="application/json" class="file-hidden" />
+  </div>
+
+  <!-- 列表 -->
+  <div class="cards" id="cards"></div>
+
+  <!-- 撤销提示 -->
+  <div id="toast" class="toast" role="status">
+    <span class="toast-msg"></span>
+    <button class="toast-undo" type="button">撤销</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var KEY = "stocknote.records.v1";
+  var TYPE_LABEL = { up:"利好", down:"利空", memo:"备忘" };
+  var state = { records: load(), group: false, filter: "", typeFilter: "" };
+
+  function load(){
+    try{
+      var raw = JSON.parse(localStorage.getItem(KEY));
+      if(!Array.isArray(raw)) return [];
+      return raw.map(sanitize).filter(function(r){ return r!==null; });
+    }catch(e){ return []; }
+  }
+  // 校验并规整单条记录，确保渲染与导出不会因为脏数据崩溃
+  function sanitize(rec){
+    if(!rec || typeof rec!=="object" || Array.isArray(rec)) return null;
+    var type = (rec.type==="up"||rec.type==="down"||rec.type==="memo") ? rec.type : "memo";
+    var id = (typeof rec.id==="string" && rec.id) ? rec.id : uid();
+    var createdAt = (typeof rec.createdAt==="number" && isFinite(rec.createdAt)) ? rec.createdAt : Date.now();
+    return {
+      id: id,
+      code: String(rec.code||""),
+      name: String(rec.name||""),
+      date: String(rec.date||""),
+      type: type,
+      content: String(rec.content||""),
+      createdAt: createdAt
+    };
+  }
+  function persist(){
+    try{
+      localStorage.setItem(KEY, JSON.stringify(state.records));
+    }catch(e){
+      // 配额满 / 隐私模式等导致写入失败：内存已更新，提示用户而非静默丢失
+      alert("保存失败：本地存储不可用（可能已满或处于隐私模式），本次修改仅保存在内存中，刷新页面后可能丢失。");
+    }
+  }
+  function uid(){
+    return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+  function today(){
+    var d = new Date(), p = function(n){ return (n<10?"0":"")+n; };
+    return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+  }
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function p2(n){ return (n<10?"0":"")+n; }
+  // CSV 单元格转义：引号文件加引号并翻倍内部引号；防公式注入（= + - @ 前缀加单引号）
+  function csvCell(v){
+    v = (v==null) ? "" : String(v);
+    if(/^[=+\-@\t\r]/.test(v)) v = "'" + v;
+    if(/[",\n\r]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
+    return v;
+  }
+
+  // 统计条
+  function renderStats(){
+    var c = {up:0,down:0,memo:0};
+    state.records.forEach(function(r){ c[r.type]++; });
+    document.getElementById("stats").innerHTML =
+      '<div class="stat">共 <b>'+state.records.length+'</b> 条</div>'+
+      '<div class="stat up">利好 <b>'+c.up+'</b></div>'+
+      '<div class="stat down">利空 <b>'+c.down+'</b></div>'+
+      '<div class="stat memo">备忘 <b>'+c.memo+'</b></div>';
+  }
+
+  // 当前"可见"列表：排序 + 关键字 + 类型筛选（render 与复制文本共用，避免逻辑分叉）
+  function visibleList(){
+    var list = state.records.slice().sort(function(a,b){
+      return (b.date||"").localeCompare(a.date||"") || b.createdAt - a.createdAt;
+    });
+    var kw = state.filter.trim().toLowerCase();
+    if(kw){
+      list = list.filter(function(r){
+        return ((r.code||"")+" "+(r.name||"")+" "+(r.content||"")).toLowerCase().indexOf(kw)>=0;
+      });
+    }
+    if(state.typeFilter){
+      list = list.filter(function(r){ return r.type===state.typeFilter; });
+    }
+    return list;
+  }
+
+  // 单条格式化为可分享纯文本
+  function formatNote(r){
+    return "【"+(r.code||"")+(r.name?(" "+r.name):"")+"】"+(r.date||"")+" "+(TYPE_LABEL[r.type]||r.type)+"："+(r.content||"");
+  }
+  function formatNotes(list){ return list.map(formatNote).join("\n"); }
+
+  // 列表渲染
+  function render(){
+    var box = document.getElementById("cards");
+    var list = visibleList();
+    if(!list.length){
+      box.innerHTML = '<div class="empty">还没有速记卡，先在上方记一笔吧～</div>';
+      return;
+    }
+
+    if(state.group){
+      var groups = {};
+      list.forEach(function(r){
+        var k = (r.code||"?")+" "+(r.name||"");
+        (groups[k] = groups[k] || []).push(r);
+      });
+      var html = "";
+      Object.keys(groups).sort().forEach(function(k){
+        html += '<div class="group-title">'+esc(k)+'（'+groups[k].length+'）</div>';
+        html += groups[k].map(cardHTML).join("");
+      });
+      box.innerHTML = html;
+    } else {
+      box.innerHTML = list.map(cardHTML).join("");
+    }
+  }
+
+  function cardHTML(r){
+    return '<div class="note '+r.type+'">'+
+      '<div class="row1">'+
+        '<div><span class="code">'+esc(r.code||"")+'</span>'+
+          '<span class="name">'+esc(r.name||"")+'</span>'+
+          '<span class="type">'+TYPE_LABEL[r.type]+'</span></div>'+
+        '<span class="date">'+esc(r.date||"")+'</span>'+
+      '</div>'+
+      '<div class="content">'+esc(r.content||"")+'</div>'+
+      '<div class="ops">'+
+        '<button class="btn-ghost" data-edit="'+r.id+'">编辑</button>'+
+        '<button class="btn-ghost" data-dup="'+r.id+'">复用</button>'+
+        '<button class="btn-ghost" data-del="'+r.id+'">删除</button>'+
+      '</div>'+
+    '</div>';
+  }
+
+  // 表单：类型切换高亮
+  document.getElementById("fTypeSeg").addEventListener("change", function(e){
+    if(e.target.name!=="ftype") return;
+    ["up","down","memo"].forEach(function(t){
+      var el = document.querySelector(".l-"+t);
+      el.classList.toggle("active", el.querySelector("input").checked);
+    });
+  });
+
+  // 保存
+  document.getElementById("btnSave").addEventListener("click", function(){
+    var code = document.getElementById("fCode").value.trim();
+    var name = document.getElementById("fName").value.trim();
+    var date = document.getElementById("fDate").value || today();
+    var type = document.querySelector('input[name=ftype]:checked').value;
+    var content = document.getElementById("fContent").value.trim();
+    if(!code && !name){
+      alert("请至少填写股票代码或名称");
+      return;
+    }
+    var editId = document.getElementById("editId").value;
+    if(editId){
+      var rec = state.records.find(function(r){ return r.id===editId; });
+      if(rec){ rec.code=code; rec.name=name; rec.date=date; rec.type=type; rec.content=content; }
+    } else {
+      state.records.push({ id:uid(), code:code, name:name, date:date, type:type, content:content, createdAt:Date.now() });
+    }
+    persist();
+    resetForm();
+    renderStats(); render();
+  });
+
+  document.getElementById("btnCancel").addEventListener("click", resetForm);
+
+  // 键盘快捷键：内容框 Ctrl/Cmd+Enter 保存；编辑中 Esc 取消
+  document.getElementById("fContent").addEventListener("keydown", function(e){
+    if((e.ctrlKey || e.metaKey) && e.key==="Enter"){
+      e.preventDefault();
+      document.getElementById("btnSave").click();
+    } else if(e.key==="Escape"){
+      if(document.getElementById("btnCancel").style.display!=="none") resetForm();
+    }
+  });
+
+  // 撤销提示：删除后短暂可恢复，避免误删永久丢失
+  var toastEl = null, toastTimer = null;
+  // 待恢复栈：连续删除会累积，撤销一次性全部恢复，防止前序卡片被静默丢弃
+  var pendingRemovals = [];
+  function showToast(msg, onUndo){
+    toastEl = toastEl || document.getElementById("toast");
+    toastEl.querySelector(".toast-msg").textContent = msg;
+    toastEl.querySelector(".toast-undo").onclick = function(){
+      clearTimeout(toastTimer); hideToast();
+      if(onUndo) onUndo();
+    };
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ hideToast(); commitDeletions(); }, 5000);
+  }
+  function hideToast(){ if(toastEl) toastEl.classList.remove("show"); }
+  // toast 超时（用户未撤销）后正式提交删除，清空待恢复栈
+  function commitDeletions(){ pendingRemovals = []; }
+
+  function resetForm(){
+    document.getElementById("editId").value="";
+    document.getElementById("fCode").value="";
+    document.getElementById("fName").value="";
+    document.getElementById("fDate").value=today();
+    document.querySelector('.l-up').querySelector('input').checked=true;
+    ["up","down","memo"].forEach(function(t){
+      document.querySelector(".l-"+t).classList.toggle("active", t==="up");
+    });
+    document.getElementById("fContent").value="";
+    document.getElementById("formTitle").textContent="➕ 新增速记卡";
+    document.getElementById("btnSave").textContent="保存速记卡";
+    document.getElementById("btnCancel").style.display="none";
+  }
+
+  // 编辑 / 删除（事件委托）
+  document.getElementById("cards").addEventListener("click", function(e){
+    var editId = e.target.getAttribute("data-edit");
+    var delId  = e.target.getAttribute("data-del");
+    var dupId  = e.target.getAttribute("data-dup");
+    if(editId){
+      var r = state.records.find(function(x){ return x.id===editId; });
+      if(!r) return;
+      document.getElementById("editId").value=r.id;
+      document.getElementById("fCode").value=r.code||"";
+      document.getElementById("fName").value=r.name||"";
+      document.getElementById("fDate").value=r.date||today();
+      document.querySelector('.l-'+r.type).querySelector('input').checked=true;
+      ["up","down","memo"].forEach(function(t){
+        document.querySelector(".l-"+t).classList.toggle("active", t===r.type);
+      });
+      document.getElementById("fContent").value=r.content||"";
+      document.getElementById("formTitle").textContent="✏️ 编辑速记卡";
+      document.getElementById("btnSave").textContent="更新速记卡";
+      document.getElementById("btnCancel").style.display="inline-block";
+      window.scrollTo({top:0, behavior:"smooth"});
+    }
+    if(dupId){
+      // 复用以已有卡片预填表单，作为【新建】而非覆盖原卡片
+      var src = state.records.find(function(x){ return x.id===dupId; });
+      if(!src) return;
+      document.getElementById("editId").value="";
+      document.getElementById("fCode").value=src.code||"";
+      document.getElementById("fName").value=src.name||"";
+      document.getElementById("fDate").value=src.date||today();
+      document.querySelector('.l-'+src.type).querySelector('input').checked=true;
+      ["up","down","memo"].forEach(function(t){
+        document.querySelector(".l-"+t).classList.toggle("active", t===src.type);
+      });
+      document.getElementById("fContent").value=src.content||"";
+      document.getElementById("formTitle").textContent="➕ 基于「"+(src.code||src.name||"未命名")+"」新建";
+      document.getElementById("btnSave").textContent="保存速记卡";
+      document.getElementById("btnCancel").style.display="inline-block";
+      window.scrollTo({top:0, behavior:"smooth"});
+    }
+    if(delId){
+      var idx = state.records.findIndex(function(x){ return x.id===delId; });
+      if(idx<0) return;
+      var removed = state.records.splice(idx, 1)[0];
+      pendingRemovals.push(removed);
+      persist(); renderStats(); render();
+      showToast("已删除 " + pendingRemovals.length + " 条（可撤销）", function(){
+        // 一次性恢复全部待恢复卡片，按原顺序还原
+        while(pendingRemovals.length){ state.records.push(pendingRemovals.pop()); }
+        pendingRemovals = [];
+        persist(); renderStats(); render();
+      });
+    }
+  });
+
+  // 搜索
+  document.getElementById("search").addEventListener("input", function(e){
+    state.filter = e.target.value; render(); syncClear();
+  });
+
+  // 类型筛选
+  document.getElementById("typeFilter").addEventListener("change", function(e){
+    state.typeFilter = e.target.value; render(); syncClear();
+  });
+
+  // 清除筛选
+  document.getElementById("btnClear").addEventListener("click", function(){
+    state.filter = ""; state.typeFilter = "";
+    document.getElementById("search").value = "";
+    document.getElementById("typeFilter").value = "";
+    render(); syncClear();
+  });
+
+  function syncClear(){
+    var active = !!(state.filter.trim() || state.typeFilter);
+    document.getElementById("btnClear").style.display = active ? "inline-block" : "none";
+  }
+
+  // 分组切换
+  document.getElementById("btnGroup").addEventListener("click", function(){
+    state.group = !state.group;
+    this.textContent = "按股票分组：" + (state.group?"开":"关");
+    render();
+  });
+
+  // 导出
+  document.getElementById("btnExport").addEventListener("click", function(){
+    var blob = new Blob([JSON.stringify(state.records, null, 2)], {type:"application/json"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "stocknote-"+today()+".json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  // 导出 CSV（Excel 友好：UTF-8 BOM + 公式注入防护）
+  document.getElementById("btnExportCsv").addEventListener("click", function(){
+    if(!state.records.length){ alert("还没有速记卡，无法导出"); return; }
+    var header = ["代码","名称","日期","类型","内容","创建时间"];
+    var rows = state.records.map(function(r){
+      var d = (typeof r.createdAt==="number") ? new Date(r.createdAt) : new Date();
+      var ts = isNaN(d.getTime()) ? "" : d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())+" "+p2(d.getHours())+":"+p2(d.getMinutes());
+      return [r.code, r.name, r.date, TYPE_LABEL[r.type]||r.type, r.content, ts];
+    });
+    var csv = "﻿" + [header].concat(rows).map(function(row){ return row.map(csvCell).join(","); }).join("\r\n");
+    var blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "stocknote-"+today()+".csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  // 复制当前可见笔记为文本（便于粘贴到聊天/备忘录）
+  function copyText(text, cb){
+    try{
+      if(navigator && navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){ cb(true); }, function(){ cb(fallbackCopy(text)); });
+        return;
+      }
+    }catch(e){}
+    cb(fallbackCopy(text));
+  }
+  function fallbackCopy(text){
+    try{
+      var ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      var ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    }catch(e){ return false; }
+  }
+  document.getElementById("btnCopyText").addEventListener("click", function(){
+    var list = visibleList();
+    if(!list.length){ alert("没有可复制的速记卡"); return; }
+    var text = formatNotes(list);
+    copyText(text, function(ok){
+      if(ok) showToast("已复制 " + list.length + " 条到剪贴板", null);
+      else alert("复制失败，请手动选择文本复制");
+    });
+  });
+
+  // 导入
+  document.getElementById("btnImport").addEventListener("click", function(){
+    document.getElementById("fileInput").click();
+  });
+  document.getElementById("fileInput").addEventListener("change", function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var data = JSON.parse(reader.result);
+        if(!Array.isArray(data)) throw new Error("格式错误");
+        // 去重合并：以 id 为准，导入覆盖本地
+        var map = {};
+        state.records.forEach(function(r){ map[r.id]=r; });
+        data.forEach(function(r){
+          var s = sanitize(r);
+          if(s) map[s.id] = s;
+        });
+        state.records = Object.keys(map).map(function(k){ return map[k]; });
+        persist(); renderStats(); render();
+        alert("导入成功：共 "+state.records.length+" 条");
+      }catch(err){
+        alert("导入失败：" + err.message);
+      }
+      e.target.value="";
+    };
+    reader.readAsText(file);
+  });
+
+  // 初始化
+  document.getElementById("fDate").value = today();
+  syncClear();
+  renderStats(); render();
+})();
+</script>
+
+  <footer class="hubfoot">
+    <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
+    <span>数据来自公开接口或本地演示，仅供学习与参考，不构成任何投资建议。</span>
+  </footer>
+</body>
+</html>

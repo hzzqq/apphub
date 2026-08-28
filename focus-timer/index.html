@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>专注番茄钟</title>
+<style>
+:root{--bg:#0f0f23;--card:#1a1a2e;--card2:#221a3a;--txt:#e6e6f0;--sub:#8a8a9a;--line:#2a2a44;--accent:#667eea;--accent2:#764ba2;--up:#ff4d4f;--down:#00d486;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;min-height:100vh}
+a{color:var(--txt);text-decoration:none}
+.hubhome{position:fixed;top:14px;left:14px;z-index:50;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.wrap{max-width:520px;margin:0 auto;padding:70px 16px 40px;text-align:center}
+.head h1{font-size:26px;margin:0;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;color:transparent}
+.timer{font-size:90px;font-weight:700;margin:30px 0;font-variant-numeric:tabular-nums;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;color:transparent}
+.seg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:20px}
+.seg button{border:none;background:transparent;color:var(--sub);padding:10px 16px;cursor:pointer}
+.seg button.on{background:var(--accent);color:#fff}
+.btns{display:flex;gap:12px;justify-content:center;margin:20px 0}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff;padding:14px 28px;border-radius:12px;cursor:pointer;font-size:16px;font-weight:600;min-width:100px}
+.btn.ghost{background:var(--card2);border:1px solid var(--line);color:var(--txt)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:20px;text-align:left}
+.stat{display:flex;justify-content:space-around;text-align:center}
+.stat .num{font-size:28px;font-weight:700;color:var(--accent)}
+.stat .lab{font-size:12px;color:var(--sub)}
+.progress{height:8px;background:var(--card2);border-radius:4px;margin-top:20px;overflow:hidden}
+.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0;transition:width .3s}
+.hubfoot{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;font-size:12px;color:var(--sub)}
+</style>
+</head>
+<body>
+<a class="hubhome" href="../index.html">🏠 大厅</a>
+<div class="wrap">
+  <div class="head"><h1>🍅 专注番茄钟</h1></div>
+  <div class="seg">
+    <button class="on" data-m="work">专注 25</button>
+    <button data-m="short">短休 5</button>
+    <button data-m="long">长休 15</button>
+  </div>
+  <div class="timer" id="timer">25:00</div>
+  <div class="progress"><i id="bar"></i></div>
+  <div class="btns">
+    <button class="btn" id="startBtn">开始</button>
+    <button class="btn ghost" id="resetBtn">重置</button>
+  </div>
+  <div class="card">
+    <div class="stat">
+      <div><div class="num" id="todayCount">0</div><div class="lab">今日番茄</div></div>
+      <div><div class="num" id="todayMin">0</div><div class="lab">专注分钟</div></div>
+      <div><div class="num" id="totalCount">0</div><div class="lab">累计番茄</div></div>
+    </div>
+  </div>
+  <div class="card" style="text-align:left">
+    <div style="font-size:13px;color:var(--sub);margin-bottom:10px">自定义时长（分钟）</div>
+    <div class="inputrow">
+      <label style="display:flex;align-items:center;gap:6px;font-size:14px">专注 <input id="workMin" type="number" min="1" max="180" style="width:72px;background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:6px 8px;border-radius:8px;outline:none"></label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:14px">短休 <input id="shortMin" type="number" min="1" max="60" style="width:72px;background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:6px 8px;border-radius:8px;outline:none"></label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:14px">长休 <input id="longMin" type="number" min="1" max="120" style="width:72px;background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:6px 8px;border-radius:8px;outline:none"></label>
+    </div>
+  </div>
+  <div class="card" id="histCard" style="text-align:left;display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <strong>专注记录</strong>
+      <button class="btn ghost" id="clearHist" style="padding:4px 12px;font-size:12px">清空</button>
+    </div>
+    <div id="histList" style="max-height:200px;overflow:auto"></div>
+  </div>
+  <div class="hubfoot">
+    <a href="../index.html">← 返回应用大厅</a>
+    <span>数据存 localStorage</span>
+  </div>
+</div>
+<script>
+let cfg=JSON.parse(localStorage.getItem("focus_cfg")||'{"work":25,"short":5,"long":15}');
+const MODES={work:cfg.work,short:cfg.short,long:cfg.long};
+let mode="work",left=MODES.work*60,running=false,timer=null;
+let stats=JSON.parse(localStorage.getItem("focus_stats")||'{"today":"","count":0,"total":0,"minutes":0}');
+let history=JSON.parse(localStorage.getItem("focus_history")||"[]");
+
+function fmt(s){const m=Math.floor(s/60),sec=s%60;return String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0");}
+function checkToday(){const t=new Date().toISOString().slice(0,10);if(stats.today!==t){stats.today=t;stats.count=0;stats.minutes=0;save();}}
+function save(){localStorage.setItem("focus_stats",JSON.stringify(stats));renderStat();}
+function renderStat(){document.getElementById("todayCount").textContent=stats.count;document.getElementById("todayMin").textContent=stats.minutes;document.getElementById("totalCount").textContent=stats.total;}
+function update(){document.getElementById("timer").textContent=fmt(left);const total=MODES[mode]*60;document.getElementById("bar").style.width=((total-left)/total*100)+"%";}
+function tick(){if(left>0){left--;update();}else{complete();}}
+function complete(){clearInterval(timer);running=false;document.getElementById("startBtn").textContent="开始";if(mode==="work"){checkToday();stats.count++;stats.total++;stats.minutes+=MODES.work;save();history.push({t:Date.now(),min:MODES.work});if(history.length>100)history=history.slice(-100);localStorage.setItem("focus_history",JSON.stringify(history));renderHist();alert("专注完成！休息一下吧");}else{alert("休息结束，继续专注！");}setMode("work");}
+function setMode(m){mode=m;left=MODES[m]*60;clearInterval(timer);running=false;document.getElementById("startBtn").textContent="开始";document.querySelectorAll(".seg button").forEach(b=>{b.classList.toggle("on",b.dataset.m===m);const lbl={work:"专注",short:"短休",long:"长休"}[m];b.textContent=lbl+" "+MODES[m];});update();}
+function renderHist(){
+  const card=document.getElementById("histCard"),list=document.getElementById("histList");
+  if(!history.length){card.style.display="none";return;}
+  card.style.display="";
+  list.innerHTML=history.slice().reverse().slice(0,20).map(h=>{
+    const d=new Date(h.t);const ds=d.toLocaleString("zh-CN",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+    return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px"><span>'+ds+'</span><span style="color:var(--accent)">'+h.min+' 分钟</span></div>';
+  }).join("");
+}
+function applyCfg(){
+  cfg.work=Math.max(1,Math.min(180,parseInt(document.getElementById("workMin").value)||25));
+  cfg.short=Math.max(1,Math.min(60,parseInt(document.getElementById("shortMin").value)||5));
+  cfg.long=Math.max(1,Math.min(120,parseInt(document.getElementById("longMin").value)||15));
+  localStorage.setItem("focus_cfg",JSON.stringify(cfg));
+  MODES.work=cfg.work;MODES.short=cfg.short;MODES.long=cfg.long;
+  document.getElementById("workMin").value=cfg.work;
+  document.getElementById("shortMin").value=cfg.short;
+  document.getElementById("longMin").value=cfg.long;
+  setMode(mode);
+}
+
+document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.m)));
+document.getElementById("startBtn").addEventListener("click",()=>{
+  checkToday();
+  if(running){clearInterval(timer);running=false;document.getElementById("startBtn").textContent="继续";}
+  else{timer=setInterval(tick,1000);running=true;document.getElementById("startBtn").textContent="暂停";}
+});
+document.getElementById("resetBtn").addEventListener("click",()=>setMode(mode));
+["workMin","shortMin","longMin"].forEach(id=>document.getElementById(id).addEventListener("change",applyCfg));
+document.getElementById("clearHist").addEventListener("click",()=>{if(confirm("确定清空全部专注记录？")){history=[];localStorage.setItem("focus_history",JSON.stringify(history));renderHist();}});
+document.getElementById("workMin").value=cfg.work;
+document.getElementById("shortMin").value=cfg.short;
+document.getElementById("longMin").value=cfg.long;
+checkToday();renderStat();setMode("work");renderHist();
+</script>
+</body>
+</html>

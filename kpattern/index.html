@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>K线形态速查卡 · StockPattern</title>
+<style>
+  :root{
+    --bg:#0f0f23; --card:#1a1a2e; --card2:#21213a; --radius:12px;
+    --up:#ff4d4f; --down:#00d486; --memo:#8a8a9a;
+    --grad:linear-gradient(135deg,#667eea,#764ba2);
+    --text:#e8e8f0; --sub:#9a9ab0; --line:#2a2a44;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.6;padding:24px;max-width:1100px;margin:0 auto;}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:6px;}
+  .logo{width:42px;height:42px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:22px;}
+  h1{font-size:22px;font-weight:700;}
+  .tag{font-size:12px;color:var(--sub);background:var(--card2);padding:2px 8px;border-radius:20px;}
+  .desc{color:var(--sub);font-size:13px;margin:8px 0 18px;}
+  .warn{background:#2a1f2e;border:1px solid #5a2a40;color:#f0b8c8;font-size:12px;padding:8px 12px;border-radius:8px;margin-bottom:16px;}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+  .filters button{background:var(--card);border:1px solid var(--line);color:var(--sub);padding:6px 14px;border-radius:20px;cursor:pointer;font-size:13px;transition:.2s;}
+  .filters button.active{background:var(--grad);color:#fff;border-color:transparent;}
+  .filters button:hover{color:var(--text);}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;}
+  .pcard{background:var(--card);border-radius:var(--radius);padding:16px;border:1px solid var(--line);border-top:3px solid var(--memo);}
+  .pcard.up{border-top-color:var(--up);}
+  .pcard.down{border-top-color:var(--down);}
+  .pcard.cont{border-top-color:#f5a623;}
+  .pcard h3{font-size:16px;display:flex;align-items:center;gap:8px;}
+  .sig{font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600;}
+  .sig.up{background:rgba(255,77,79,.15);color:var(--up);}
+  .sig.down{background:rgba(0,212,134,.15);color:var(--down);}
+  .sig.cont{background:rgba(245,166,35,.15);color:#f5a623;}
+  .cat{font-size:11px;color:var(--sub);margin:4px 0 10px;}
+  .pcard svg{width:100%;height:90px;background:var(--card2);border-radius:8px;margin:8px 0;}
+  .pcard p{font-size:13px;color:#cfcfe0;margin:6px 0;}
+  .pcard .op{font-size:12px;color:var(--sub);border-top:1px dashed var(--line);padding-top:8px;margin-top:8px;}
+  .pcard .op b{color:var(--text);}
+  footer{margin-top:24px;color:var(--sub);font-size:12px;text-align:center;}
+  .search{width:100%;background:var(--card);border:1px solid var(--line);color:var(--text);padding:10px 14px;border-radius:10px;font-size:14px;margin-bottom:14px;}
+  .search::placeholder{color:var(--memo);}
+  .card{background:var(--card);border-radius:var(--radius);padding:18px;border:1px solid var(--line);margin-bottom:16px;}
+  .btn2{background:var(--grad);color:#fff;border:none;border-radius:20px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600;}
+  .btn2.ghost{background:var(--card);border:1px solid var(--line);color:var(--text);}
+
+  .hubfoot{max-width:1180px;margin:30px auto 0;padding:16px;text-align:center;
+    font-size:12px;color:var(--sub);border-top:1px solid var(--line);line-height:1.8}
+  .hubfoot a{color:var(--g1);text-decoration:none;font-weight:600}
+  .hubfoot a:hover{text-decoration:underline}
+
+  .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35);transition:filter .15s}
+  .hubhome:hover{filter:brightness(1.12)}
+</style>
+</head>
+<body>
+  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+
+<header>
+  <div class="logo">📊</div>
+  <div>
+    <h1>K线形态速查卡 <span class="tag">StockPattern</span></h1>
+  </div>
+</header>
+<div class="desc">把常见 K 线 / 均线形态做成随身卡，标注多空信号与操作要点。源自 StockSignal「形态选股」模块抽取。</div>
+<div class="warn">⚠️ 提示：金三角、银三角、老鸭头、美人肩等均为<b>民间技术分析的俗称</b>（参考搜狐财经、凤凰财经、新浪财经等公开资料），并非学术严格定义，<b>仅供参考学习，不构成投资建议</b>。</div>
+
+<input class="search" id="search" placeholder="搜索形态名称，如：金三角 / 头肩顶 / 老鸭头 / 美人肩…" />
+<div class="filters" id="filters">
+  <button data-f="all" class="active">全部</button>
+  <button data-f="bottom">底部反转</button>
+  <button data-f="top">顶部反转</button>
+  <button data-f="cont">中继/持续</button>
+</div>
+<div style="margin-bottom:16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+  <button id="reviewBtn" class="btn2">🎲 随机复习（先猜再看答案）</button>
+  <span class="tag" style="color:var(--sub)">把速查卡当记忆卡：闭眼回忆信号，再翻答案</span>
+</div>
+<div class="card" id="flashcard" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3 id="fcName" style="margin:0;font-size:18px"></h3>
+    <button id="fcNext" class="btn2">下一个 →</button>
+  </div>
+  <div class="cat" id="fcCat" style="margin:6px 0 10px"></div>
+  <div id="fcBody" style="display:none">
+    <p id="fcDesc"></p>
+    <div class="op" id="fcOp"></div>
+  </div>
+  <button id="fcReveal" class="btn2" style="margin-top:8px">显示答案</button>
+</div>
+<div class="grid" id="grid"></div>
+
+<footer>共 <span id="cnt">0</span> 种形态 · 双击即用的零依赖小工具 · 数据内置无需联网</footer>
+
+<script>
+// ===== 形态库（含民间说法，标注来源类别）=====
+// 真实形态定义，统一从后端 /api/data?file=kpattern.json 加载；失败用内置兜底。
+const FALLBACK_PATTERNS = [
+  // ---------- 底部反转 ----------
+  {
+    name:"银三角（银山谷）", cat:"bottom", sig:"up",
+    desc:"三根均线（短/中/长期）在底部先后黄金交叉，构成一个向上的不规则三角形。通常是股价见底回升的第一个信号。",
+    op:"出现在价值区间底部的第一个三角形称为银三角；但底部构筑常需反复夯实，出现后不一定只涨不跌，宜结合量价确认。",
+    svg:"tri"
+  },
+  {
+    name:"金三角（金山谷）", cat:"bottom", sig:"up",
+    desc:"形态与银三角相同，但出现在银三角之后，构成第二个底部，整体呈“W”型结构。位置比银三角更高、距离更远，上涨信号更强。",
+    op:"三均线必须同时向上。金三角出现才真正揭示市场见底回升；常被称为“最后一次做多机会”。",
+    svg:"tri"
+  },
+  {
+    name:"老鸭头", cat:"bottom", sig:"up",
+    desc:"主力拉高建仓后打压洗盘所形成的经典形态：5/10日均线上穿60日形成“鸭颈”，回落高点成“鸭头顶”，再次金叉成“鸭嘴”，两线交叉处留“鸭鼻孔”（即价托/银三角）。",
+    op:"鸭头顶远离60日且60日走平/向上；鸭颈放量、鸭顶缩量；鸭鼻孔越小越好。形态一旦形成短期极具攻击性。",
+    svg:"duck"
+  },
+  {
+    name:"美人肩", cat:"bottom", sig:"up",
+    desc:"上升趋势中主力强控盘的看涨中继结构，因走势如圆润肩膀得名。5/10日均线反复金叉死叉，前半段呈拱形，K线在60日线上方（强势者悬空于30日线上）。",
+    op:"左肩放量启动→肩部缩量洗盘守10日线→右肩放量突破。破10日线或肩底止损；牛市/热点板块胜率高。",
+    svg:"shoulder"
+  },
+  {
+    name:"头肩底", cat:"bottom", sig:"up",
+    desc:"经典底部反转形态：左肩、头部（最低点）、右肩依次形成，颈线被放量突破后趋势反转向上。",
+    op:"突破颈线且成交量放大为确认信号；量度目标≈头部到颈线的垂直距离。",
+    svg:"headshoulder"
+  },
+  {
+    name:"双重底（W底）", cat:"bottom", sig:"up",
+    desc:"价格两次探底不破前低，形成“W”形，颈线突破后确认反转。",
+    op:"第二底成交量通常萎缩，突破颈线时放量更有效；目标位≈W深度。",
+    svg:"double"
+  },
+  // ---------- 顶部反转 ----------
+  {
+    name:"死亡谷", cat:"top", sig:"down",
+    desc:"与银三角相反：短期均线从上向下穿越中期、长期均线，构成一个向下的不规则三角形，是顶部看空信号。",
+    op:"三均线同时向下发散为弱势确认；常出现在高位滞涨后，应警惕趋势转空。",
+    svg:"death"
+  },
+  {
+    name:"头肩顶", cat:"top", sig:"down",
+    desc:"经典顶部反转形态：左肩、头部（最高点）、右肩，颈线跌破后趋势反转向下。",
+    op:"跌破颈线放量确认；量度跌幅≈头部到颈线垂直距离。",
+    svg:"headshoulder_top"
+  },
+  {
+    name:"双重顶（M顶）", cat:"top", sig:"down",
+    desc:"价格两次冲高不破前高，形成“M”形，颈线跌破确认反转。",
+    op:"第二顶常缩量；破颈线为离场信号。",
+    svg:"double_top"
+  },
+  {
+    name:"圆弧顶", cat:"top", sig:"down",
+    desc:"价格缓慢爬升后在高区走平并逐级回落，形成圆弧形顶部，多空力量渐变。",
+    op:"右侧放量下跌为确认；属渐进式转空，宜提前减仓。",
+    svg:"arc"
+  },
+  // ---------- 中继/持续 ----------
+  {
+    name:"上升三角形", cat:"cont", sig:"cont",
+    desc:"上方阻力线水平、下方支撑线逐级抬高，多空在高位博弈，向上突破概率大。",
+    op:"放量突破上沿为介入信号；属看涨中继。",
+    svg:"triangle_up"
+  },
+  {
+    name:"下降三角形", cat:"cont", sig:"cont",
+    desc:"下方支撑水平、上方压力逐级下移，空方渐占优，向下破位概率大。",
+    op:"跌破下沿确认；属看跌中继。",
+    svg:"triangle_down"
+  },
+  {
+    name:"旗形（上升旗）", cat:"cont", sig:"cont",
+    desc:"急涨后小幅横盘/回落形成平行四边形“旗面”，消化获利盘后沿原方向突破。",
+    op:"突破旗面上沿续涨；量能配合更佳。",
+    svg:"flag"
+  },
+  {
+    name:"矩形箱体", cat:"cont", sig:"cont",
+    desc:"价格在两个平行水平线间上下震荡，方向待突破确认。",
+    op:"突破方向跟随原有趋势概率高；假突破需警惕。",
+    svg:"box"
+  }
+];
+let PATTERNS = FALLBACK_PATTERNS;
+async function loadPatterns(){
+  try{
+    const API_ROOT = localStorage.getItem("hub_api")||"http://127.0.0.1:8787";
+    const r=await fetch(API_ROOT+"/api/data?file=kpattern.json",{cache:"no-store"});
+    if(r.ok){ const j=await r.json(); if(j.ok&&Array.isArray(j.rows)&&j.rows.length){ PATTERNS=j.rows; render(); return; } }
+  }catch(e){ console.warn("kpattern 接口失败, 用内置兜底",e); }
+  PATTERNS=FALLBACK_PATTERNS; render();
+}
+
+// ===== SVG 示意图生成 =====
+function svgFor(type){
+  const upC="#ff4d4f", downC="#00d486", grid="#2a2a44", txt="#9a9ab0";
+  const W=300,H=90;
+  const base=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">`;
+  const line=(pts,color)=>`<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>`;
+  const dot=(x,y,c)=>`<circle cx="${x}" cy="${y}" r="3" fill="${c}"/>`;
+  let body="";
+  switch(type){
+    case "tri": // 银/金三角
+      body = line("30,70 90,40 150,60 30,70",upC)
+           + line("90,40 150,60 210,35 90,40",upC)
+           + dot(90,40,upC)+dot(150,60,upC)+dot(210,35,upC)
+           + `<text x="230" y="40" fill="${txt}" font-size="10">价托</text>`;
+      break;
+    case "duck": // 老鸭头
+      body = line("20,75 70,45 110,55 150,30 200,50 260,25",upC)
+           + line("110,55 150,30",downC)
+           + `<text x="150" y="22" fill="${txt}" font-size="9">鸭头顶</text>`;
+      break;
+    case "shoulder": // 美人肩
+      body = line("20,65 70,35 110,45 160,28 220,40 270,22",upC)
+           + `<path d="M70,35 Q110,55 160,28" fill="none" stroke="${downC}" stroke-width="1.5" stroke-dasharray="3,2"/>`
+           + `<text x="95" y="62" fill="${txt}" font-size="9">肩部洗盘</text>`;
+      break;
+    case "headshoulder":
+      body = line("20,60 70,40 110,70 160,30 220,55 270,45",upC)
+           + `<line x1="20" y1="80" x2="270" y2="80" stroke="${txt}" stroke-width="1" stroke-dasharray="4,3"/>`;
+      break;
+    case "headshoulder_top":
+      body = line("20,40 70,60 110,30 160,72 220,45 270,55",downC)
+           + `<line x1="20" y1="12" x2="270" y2="12" stroke="${txt}" stroke-width="1" stroke-dasharray="4,3"/>`;
+      break;
+    case "double":
+      body = line("20,30 80,70 140,40 200,70 260,35",upC)
+           + `<line x1="80" y1="70" x2="200" y2="70" stroke="${txt}" stroke-width="1" stroke-dasharray="4,3"/>`;
+      break;
+    case "double_top":
+      body = line("20,70 80,30 140,60 200,30 260,65",downC)
+           + `<line x1="80" y1="30" x2="200" y2="30" stroke="${txt}" stroke-width="1" stroke-dasharray="4,3"/>`;
+      break;
+    case "death":
+      body = line("30,30 90,55 150,40 30,30",downC)
+           + line("90,55 150,40 210,65 90,55",downC)
+           + dot(90,55,downC)+dot(150,40,downC)+dot(210,65,downC);
+      break;
+    case "arc":
+      body = line("20,40 Q150,20 280,55",downC);
+      break;
+    case "triangle_up":
+      body = line("20,70 280,70",txt) + line("20,75 150,35 280,72",upC);
+      break;
+    case "triangle_down":
+      body = line("20,25 280,25",txt) + line("20,20 150,60 280,28",downC);
+      break;
+    case "flag":
+      body = line("20,75 80,30",upC) + line("90,55 150,40 210,52 270,38",upC)
+           + line("90,55 270,38",downC);
+      break;
+    case "box":
+      body = `<rect x="40" y="30" width="220" height="40" fill="none" stroke="${txt}" stroke-width="1.5" stroke-dasharray="4,3"/>`
+           + line("40,50 70,42 110,55 150,45 190,52 230,44 270,48","#f5a623");
+      break;
+    default:
+      body = line("20,60 280,40",txt);
+  }
+  return base + body + `</svg>`;
+}
+
+// ===== 渲染 =====
+const grid=document.getElementById("grid");
+const cnt=document.getElementById("cnt");
+const search=document.getElementById("search");
+let curFilter="all";
+
+function render(){
+  const kw=search.value.trim().toLowerCase();
+  const list=PATTERNS.filter(p=>{
+    const f = curFilter==="all" || p.cat===curFilter;
+    const k = !kw || p.name.toLowerCase().includes(kw) || p.desc.toLowerCase().includes(kw);
+    return f && k;
+  });
+  grid.innerHTML = list.map(p=>`
+    <div class="pcard ${p.sig}">
+      <h3>${p.name} <span class="sig ${p.sig}">${p.sig==="up"?"偏多":p.sig==="down"?"偏空":"中继"}</span></h3>
+      <div class="cat">${p.cat==="bottom"?"底部反转":p.cat==="top"?"顶部反转":"中继/持续"}</div>
+      ${svgFor(p.svg)}
+      <p>${p.desc}</p>
+      <div class="op"><b>操作要点：</b>${p.op}</div>
+    </div>
+  `).join("");
+  cnt.textContent=list.length;
+}
+
+document.getElementById("filters").addEventListener("click",e=>{
+  if(e.target.tagName!=="BUTTON")return;
+  document.querySelectorAll("#filters button").forEach(b=>b.classList.remove("active"));
+  e.target.classList.add("active");
+  curFilter=e.target.dataset.f;
+  render();
+});
+search.addEventListener("input",render);
+
+// ===== 随机复习（记忆卡）模式 =====
+function startReview(){
+  if(!PATTERNS.length)return;
+  const p=PATTERNS[Math.floor(Math.random()*PATTERNS.length)];
+  const fc=document.getElementById("flashcard");
+  fc.style.display="";
+  document.getElementById("fcName").textContent=p.name;
+  document.getElementById("fcCat").textContent=p.cat==="bottom"?"底部反转":p.cat==="top"?"顶部反转":"中继/持续";
+  document.getElementById("fcDesc").textContent=p.desc;
+  document.getElementById("fcOp").innerHTML="<b>操作要点：</b>"+p.op;
+  document.getElementById("fcBody").style.display="none";
+  document.getElementById("fcReveal").style.display="";
+  document.getElementById("fcReveal").textContent="显示答案";
+}
+document.getElementById("reviewBtn").addEventListener("click",startReview);
+document.getElementById("fcNext").addEventListener("click",startReview);
+document.getElementById("fcReveal").addEventListener("click",()=>{
+  document.getElementById("fcBody").style.display="";
+  const b=document.getElementById("fcReveal"); b.style.display="none";
+});
+
+loadPatterns();
+</script>
+
+  <footer class="hubfoot">
+    <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
+    <span>数据来自公开接口或本地演示，仅供学习与参考，不构成任何投资建议。</span>
+  </footer>
+</body>
+</html>

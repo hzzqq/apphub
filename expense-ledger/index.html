@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>随手记账本</title>
+<style>
+:root{--bg:#0f0f23;--card:#1a1a2e;--card2:#221a3a;--txt:#e6e6f0;--sub:#8a8a9a;--line:#2a2a44;--accent:#667eea;--accent2:#764ba2;--up:#ff4d4f;--down:#00d486;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;min-height:100vh}
+a{color:var(--txt);text-decoration:none}
+.hubhome{position:fixed;top:14px;left:14px;z-index:50;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.wrap{max-width:800px;margin:0 auto;padding:70px 16px 40px}
+.head h1{font-size:26px;margin:0;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;color:transparent}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.inputrow{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.inputrow input,.inputrow select{background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:10px;outline:none}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:600}
+.btn.ghost{background:var(--card2);border:1px solid var(--line);color:var(--txt)}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.sumbox{text-align:center;padding:14px;background:var(--card2);border-radius:10px}
+.sumbox .num{font-size:24px;font-weight:700}
+.sumbox .lab{font-size:12px;color:var(--sub)}
+.item{display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+.item .info{font-size:14px}
+.item .info b{display:block}
+.item .amt{font-size:16px;font-weight:700}
+.item .amt.in{color:var(--down)}
+.item .amt.out{color:var(--up)}
+canvas{width:100%;height:200px}
+.hubfoot{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;font-size:12px;color:var(--sub)}
+</style>
+</head>
+<body>
+<a class="hubhome" href="../index.html">🏠 大厅</a>
+<div class="wrap">
+  <div class="head"><h1>🧾 随手记账本</h1></div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <button class="btn ghost" id="prevM" style="padding:6px 14px">‹</button>
+      <b id="monthLab" style="font-size:15px"></b>
+      <button class="btn ghost" id="nextM" style="padding:6px 14px">›</button>
+    </div>
+    <div class="summary">
+      <div class="sumbox"><div class="num" id="inTotal">¥0</div><div class="lab" id="labIn">本月收入</div></div>
+      <div class="sumbox"><div class="num" id="outTotal">¥0</div><div class="lab" id="labOut">本月支出</div></div>
+      <div class="sumbox"><div class="num" id="balance">¥0</div><div class="lab">结余</div></div>
+    </div>
+    <div class="inputrow">
+      <input type="date" id="eDate">
+      <select id="eType"><option value="out">支出</option><option value="in">收入</option></select>
+      <input type="number" id="eAmt" placeholder="金额">
+      <select id="eCat"><option value="餐饮">餐饮</option><option value="交通">交通</option><option value="购物">购物</option><option value="娱乐">娱乐</option><option value="学习">学习</option><option value="工资">工资</option><option value="理财">理财</option><option value="其他">其他</option></select>
+      <input id="eNote" placeholder="备注" style="flex:1">
+      <button class="btn" id="addBtn">记账</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="margin:0 0 12px">支出分类</h3>
+    <canvas id="chart"></canvas>
+  </div>
+  <div class="card">
+    <h3 style="margin:0 0 12px">近期明细</h3>
+    <div id="logList"></div>
+  </div>
+  <div class="hubfoot">
+    <a href="../index.html">← 返回应用大厅</a>
+    <span>数据存 localStorage</span>
+  </div>
+</div>
+<script>
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);});}
+function safeUrl(u){u=String(u==null?"":u);if(/^\s*javascript:/i.test(u))return"#";return esc(u);}
+
+const KEY="expense_data";
+let logs=JSON.parse(localStorage.getItem(KEY)||"[]");
+let curMonth=new Date().toISOString().slice(0,7);
+document.getElementById("eDate").value=new Date().toISOString().slice(0,10);
+function save(){localStorage.setItem(KEY,JSON.stringify(logs));render();}
+function fmt(n){return "¥"+n.toFixed(2);}
+function monthKey(){return new Date().toISOString().slice(0,7);}
+function shiftMonth(mk,d){const [y,mo]=mk.split("-").map(Number);const d2=new Date(y,mo-1+d,1);return d2.getFullYear()+"-"+String(d2.getMonth()+1).padStart(2,"0");}
+function render(){
+  document.getElementById("monthLab").textContent=curMonth;
+  const isCur=(curMonth===monthKey());
+  document.getElementById("labIn").textContent=isCur?"本月收入":"收入";
+  document.getElementById("labOut").textContent=isCur?"本月支出":"支出";
+  const mk=curMonth;
+  const month=logs.filter(l=>l.date.startsWith(mk));
+  const income=month.filter(l=>l.type==="in").reduce((a,l)=>a+l.amt,0);
+  const out=month.filter(l=>l.type==="out").reduce((a,l)=>a+l.amt,0);
+  document.getElementById("inTotal").textContent=fmt(income);
+  document.getElementById("outTotal").textContent=fmt(out);
+  document.getElementById("balance").textContent=fmt(income-out);
+  // 列表
+  const box=document.getElementById("logList");
+  if(!logs.length){box.innerHTML='<div style="color:var(--sub)">还没有记录</div>';}
+  else{box.innerHTML=logs.slice().reverse().map((l,i)=>`
+    <div class="item">
+      <div class="info"><b>${esc(l.date)} · ${esc(l.cat)}</b>${esc(l.note||"无备注")}</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="amt ${l.type}">${l.type==="in"?'+':'-'}${fmt(l.amt)}</div>
+        <button class="btn ghost" data-del="${logs.length-1-i}" style="padding:4px 10px">删</button>
+      </div>
+    </div>
+  `).join("");}
+  document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{logs.splice(+b.dataset.del,1);save();}));
+  drawChart(month);
+}
+function drawChart(month){
+  const cats={}; month.filter(l=>l.type==="out").forEach(l=>cats[l.cat]=(cats[l.cat]||0)+l.amt);
+  const labels=Object.keys(cats); const vals=Object.values(cats); const total=vals.reduce((a,b)=>a+b,0)||1;
+  const cv=document.getElementById("chart"); cv.width=cv.clientWidth*2; cv.height=cv.clientHeight*2;
+  const ctx=cv.getContext("2d"); ctx.scale(2,2); ctx.clearRect(0,0,cv.width,cv.height);
+  const W=cv.clientWidth,H=cv.clientHeight,pad=10;
+  const colors=["#667eea","#764ba2","#f6c453","#ff4d4f","#00d486","#48dbfb","#ff9ff3"];
+  let x=pad;
+  labels.forEach((lab,i)=>{
+    const w=(vals[i]/total)*(W-2*pad);
+    ctx.fillStyle=colors[i%colors.length]; ctx.fillRect(x,40,w,H-80);
+    ctx.fillStyle="#e6e6f0"; ctx.textAlign="center"; ctx.font="11px sans-serif"; ctx.fillText(lab,x+w/2,20);
+    ctx.fillText((vals[i]/total*100).toFixed(0)+"%",x+w/2,H-15);
+    x+=w;
+  });
+}
+document.getElementById("addBtn").addEventListener("click",()=>{
+  const l={date:document.getElementById("eDate").value,type:document.getElementById("eType").value,amt:+document.getElementById("eAmt").value,cat:document.getElementById("eCat").value,note:document.getElementById("eNote").value.trim()};
+  if(!l.date||!l.amt)return alert("请填写完整");
+  logs.push(l); document.getElementById("eAmt").value=""; document.getElementById("eNote").value=""; save();
+});
+window.addEventListener("resize",render);
+document.getElementById("prevM").addEventListener("click",()=>{curMonth=shiftMonth(curMonth,-1);render();});
+document.getElementById("nextM").addEventListener("click",()=>{curMonth=shiftMonth(curMonth,1);render();});
+render();
+</script>
+</body>
+</html>

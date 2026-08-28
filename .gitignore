@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+*.egg-info/
+
+# 运行时/日志
+backend.log
+*.log
+
+# WorkBuddy 项目内部配置（含个人 memory / 自驱 state，不随仓库分发）
+.workbuddy/
+
+# 系统/编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# 临时/构建中间产物
+*.tmp
+*.tmp.js
+_jscheck*.js

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>密码保险库</title>
+<style>
+:root{--bg:#0f0f23;--card:#1a1a2e;--card2:#221a3a;--txt:#e6e6f0;--sub:#8a8a9a;--line:#2a2a44;--accent:#667eea;--accent2:#764ba2;--up:#ff4d4f;--down:#00d486;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;min-height:100vh}
+a{color:var(--txt);text-decoration:none}
+.hubhome{position:fixed;top:14px;left:14px;z-index:50;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.wrap{max-width:800px;margin:0 auto;padding:70px 16px 40px}
+.head h1{font-size:26px;margin:0;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;color:transparent}
+.head p{color:var(--sub);margin:8px 0 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.inputrow{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.inputrow input{background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:10px;outline:none;flex:1}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:600}
+.btn.ghost{background:var(--card2);border:1px solid var(--line);color:var(--txt)}
+.strength{display:flex;height:8px;border-radius:4px;overflow:hidden;margin:8px 0;background:var(--card2)}
+.strength i{height:100%;width:0;transition:width .3s}
+.strength.weak i{background:var(--up);width:33%}
+.strength.mid i{background:#f6c453;width:66%}
+.strength.strong i{background:var(--down);width:100%}
+.pwd{display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--card2);border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+.pwd .site{font-weight:700}
+.pwd .pw{font-family:monospace;color:var(--sub);font-size:14px}
+.options{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--sub);margin:10px 0}
+.options label{display:flex;align-items:center;gap:4px;cursor:pointer}
+.hubfoot{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;font-size:12px;color:var(--sub)}
+.lock{position:fixed;inset:0;background:rgba(15,15,35,.97);display:flex;align-items:center;justify-content:center;z-index:100}
+.lock .box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px;width:340px;max-width:90vw}
+.lock h2{margin:0 0 12px;font-size:20px}
+.lock input{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:12px;border-radius:10px;outline:none;margin-top:6px}
+.lock .err{color:var(--up);font-size:12px;min-height:16px;margin-top:8px}
+.lock .hint{font-size:11px;color:var(--sub);margin-top:10px;line-height:1.5}
+#main.hidden{display:none}
+</style>
+</head>
+<body>
+<a class="hubhome" href="../index.html">🏠 大厅</a>
+<div class="lock" id="lockScreen">
+  <div class="box">
+    <h2 id="lockTitle">🔐 解锁保险库</h2>
+    <input type="password" id="master" placeholder="主密码" autocomplete="off">
+    <div class="err" id="lockErr"></div>
+    <button class="btn" id="unlockBtn" style="width:100%;margin-top:8px">解锁 / 设置</button>
+    <div class="hint" id="lockHint">首次使用请设置一个主密码，本地数据将以 AES-GCM 加密保存（不上传、不加主密码无法解密）。</div>
+  </div>
+</div>
+<div id="main" class="hidden">
+  <div class="wrap">
+    <div class="head"><h1>🔐 密码保险库</h1><p>本地生成强密码 + 记录账号（AES-GCM 加密存储，数据不上传）</p></div>
+    <div class="card">
+      <h3 style="margin:0 0 12px">密码生成器</h3>
+      <div class="inputrow">
+        <input type="number" id="len" value="16" style="width:80px">
+        <button class="btn" id="genBtn">生成</button>
+        <button class="btn ghost" id="copyGen">复制</button>
+      </div>
+      <div class="options">
+        <label><input type="checkbox" id="useUpper" checked> 大写字母</label>
+        <label><input type="checkbox" id="useLower" checked> 小写字母</label>
+        <label><input type="checkbox" id="useNum" checked> 数字</label>
+        <label><input type="checkbox" id="useSym"> 特殊符号</label>
+      </div>
+      <input id="genOut" style="width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:12px;border-radius:10px;font-family:monospace" readonly>
+      <div class="strength" id="strengthBar"><i></i></div>
+      <div style="font-size:12px;color:var(--sub)" id="strengthText">强度：--</div>
+    </div>
+    <div class="card">
+      <h3 style="margin:0 0 12px">保存的账号</h3>
+      <div class="inputrow">
+        <input id="site" placeholder="网站/应用">
+        <input id="user" placeholder="用户名">
+        <input id="pass" placeholder="密码" type="password">
+        <button class="btn" id="saveBtn">保存</button>
+      </div>
+      <div id="pwdList"></div>
+    </div>
+    <div class="hubfoot">
+      <a href="../index.html">← 返回应用大厅</a>
+      <span>本地 AES-GCM 加密 · 主密码保护 · 不上传</span>
+    </div>
+  </div>
+</div>
+<script>
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);});}
+function safeUrl(u){u=String(u==null?"":u);if(/^\s*javascript:/i.test(u))return"#";return esc(u);}
+
+const SALT_KEY="password_vault_salt";
+const DATA_KEY="password_vault_data";
+let items=[];
+let unlocked=false;
+let sessionMaster=null;
+
+function b64(buf){return btoa(String.fromCharCode.apply(null,new Uint8Array(buf)));}
+function unb64(s){return Uint8Array.from(atob(s),function(c){return c.charCodeAt(0);});}
+async function deriveKey(master, salt){
+  const enc=new TextEncoder();
+  const km=await crypto.subtle.importKey("raw",enc.encode(master),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    {name:"PBKDF2",salt:salt,iterations:100000,hash:"SHA-256"},
+    km,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+async function encryptItems(master,obj){
+  const salt=unb64(localStorage.getItem(SALT_KEY));
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await deriveKey(master,salt);
+  const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv:iv},key,new TextEncoder().encode(JSON.stringify(obj)));
+  return b64(iv)+":"+b64(ct);
+}
+async function decryptItems(master,stored){
+  const salt=unb64(localStorage.getItem(SALT_KEY));
+  const parts=stored.split(":");
+  const key=await deriveKey(master,salt);
+  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(parts[0])},key,unb64(parts[1]));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function save(){
+  if(!unlocked||!sessionMaster) return;
+  const payload=await encryptItems(sessionMaster,items);
+  localStorage.setItem(DATA_KEY,payload);
+  render();
+}
+async function unlock(){
+  const m=document.getElementById("master").value;
+  const err=document.getElementById("lockErr");
+  err.textContent="";
+  if(!m){ err.textContent="请输入主密码"; return; }
+  try{
+    if(!localStorage.getItem(SALT_KEY)){
+      localStorage.setItem(SALT_KEY,b64(crypto.getRandomValues(new Uint8Array(16))));
+      sessionMaster=m; items=[]; await save(); enter(); return;
+    }
+    const stored=localStorage.getItem(DATA_KEY);
+    if(!stored){ sessionMaster=m; items=[]; enter(); return; }
+    items=await decryptItems(m,stored);
+    sessionMaster=m; enter();
+  }catch(e){ err.textContent="主密码错误，无法解密"; }
+}
+function enter(){
+  unlocked=true;
+  document.getElementById("lockScreen").style.display="none";
+  document.getElementById("main").classList.remove("hidden");
+  render();
+}
+document.getElementById("unlockBtn").addEventListener("click",unlock);
+document.getElementById("master").addEventListener("keydown",function(e){ if(e.key==="Enter") unlock(); });
+
+function randChar(pool){return pool[Math.floor(Math.random()*pool.length)];}
+function generate(){
+  const len=+document.getElementById("len").value||16;
+  let pool="";
+  if(document.getElementById("useUpper").checked)pool+="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  if(document.getElementById("useLower").checked)pool+="abcdefghijklmnopqrstuvwxyz";
+  if(document.getElementById("useNum").checked)pool+="0123456789";
+  if(document.getElementById("useSym").checked)pool+="!@#$%^&*()_+-=[]{}|;:,.<>?";
+  if(!pool)return "";
+  let out=""; for(let i=0;i<len;i++)out+=randChar(pool);
+  document.getElementById("genOut").value=out; score(out); return out;
+}
+function score(p){
+  let s=0; if(p.length>=8)s++; if(p.length>=14)s++; if(/[A-Z]/.test(p))s++; if(/[a-z]/.test(p))s++; if(/\d/.test(p))s++; if(/[^A-Za-z0-9]/.test(p))s++;
+  const bar=document.getElementById("strengthBar"); bar.className="strength "+(s<=2?"weak":s<=4?"mid":"strong");
+  document.getElementById("strengthText").textContent="强度："+(s<=2?"弱":s<=4?"中":"强");
+}
+function render(){
+  const box=document.getElementById("pwdList");
+  if(!items.length){box.innerHTML='<div style="color:var(--sub)">暂无保存</div>';return;}
+  box.innerHTML=items.map(function(it,i){
+    return '<div class="pwd">'+
+      '<div><div class="site">'+esc(it.site)+'</div><div style="font-size:12px;color:var(--sub)">'+esc(it.user)+'</div></div>'+
+      '<div style="display:flex;align-items:center;gap:10px">'+
+        '<span class="pw">'+esc(it.pass)+'</span>'+
+        '<button class="btn ghost" data-copy="'+esc(it.pass)+'" style="padding:4px 10px">复制</button>'+
+        '<button class="btn ghost" data-del="'+i+'" style="padding:4px 10px">删</button>'+
+      '</div>'+
+    '</div>';
+  }).join("");
+  document.querySelectorAll("[data-copy]").forEach(function(b){b.addEventListener("click",function(){navigator.clipboard.writeText(b.dataset.copy).then(function(){alert("已复制");});});});
+  document.querySelectorAll("[data-del]").forEach(function(b){b.addEventListener("click",function(){items.splice(+b.dataset.del,1);save();});});
+}
+document.getElementById("genBtn").addEventListener("click",generate);
+document.getElementById("copyGen").addEventListener("click",function(){navigator.clipboard.writeText(document.getElementById("genOut").value).then(function(){alert("已复制");});});
+document.getElementById("saveBtn").addEventListener("click",function(){
+  const site=document.getElementById("site").value.trim(),user=document.getElementById("user").value.trim(),pass=document.getElementById("pass").value;
+  if(!site||!pass)return alert("请填写网站和密码");
+  items.push({site:site,user:user,pass:pass}); document.getElementById("site").value=""; document.getElementById("user").value=""; document.getElementById("pass").value=""; save();
+});
+generate();
+</script>
+</body>
+</html>

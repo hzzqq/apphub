@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>桌面宠物 · 豆豆</title>
+<style>
+  :root{
+    --bg:#0f0f23; --card:#1a1a2e; --card2:#221a3a; --line:#2e2b45;
+    --txt:#e6e6f0; --sub:#9a9ab0; --up:#ff4d4f; --down:#00d486; --purple:#667eea; --gold:#f6c453;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(160deg,#0f0f23,#15132b);color:var(--txt);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;padding:18px;max-width:520px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px;background:linear-gradient(90deg,#667eea,#764ba2);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{color:var(--sub);font-size:13px;margin-bottom:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin:14px 0;text-align:center}
+  .pet{font-size:72px;cursor:pointer;user-select:none;transition:transform .15s;display:inline-block}
+  .pet:active{transform:scale(.9)}
+  .bubble{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:10px 14px;
+    margin:12px auto;max-width:90%;font-size:14px;min-height:44px;display:flex;align-items:center;justify-content:center}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+  .stat{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px}
+  .stat .v{font-size:22px;font-weight:700;color:var(--gold)}
+  .stat .l{font-size:12px;color:var(--sub)}
+  .btn{background:linear-gradient(90deg,#667eea,#764ba2);color:#fff;border:none;border-radius:9px;padding:9px 14px;cursor:pointer;font-size:13px;margin:4px}
+  .btn.ghost{background:var(--card2);border:1px solid var(--line);color:var(--txt)}
+  .bar{height:8px;background:var(--card2);border-radius:6px;overflow:hidden;margin-top:4px}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,#667eea,#764ba2);transition:width .3s}
+  footer{color:var(--sub);font-size:12px;text-align:center;margin-top:18px}
+
+  .hubfoot{max-width:1180px;margin:30px auto 0;padding:16px;text-align:center;
+    font-size:12px;color:var(--sub);border-top:1px solid var(--line);line-height:1.8}
+  .hubfoot a{color:var(--g1);text-decoration:none;font-weight:600}
+  .hubfoot a:hover{text-decoration:underline}
+
+  .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35);transition:filter .15s}
+  .hubhome:hover{filter:brightness(1.12)}
+
+  .rename{margin-bottom:14px}
+  .rename input{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;color:var(--txt);outline:none}
+  .rename input:focus{border-color:var(--accent)}
+  .mood{margin-top:10px;font-size:13px;color:var(--g1);font-weight:600}
+</style>
+</head>
+<body>
+  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+
+  <h1>🐾 桌面宠物 · <span id="petName">豆豆</span></h1>
+  <div class="sub">轻量趣味小工具 · 源自 zcong「desktop-pet」 · 零依赖 · 双击即开</div>
+  <div class="rename"><input id="nameInput" placeholder="给宠物起个名字" style="width:140px" /> <button class="btn ghost" id="renameBtn">改名</button></div>
+
+  <div class="card">
+    <div class="pet" id="pet" title="摸摸我">🐱</div>
+    <div class="bubble" id="bubble">你好呀，我是豆豆～摸摸我或者喂我吧！</div>
+    <div class="mood" id="mood">心情超好，尾巴翘上天！😻</div>
+    <div class="stats">
+      <div class="stat"><div class="v" id="sHappy">80</div><div class="l">心情</div><div class="bar"><i id="bHappy" style="width:80%"></i></div></div>
+      <div class="stat"><div class="v" id="sHunger">60</div><div class="l">饱食</div><div class="bar"><i id="bHunger" style="width:60%"></i></div></div>
+      <div class="stat"><div class="v" id="sEnergy">70</div><div class="l">精力</div><div class="bar"><i id="bEnergy" style="width:70%"></i></div></div>
+    </div>
+    <div>
+      <button class="btn" id="feed">🍖 喂食</button>
+      <button class="btn" id="play">🎾 玩耍</button>
+      <button class="btn ghost" id="sleep">😴 睡觉</button>
+      <button class="btn ghost" id="reset">🔄 重置</button>
+    </div>
+  </div>
+  <footer>纯前端小玩具 · 数据存本地，关掉就下班</footer>
+
+<script>
+const K="desktop_pet_v1", NK="desktop_pet_name";
+const TALKS=["喵～今天也要元气满满！","陪你写代码辛苦啦～","摸摸头，舒服！","你知道吗，A股今天…算了不说扫兴的😼","豆豆也想学量化…","嗷呜，肚子有点饿","你笑起来真好看✨"];
+let pet=load()||{happy:80,hunger:60,energy:70};
+let petName=localStorage.getItem(NK)||"豆豆";
+
+function load(){try{return JSON.parse(localStorage.getItem(K))}catch(e){return null}}
+function save(){localStorage.setItem(K,JSON.stringify(pet))}
+function say(t){document.getElementById("bubble").textContent=t;}
+function moodText(){
+  const h=pet.happy;
+  if(h>=80)return "心情超好，尾巴翘上天！😻";
+  if(h>=60)return "心情不错，眯眼晒太阳～😺";
+  if(h>=40)return "还行吧，有点想摸鱼…😼";
+  if(h>=20)return "有点低落，需要抱抱😿";
+  return "快哄哄我，要不开心了😾";
+}
+function render(){
+  document.getElementById("sHappy").textContent=Math.round(pet.happy);
+  document.getElementById("sHunger").textContent=Math.round(pet.hunger);
+  document.getElementById("sEnergy").textContent=Math.round(pet.energy);
+  document.getElementById("bHappy").style.width=pet.happy+"%";
+  document.getElementById("bHunger").style.width=pet.hunger+"%";
+  document.getElementById("bEnergy").style.width=pet.energy+"%";
+  document.getElementById("petName").textContent=petName;
+  document.getElementById("mood").textContent=moodText();
+  save();
+}
+// 随时间衰减
+setInterval(()=>{
+  pet.hunger=Math.max(0,pet.hunger-1);
+  pet.energy=Math.max(0,pet.energy-0.5);
+  if(pet.hunger<20)pet.happy=Math.max(0,pet.happy-1);
+  render();
+},1000*30);
+
+document.getElementById("pet").addEventListener("click",()=>{
+  pet.happy=Math.min(100,pet.happy+5);
+  say(TALKS[Math.floor(Math.random()*TALKS.length)]);
+  const p=document.getElementById("pet");p.style.transform="scale(1.15)";setTimeout(()=>p.style.transform="scale(1)",150);
+  render();
+});
+document.getElementById("feed").addEventListener("click",()=>{
+  pet.hunger=Math.min(100,pet.hunger+25);
+  pet.happy=Math.min(100,pet.happy+5);
+  say("呜姆，好吃！谢谢投喂🍖");render();
+});
+document.getElementById("play").addEventListener("click",()=>{
+  pet.energy=Math.max(0,pet.energy-10);
+  pet.happy=Math.min(100,pet.happy+12);
+  say("耶！玩球最开心啦🎾");render();
+});
+/* 睡觉：恢复精力（真实需求缺口——此前精力只能衰减/重置，无恢复动作），消耗少量饱食 */
+document.getElementById("sleep").addEventListener("click",()=>{
+  pet.energy=Math.min(100,pet.energy+30);
+  pet.hunger=Math.max(0,pet.hunger-15);
+  pet.happy=Math.min(100,pet.happy+3);
+  say("呼噜呼噜…睡饱啦，精神多了😴💤");render();
+});
+document.getElementById("reset").addEventListener("click",()=>{
+  pet={happy:80,hunger:60,energy:70};say("重置成功，豆豆满血复活！");render();
+});
+document.getElementById("renameBtn").addEventListener("click",()=>{
+  const v=document.getElementById("nameInput").value.trim();
+  if(!v){alert("请输入名字");return;}
+  petName=v; localStorage.setItem(NK,petName); say("以后请叫我 "+petName+"！💕"); render();
+});
+document.getElementById("nameInput").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("renameBtn").click();});
+
+/* 改名框预填当前名字，方便直接修改而非重新输入 */
+document.getElementById("nameInput").value = petName;
+render();
+</script>
+
+  <footer class="hubfoot">
+    <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
+    <span>数据来自公开接口或本地演示，仅供学习与参考，不构成任何投资建议。</span>
+  </footer>
+</body>
+</html>

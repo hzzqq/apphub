@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小狐狸讲代码</title>
+<style>
+:root{--bg:#0f0f23;--card:#1a1a2e;--card2:#221a3a;--txt:#e6e6f0;--sub:#8a8a9a;--line:#2a2a44;--accent:#667eea;--accent2:#764ba2;--up:#ff4d4f;--down:#00d486;--warn:#f6c453;--ok:#00d486;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;min-height:100vh}
+a{color:var(--txt);text-decoration:none}
+.hubhome{position:fixed;top:14px;left:14px;z-index:50;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.hubhome:hover{border-color:var(--accent)}
+.wrap{max-width:980px;margin:0 auto;padding:70px 16px 40px}
+.head{text-align:center;margin-bottom:24px}
+.head h1{font-size:28px;margin:0;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;color:transparent}
+.head p{color:var(--sub);margin:8px 0 0;font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.card h3{margin:0 0 12px;font-size:15px;display:flex;align-items:center;gap:8px}
+.codearea{width:100%;min-height:160px;background:var(--card2);border:1px solid var(--line);border-radius:10px;color:var(--txt);padding:12px;font-family:"Fira Code",Consolas,monospace;font-size:13px;resize:vertical;outline:none;line-height:1.5}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:600;font-size:13px}
+.btn.ghost{background:var(--card2);border:1px solid var(--line);color:var(--txt)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.output{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:14px;min-height:100px;font-size:14px;white-space:pre-wrap;word-break:break-word}
+.output .tag{display:inline-block;background:rgba(102,126,234,.15);color:var(--txt);padding:2px 8px;border-radius:6px;font-size:12px;margin-bottom:8px}
+.tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.tab{padding:8px 14px;border-radius:8px;background:var(--card2);border:1px solid var(--line);cursor:pointer;font-size:13px}
+.tab.on{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
+.examples{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.example{background:var(--card2);border:1px solid var(--line);padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer}
+.example:hover{border-color:var(--accent)}
+.fox{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#ff9f43,#ff6b6b);display:grid;place-items:center;font-size:22px;flex-shrink:0}
+.row{display:flex;gap:12px;align-items:flex-start}
+.badge{display:inline-block;padding:3px 10px;border-radius:8px;font-size:12px;font-weight:600;margin-right:8px}
+.badge.o1{background:rgba(0,212,134,.15);color:var(--ok)}
+.badge.on{background:rgba(246,196,83,.15);color:var(--warn)}
+.issue{background:rgba(246,196,83,.08);border:1px solid rgba(246,196,83,.25);border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:13px}
+.issue.err{background:rgba(255,77,79,.08);border-color:rgba(255,77,79,.3);color:#ff8a8c}
+.issue.warn{color:var(--warn)}
+.issue.ok{background:rgba(0,212,134,.08);border-color:rgba(0,212,134,.3);color:var(--ok)}
+.line-trace{font-family:"Fira Code",Consolas,monospace;font-size:12px;color:var(--sub);white-space:pre-wrap;max-height:240px;overflow:auto}
+.hubfoot{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--sub)}
+.muted{color:var(--sub);font-size:13px}
+</style>
+</head>
+<body>
+<a class="hubhome" href="../index.html">🏠 大厅</a>
+<div class="wrap">
+  <div class="head">
+    <h1>🦊 小狐狸讲代码</h1>
+    <p>把代码粘进来，小狐狸帮你讲解、纠错、算复杂度，还能真的跑一遍看结果</p>
+  </div>
+  <div class="card">
+    <h3>输入代码</h3>
+    <div class="examples" id="examples"></div>
+    <textarea id="codeIn" class="codearea" spellcheck="false" placeholder="在这里粘贴你想让小狐狸讲解的 Python 代码...">for i in range(5):
+    print(i)</textarea>
+    <div class="btns">
+      <button class="btn" id="explainBtn">小狐狸讲解</button>
+      <button class="btn ghost" id="runBtn">运行一下</button>
+      <button class="btn ghost" id="copyBtn">复制结果</button>
+      <button class="btn ghost" id="clearBtn">清空</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>讲解结果</h3>
+    <div class="tabs" id="modeTabs">
+      <div class="tab on" data-mode="mom">给妈妈听（生活类比）</div>
+      <div class="tab" data-mode="brother">给弟弟听（童趣拟人）</div>
+      <div class="tab" data-mode="plain">标准解释</div>
+    </div>
+    <div class="row">
+      <div class="fox">🦊</div>
+      <div id="outBox" class="output" style="flex:1"><span class="tag">等待输入</span>点击上方「小狐狸讲解」，我会把代码翻译成大白话～</div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>⏱️ 时间复杂度</h3>
+    <div id="complexBox" class="output"><span class="muted">点击「小狐狸讲解」后，这里会显示这段代码大概要跑多久。</span></div>
+  </div>
+  <div class="card">
+    <h3>🔍 潜在问题（小狐狸帮你挑错）</h3>
+    <div id="issueBox"><span class="muted">点击「小狐狸讲解」后，这里会列出可能写错的地方。</span></div>
+  </div>
+  <div class="card">
+    <h3>▶️ 运行结果</h3>
+    <div id="runBox" class="output"><span class="muted">点击「运行一下」，小狐狸会真正执行这段代码并告诉你输出。</span></div>
+    <div id="traceBox" class="line-trace" style="margin-top:10px;display:none"></div>
+  </div>
+  <div class="card">
+    <h3>📝 练习模式（写代码，小狐狸帮你判对错）</h3>
+    <div class="examples" id="exSelect"></div>
+    <div id="exPrompt" class="muted" style="margin-bottom:10px"></div>
+    <textarea id="exCode" class="codearea" spellcheck="false" style="min-height:120px"></textarea>
+    <div class="btns">
+      <button class="btn" id="exCheck">检查我的答案</button>
+      <button class="btn ghost" id="exReset">重置题目代码</button>
+    </div>
+    <div id="exResult" class="output" style="margin-top:12px"><span class="muted">选一道题，写出代码后点「检查我的答案」。</span></div>
+  </div>
+  <div class="hubfoot">
+    <a href="../index.html">← 返回应用大厅</a>
+    <span>纯前端离线分析 · 零依赖 · 仅用于学习</span>
+  </div>
+</div>
+<script>
+// =====================================================================
+// 小狐狸讲代码 —— 零依赖 Python 子集分析引擎（解析 / 讲解 / 纠错 / 复杂度 / 执行）
+// 所有纯逻辑函数均暴露为全局，供 test/run.js 用 Node vm 断言回归。
+// =====================================================================
+
+// ---------- 工具 ----------
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);});}
+function safeUrl(u){u=String(u==null?"":u);if(/^\s*javascript:/i.test(u))return"#";return esc(u);}
+
+var BUILTINS = new Set(["print","len","range","sum","min","max","abs","sorted","list","dict","set","str","int","float","input","enumerate","zip","map","filter","type","isinstance","open","round","pow","divmod","chr","ord","bin","hex","format","any","all","reversed","bool","tuple","repr","id","help"]);
+
+var KEYWORDS = new Set(["def","class","if","elif","else","for","while","return","import","from","as","pass","break","continue","lambda","with","try","except","finally","raise","yield","global","nonlocal","assert","del","None","True","False","and","or","not","in","is"]);
+
+// ---------- 词法：去注释 ----------
+function stripComment(s){
+  var out="",inStr=null,prev="";
+  for(var i=0;i<s.length;i++){
+    var c=s[i];
+    if(inStr){
+      out+=c;
+      if(c===inStr && prev!=="\\") inStr=null;
+    }else{
+      if(c==="'"||c==='"'){ inStr=c; out+=c; }
+      else if(c==="#"){ break; }
+      else out+=c;
+    }
+    prev=c;
+  }
+  return out;
+}
+function leadingSpaces(s){ var n=0; while(n<s.length && s[n]===" ") n++; return n; }
+
+// ---------- 词法：单行分词 ----------
+function tokenizeLine(body,line){
+  var tokens=[],i=0,err=null;
+  var ops2=["//","**","==","!=","<=",">=","->","+=","-=","*=","/=","%=","//=","**=","@="];
+  while(i<body.length){
+    var c=body[i];
+    if(c===" "||c==="\t"){ i++; continue; }
+    // 数字
+    if(/[0-9]/.test(c) || (c==="." && /[0-9]/.test(body[i+1]))){
+      var num=""; while(i<body.length && /[0-9.eE]/.test(body[i])){ num+=body[i]; i++; }
+      tokens.push({type:"num",value:num,line:line}); continue;
+    }
+    // 字符串
+    if(c==="'"||c==='"'){
+      var q=c,str=""; i++;
+      while(i<body.length){ var d=body[i]; if(d==="\\"){ str+=d+(body[i+1]||""); i+=2; continue; } if(d===q){ i++; break; } str+=d; i++; }
+      tokens.push({type:"str",value:str,line:line}); continue;
+    }
+    // 名字 / 关键字
+    if(/[A-Za-z_]/.test(c)){
+      var name=""; while(i<body.length && /[A-Za-z0-9_]/.test(body[i])){ name+=body[i]; i++; }
+      tokens.push({type:KEYWORDS.has(name)?"kw":"name",value:name,line:line}); continue;
+    }
+    // 运算符（先两字符）
+    var two=body.substr(i,2);
+    if(ops2.indexOf(two)>=0){ tokens.push({type:"op",value:two,line:line}); i+=2; continue; }
+    if("+-*/%<>=&|".indexOf(c)>=0){ tokens.push({type:"op",value:c,line:line}); i++; continue; }
+    if(c===":"){ tokens.push({type:"colon",value:":",line:line}); i++; continue; }
+    if("()[]{},.".indexOf(c)>=0){ tokens.push({type:"punct",value:c,line:line}); i++; continue; }
+    err="无法识别的字符 '"+c+"'（第 "+line+" 行）"; i++;
+  }
+  return {tokens:tokens,error:err};
+}
+
+// ---------- 词法：按逻辑行组织（带缩进） ----------
+function tokenizeToLines(src){
+  var raw=String(src==null?"":src).replace(/\t/g,"    ").split("\n");
+  var lines=[],errors=[];
+  for(var idx=0;idx<raw.length;idx++){
+    var lineNo=idx+1;
+    var code=stripComment(raw[idx]);
+    var indent=leadingSpaces(code);
+    var body=code.slice(indent);
+    if(body.trim()==="") continue;
+    var r=tokenizeLine(body,lineNo);
+    if(r.error) errors.push({line:lineNo,msg:r.error,severity:"err"});
+    if(r.tokens.length) lines.push({indent:indent,tokens:r.tokens,line:lineNo});
+  }
+  return {lines:lines,errors:errors};
+}
+
+// ---------- 语法：表达式解析（带优先级） ----------
+function parseExpr(toks,start,end){
+  var pos=start;
+  function peek(){ return pos<end?toks[pos]:null; }
+  function eat(){ return toks[pos++]; }
+  function isOp(v){ var t=peek(); return t && t.type==="op" && t.value===v; }
+
+  function parseOr(){
+    var left=parseAnd();
+    while(isOp("or")){ eat(); var right=parseAnd(); left={type:"boolop",op:"or",values:[left,right]}; }
+    return left;
+  }
+  function parseAnd(){
+    var left=parseNot();
+    while(isOp("and")){ eat(); var right=parseNot(); left={type:"boolop",op:"and",values:[left,right]}; }
+    return left;
+  }
+  function parseNot(){
+    if(peek() && peek().type==="kw" && peek().value==="not"){ eat(); return {type:"unaryop",op:"not",operand:parseNot()}; }
+    return parseCmp();
+  }
+  function parseCmp(){
+    var left=parseArith();
+    var cmpOps=["==","!=","<",">","<=",">="];
+    while(peek() && peek().type==="op" && cmpOps.indexOf(peek().value)>=0){
+      var op=eat().value; var right=parseArith(); left={type:"cmp",op:op,left:left,right:right};
+    }
+    if(peek() && peek().type==="kw" && (peek().value==="in"||peek().value==="is")){
+      var op2=eat().value; var right2=parseArith(); left={type:"cmp",op:op2,left:left,right:right2};
+    }
+    return left;
+  }
+  function parseArith(){
+    var left=parseTerm();
+    while(peek() && peek().type==="op" && (peek().value==="+"||peek().value==="-")){
+      var op=eat().value; var right=parseTerm(); left={type:"binop",op:op,left:left,right:right};
+    }
+    return left;
+  }
+  function parseTerm(){
+    var left=parseFactor();
+    while(peek() && peek().type==="op" && ["*","/","//","%"].indexOf(peek().value)>=0){
+      var op=eat().value; var right=parseFactor(); left={type:"binop",op:op,left:left,right:right};
+    }
+    return left;
+  }
+  function parseFactor(){
+    if(peek() && peek().type==="op" && (peek().value==="+"||peek().value==="-")){ var op=eat().value; return {type:"unaryop",op:op,operand:parseFactor()}; }
+    return parsePower();
+  }
+  function parsePower(){
+    var left=parseAtom();
+    if(peek() && peek().type==="op" && peek().value==="**"){ eat(); return {type:"binop",op:"**",left:left,right:parseFactor()}; }
+    return left;
+  }
+  function parseAtom(){
+    var t=peek();
+    if(!t) return {type:"none"};
+    if(t.type==="num"){ eat(); return {type:"num",value:Number(t.value)}; }
+    if(t.type==="str"){ eat(); return {type:"str",value:t.value}; }
+    if(t.type==="kw"){
+      if(t.value==="True"){ eat(); return {type:"bool",value:true}; }
+      if(t.value==="False"){ eat(); return {type:"bool",value:false}; }
+      if(t.value==="None"){ eat(); return {type:"none"}; }
+    }
+    if(t.type==="name"){ eat(); return parsePostfix({type:"name",value:t.value,line:t.line}); }
+    if(t.type==="punct" && t.value==="("){ eat(); var e=parseOr(); if(peek()&&peek().type==="punct"&&peek().value===")") eat(); return e; }
+    if(t.type==="punct" && t.value==="["){
+      eat();
+      if(peek() && peek().type==="punct" && peek().value==="]"){ eat(); return {type:"list",elts:[]}; }
+      var first=parseOr();
+      if(peek() && peek().type==="kw" && peek().value==="for"){
+        var comps=[], oexpr=first;
+        function findStop(from,kinds){
+          var d=0;
+          for(var k=from;k<toks.length;k++){
+            var tk=toks[k];
+            if(tk.type==="punct"&&tk.value==="(")d++;
+            else if(tk.type==="punct"&&tk.value===")")d--;
+            else if(d===0 && kinds.indexOf(tk.type+":"+tk.value)>=0) return k;
+          }
+          return toks.length;
+        }
+        while(peek() && peek().type==="kw" && peek().value==="for"){
+          eat();
+          var iIn=findStop(pos,["kw:in"]);
+          var tgt=parseExpr(toks,pos,iIn); pos=iIn+1;
+          var iStop=findStop(pos,["kw:if","punct:]"]);
+          var iter=parseExpr(toks,pos,iStop); pos=iStop;
+          var cond=null;
+          if(toks[pos]&&toks[pos].type==="kw"&&toks[pos].value==="if"){ pos++; var iEnd=findStop(pos,["punct:]"]); cond=parseExpr(toks,pos,iEnd); pos=iEnd; }
+          comps.push({target:tgt,iter:iter,cond:cond});
+        }
+        if(peek()&&peek().type==="punct"&&peek().value==="]") eat();
+        return {type:"listcomp",oexpr:oexpr,comps:comps,line:t.line};
+      }
+      var elts=[first];
+      while(peek() && !(peek().type==="punct"&&peek().value==="]")){
+        if(peek().type==="punct"&&peek().value===","){ eat(); continue; }
+        elts.push(parseOr());
+      }
+      if(peek()) eat();
+      return {type:"list",elts:elts};
+    }
+    eat();
+    return {type:"none"};
+  }
+  function parsePostfix(node){
+    while(true){
+      var t=peek();
+      if(!t) break;
+      if(t.type==="punct" && t.value==="("){
+        eat(); var args=[];
+        while(peek() && !(peek().type==="punct"&&peek().value===")")){ args.push(parseOr()); if(peek()&&peek().type==="punct"&&peek().value===",") eat(); }
+        if(peek()) eat();
+        node={type:"call",func:node,args:args,line:t.line};
+      } else if(t.type==="punct" && t.value==="."){
+        eat(); var attr=peek(); if(attr&&attr.type==="name"){ eat(); node={type:"attr",value:node,attr:attr.value}; }
+        else break;
+      } else if(t.type==="punct" && t.value==="["){
+        eat(); var inner=parseOr(); var sl=null; if(peek()&&peek().type==="colon"){ eat(); sl=parseOr()||null; } if(peek()&&peek().type==="punct"&&peek().value==="]") eat(); node={type:"subscript",value:node,slice:inner,sliceEnd:sl};
+      } else break;
+    }
+    return node;
+  }
+
+  var node=parseOr();
+  return node;
+}
+
+// 解析逗号分隔的元组（用于多变量赋值两侧）
+function parseTuple(toks,start,end){
+  var parts=[],depth=0,segStart=start;
+  for(var k=start;k<end;k++){
+    var tk=toks[k];
+    if(tk.type==="punct"&&(tk.value==="("||tk.value==="["||tk.value==="{"))depth++;
+    else if(tk.type==="punct"&&(tk.value===")"||tk.value==="]"||tk.value==="}"))depth--;
+    else if(depth===0 && tk.type==="punct"&&tk.value===","){
+      parts.push(parseExpr(toks,segStart,k)); segStart=k+1;
+    }
+  }
+  parts.push(parseExpr(toks,segStart,end));
+  if(parts.length===1) return parts[0];
+  return {type:"tuple",elts:parts};
+}
+
+// ---------- 语法：语句解析（基于逻辑行 + 缩进） ----------
+function parse(lines){
+  var i=0;
+  function atEnd(){ return i>=lines.length; }
+  function curIndent(){ return atEnd()?-1:lines[i].indent; }
+  function colonIdx(toks){ for(var k=0;k<toks.length;k++) if(toks[k].type==="colon") return k; return -1; }
+
+  function parseSuite(headerIndent){
+    if(atEnd()) return [];
+    var childIndent=lines[i].indent;
+    if(childIndent<=headerIndent) return [];
+    var body=[];
+    while(!atEnd() && lines[i].indent===childIndent){
+      var s=parseStmt(childIndent);
+      if(s) body.push(s);
+    }
+    return body;
+  }
+
+  function parseStmt(indent){
+    if(atEnd()) return null;
+    var ln=lines[i];
+    var toks=ln.tokens;
+    if(toks.length===0){ i++; return null; }
+    var head=toks[0];
+
+    if(head.value==="def"){ return parseDef(indent); }
+    if(head.value==="class"){ return parseClass(indent); }
+    if(head.value==="if"){ return parseIf(indent); }
+    if(head.value==="for"){ return parseFor(indent); }
+    if(head.value==="while"){ return parseWhile(indent); }
+    if(head.value==="return"){ var ci=colonIdx(toks); var e=parseExpr(toks,1,ci<0?toks.length:ci); i++; return {type:"return",value:e,line:ln.line}; }
+    if(head.value==="import"){ var names=[]; var j=1; while(j<toks.length && toks[j].type!=="colon"){ if(toks[j].type==="name") names.push(toks[j].value); j++; } i++; return {type:"import",names:names,line:ln.line}; }
+    if(head.value==="from"){ i++; return {type:"import",names:[],line:ln.line}; }
+    if(head.value==="pass"||head.value==="break"||head.value==="continue"){ i++; return {type:head.value,line:ln.line}; }
+
+    // 赋值 or 表达式语句
+    var depth=0, assignAt=-1, assignOp=null;
+    for(var k=0;k<toks.length;k++){
+      if(toks[k].type==="punct" && toks[k].value==="("){ depth++; }
+      else if(toks[k].type==="punct" && toks[k].value===")"){ depth--; }
+      else if(depth===0 && toks[k].type==="op" && toks[k].value==="="){ assignAt=k; assignOp="="; break; }
+      else if(depth===0 && toks[k].type==="op" && ["+=","-=","*=","/=","//=","%="].indexOf(toks[k].value)>=0){ assignAt=k; assignOp=toks[k].value; break; }
+    }
+    if(assignAt>=0){
+      var targets=parseTuple(toks,0,assignAt);
+      var val=parseTuple(toks,assignAt+1,toks.length);
+      i++;
+      if(assignOp==="=") return {type:"assign",targets:[targets],value:val,line:ln.line};
+      return {type:"augassign",target:targets,op:assignOp,value:val,line:ln.line};
+    }
+    var e2=parseExpr(toks,0,toks.length);
+    i++;
+    return {type:"expr",value:e2,line:ln.line};
+  }
+
+  function parseDef(indent){
+    var ln=lines[i]; var toks=ln.tokens;
+    var name=toks[1] && toks[1].type==="name"?toks[1].value:"";
+    var params=[]; var p=[]; var j=2;
+    while(j<toks.length && !(toks[j].type==="punct"&&toks[j].value===")")){
+      if(toks[j].type==="name") p.push(toks[j].value);
+      else if(toks[j].type==="punct"&&toks[j].value===","){ if(p.length){ params.push(p.join("")); p=[]; } }
+      j++;
+    }
+    if(p.length) params.push(p.join(""));
+    i++;
+    var body=parseSuite(indent);
+    return {type:"func",name:name,params:params,body:body,line:ln.line};
+  }
+  function parseClass(indent){
+    var ln=lines[i]; var toks=ln.tokens;
+    var name=toks[1] && toks[1].type==="name"?toks[1].value:"";
+    i++; var body=parseSuite(indent);
+    return {type:"class",name:name,body:body,line:ln.line};
+  }
+  function parseIf(indent){
+    var ln=lines[i]; var toks=ln.tokens;
+    var ci=colonIdx(toks);
+    var testToks=toks.slice(1,ci<0?toks.length:ci);
+    var assignInCond=hasTopLevelAssign(testToks);
+    var test=parseExpr(toks,1,ci<0?toks.length:ci);
+    i++;
+    var body=parseSuite(indent);
+    var elifs=[],orelse=[];
+    while(!atEnd() && lines[i].indent===indent){
+      var t=lines[i].tokens, h=t[0];
+      if(h.value==="elif"){ var c2=colonIdx(t); var et=parseExpr(t,1,c2<0?t.length:c2); i++; var eb=parseSuite(indent); elifs.push({test:et,body:eb}); }
+      else if(h.value==="else"){ i++; orelse=parseSuite(indent); }
+      else break;
+    }
+    return {type:"if",test:test,body:body,elifs:elifs,orelse:orelse,assignInCond:assignInCond,line:ln.line};
+  }
+  function parseFor(indent){
+    var ln=lines[i]; var toks=ln.tokens;
+    var ci=colonIdx(toks);
+    // target = tokens until 'in' keyword; iter = after 'in' to colon
+    var tgt=null, iter=null, inAt=-1;
+    for(var k=0;k<ci;k++){ if(toks[k].type==="kw" && toks[k].value==="in"){ inAt=k; break; } }
+    if(inAt>0){ tgt=parseExpr(toks,1,inAt); iter=parseExpr(toks,inAt+1,ci); }
+    i++; var body=parseSuite(indent);
+    return {type:"for",target:tgt,iter:iter,body:body,line:ln.line};
+  }
+  function parseWhile(indent){
+    var ln=lines[i]; var toks=ln.tokens;
+    var ci=colonIdx(toks);
+    var assignInCond=hasTopLevelAssign(toks.slice(1,ci<0?toks.length:ci));
+    var test=parseExpr(toks,1,ci<0?toks.length:ci);
+    i++; var body=parseSuite(indent);
+    return {type:"while",test:test,body:body,assignInCond:assignInCond,line:ln.line};
+  }
+  function hasTopLevelAssign(toks){
+    var d=0;
+    for(var k=0;k<toks.length;k++){ if(toks[k].type==="punct"&&toks[k].value==="(")d++; else if(toks[k].type==="punct"&&toks[k].value===")")d--; else if(d===0&&toks[k].type==="op"&&toks[k].value==="=") return true; }
+    return false;
+  }
+
+  var body=[];
+  while(!atEnd()){
+    var s=parseStmt(0);
+    if(s) body.push(s);
+  }
+  return {type:"module",body:body};
+}
+
+// ---------- 结构概览 ----------
+function summarize(ast){
+  var counts={func:0,loop:0,cond:0,assign:0,call:0};
+  function walk(node){
+    if(!node||typeof node!=="object") return;
+    if(node.type==="func"){ counts.func++; node.body.forEach(walk); }
+    else if(node.type==="for"||node.type==="while"){ counts.loop++; node.body.forEach(walk); }
+    else if(node.type==="if"){ counts.cond++; (node.body||[]).forEach(walk); (node.elifs||[]).forEach(function(e){walk(e.test);e.body.forEach(walk);}); (node.orelse||[]).forEach(walk); }
+    else if(node.type==="assign"||node.type==="augassign"){ counts.assign++; }
+    else if(node.type==="call"){ counts.call++; }
+    else if(Array.isArray(node)){ node.forEach(walk); }
+    else if(typeof node==="object"){ for(var k in node){ if(k==="body"||k==="elifs"||k==="orelse") continue; walk(node[k]); } }
+  }
+  walk(ast.body);
+  return counts;
+}
+
+// ---------- 复杂度分析 ----------
+function analyzeComplexity(ast){
+  var notes=[];
+  var maxDepth=0;
+  var hasComp=false;
+  // 通用遍历：for/while/列表推导式各计一层循环深度，取全局最大嵌套
+  function walk(node,depth){
+    if(!node||typeof node!=="object") return;
+    var d=depth;
+    if(node.type==="for"||node.type==="while"||node.type==="listcomp"){ d=depth+1; }
+    if(d>maxDepth) maxDepth=d;
+    if(node.type==="listcomp") hasComp=true;
+    for(var k in node){
+      if(k==="line"||k==="_r"||k==="_locals") continue; // 跳过行号与运行时标注
+      var v=node[k];
+      if(Array.isArray(v)){ for(var i=0;i<v.length;i++){ if(v[i]&&typeof v[i]==="object") walk(v[i],d); } }
+      else if(v&&typeof v==="object"){ walk(v,d); }
+    }
+  }
+  walk(ast,0);
+  function label(d){ if(d<=0) return "O(1) 常数时间"; if(d===1) return "O(n) 线性时间"; if(d===2) return "O(n²) 平方时间"; if(d===3) return "O(n³) 立方时间"; return "O(n^"+d+") 高维嵌套"; }
+  // 递归检测
+  var recursion=[];
+  (ast.body||[]).forEach(function(f){
+    if(f.type!=="func") return;
+    var selfCalls=0;
+    (function w(node){ if(!node||typeof node!=="object") return; if(node.type==="call"&&node.func&&node.func.type==="name"&&node.func.value===f.name) selfCalls++; if(Array.isArray(node)){ node.forEach(w); return; } for(var k in node){ if(node[k]&&typeof node[k]==="object") w(node[k]); } })(f.body);
+    if(selfCalls>0) recursion.push(f.name);
+  });
+  var label_=label(maxDepth);
+  if(recursion.length){ notes.push("检测到函数 "+recursion.join("、")+" 自己调用自己（递归），若没有明确的收敛条件，可能退化为指数级或永远停不下来。"); }
+  if(hasComp){ notes.push("代码里用到了列表推导式，它本质是循环，运行时间会随数据量一起增长。"); }
+  return {depth:maxDepth,label:label_,notes:notes};
+}
+
+// ---------- 错误检测（静态） ----------
+// （注：findErrors 的正式实现见下方第二次定义，此处仅保留共享助手。）
+function addTargetNames(node,set){
+  if(!node) return;
+  if(node.type==="name") set.add(node.value);
+  else if(node.type==="list"||node.type==="tuple"){ (node.elts||[]).forEach(function(e){ addTargetNames(e,set); }); }
+}
+function checkUsage(node,allowed,out){
+  if(!node||typeof node!=="object") return;
+  if(node.type==="name"){
+    if(!allowed.has(node.value) && !node._r){ node._r=true; out.push({line:node.line,msg:"使用了未定义的变量 `"+node.value+"`（可能拼写错了，或忘记先赋值）。",severity:"err"}); }
+    return;
+  }
+  if(node.type==="call"){
+    if(node.func&&node.func.type==="name"&&!allowed.has(node.func.value)&&!node._r){ node._r=true; out.push({line:node.line,msg:"调用了未定义的函数 `"+node.func.value+"`。",severity:"err"}); }
+    (node.args||[]).forEach(function(a){ checkUsage(a,allowed,out); });
+    return;
+  }
+  for(var k in node){ if(k==="_r") continue; var v=node[k]; if(Array.isArray(v)){ v.forEach(function(c){ checkUsage(c,allowed,out); }); } else if(v&&typeof v==="object"){ checkUsage(v,allowed,out); } }
+}
+function addDefOf(n,defined){
+  if(!n) return;
+  if(n.type==="assign"||n.type==="augassign"){ addTargetNames(n.targets?n.targets[0]:n.target,defined); }
+  else if(n.type==="import"){ (n.names||[]).forEach(function(x){defined.add(x);}); }
+  else if(n.type==="func"||n.type==="class"){ defined.add(n.name); }
+}
+function scanBlock(nodes,defined,errors){
+  (nodes||[]).forEach(function(n){
+    if(!n) return;
+    if(n.type==="if"){
+      checkUsage(n.test,defined,errors);
+      scanBlock(n.body,defined,errors);
+      (n.elifs||[]).forEach(function(e){ checkUsage(e.test,defined,errors); scanBlock(e.body,defined,errors); });
+      scanBlock(n.orelse,defined,errors);
+    } else if(n.type==="for"){
+      if(n.target) addTargetNames(n.target,defined);
+      checkUsage(n.iter,defined,errors);
+      scanBlock(n.body,defined,errors);
+    } else if(n.type==="while"){
+      checkUsage(n.test,defined,errors);
+      scanBlock(n.body,defined,errors);
+    } else if(n.type==="func"||n.type==="class"){
+      var child=new Set(defined);
+      if(n.type==="func") n.params.forEach(function(p){ child.add(p); });
+      child.add(n.name);
+      scanBlock(n.body,child,errors);
+    } else {
+      addDefOf(n,defined);
+      checkUsage(n,defined,errors);
+    }
+  });
+}
+function findErrors(src,ast,tokenizeErrors){
+  var errors=[];
+  (tokenizeErrors||[]).forEach(function(e){ errors.push({line:e.line,msg:e.msg,severity:"err"}); });
+  var globals=new Set(BUILTINS);
+  (ast.body||[]).forEach(function(n){
+    if(n.type==="func") globals.add(n.name);
+    else if(n.type==="class") globals.add(n.name);
+    else if(n.type==="import") (n.names||[]).forEach(function(x){ globals.add(x); });
+  });
+  scanBlock(ast.body,globals,errors);
+  (function scan(ns){ (ns||[]).forEach(function(n){
+    if((n.type==="if"||n.type==="while") && n.assignInCond){ errors.push({line:n.line,msg:"条件判断里写的是赋值 `=`，应该用比较 `==`（判断是否相等才用两个等号）。",severity:"err"}); }
+    if(n.body) scan(n.body); if(n.elifs) n.elifs.forEach(function(e){scan(e.body);}); if(n.orelse) scan(n.orelse);
+  }); })(ast.body);
+  if(errors.length===0){ errors.push({line:0,msg:"没发现明显问题，小狐狸觉得这段写得很工整～",severity:"ok"}); }
+  return errors;
+}
+function findErrorsWrapper(src,ast,tokErr){ return findErrors(src,ast,tokErr); }
+
+// ---------- 结构检测（缺冒号等初学者高频错误） ----------
+var BLOCK_HEADER_KW = new Set(["if","elif","else","for","while","def","class","try","except","finally","with"]);
+function findStructureIssues(lines){
+  var out=[];
+  (lines||[]).forEach(function(ln){
+    var toks=ln.tokens;
+    if(!toks.length) return;
+    var head=toks[0];
+    if(head.type!=="kw" || !BLOCK_HEADER_KW.has(head.value)) return;
+    var hasColon=toks.some(function(t){ return t.type==="colon"; });
+    if(!hasColon){
+      out.push({line:ln.line,msg:"第 "+ln.line+" 行的 `"+head.value+"` 语句似乎缺少结尾的冒号 `:`（正确写法类似 `"+head.value+" x > 0:`）。没有冒号，下面的代码块就不会按预期执行。",severity:"err"});
+    }
+  });
+  return out;
+}
+
+// ---------- 讲解生成 ----------
+function exprText(node){
+  if(!node) return "";
+  switch(node.type){
+    case "num": return String(node.value);
+    case "str": return '"'+node.value+'"';
+    case "bool": return node.value?"True":"False";
+    case "none": return "None";
+    case "tuple": return node.elts.map(exprText).join(", ");
+    case "name": return node.value;
+    case "binop": return exprText(node.left)+" "+node.op+" "+exprText(node.right);
+    case "cmp": return exprText(node.left)+" "+node.op+" "+exprText(node.right);
+    case "boolop": return node.values.map(exprText).join(" "+node.op+" ");
+    case "unaryop": return node.op+" "+exprText(node.operand);
+    case "call": return exprText(node.func)+"("+node.args.map(exprText).join(", ")+")";
+    case "attr": return exprText(node.value)+"."+node.attr;
+    case "subscript": return exprText(node.value)+"["+exprText(node.slice)+(node.sliceEnd?":"+exprText(node.sliceEnd):"")+"]";
+    case "list": return "["+node.elts.map(exprText).join(", ")+"]";
+    case "listcomp": return "["+exprText(node.oexpr)+" for "+node.comps.map(function(c){return exprText(c.target)+" in "+exprText(c.iter)+(c.cond?" if "+exprText(c.cond):"");}).join(" for ")+"]";
+    default: return "";
+  }
+}
+var ANALOGY={
+  loop:{mom:"就像妈妈在厨房数苹果：'1个、2个、3个……' 数到多少就喊多少声。",brother:"小火车要开好几站，每到一个站台就'滴'地按一下喇叭。"},
+  cond:{mom:"就像判断西瓜甜不甜：糖度高就说'甜'，否则说'酸'。",brother:"小裁判举牌子：条件满足画笑脸，不然画哭脸。"},
+  func:{mom:"函数像一个自动榨汁机，你投进去苹果和橙子（参数），它吐出混合果汁（返回值）。",brother:"小狐狸有个魔法盒子，塞进东西就'噗'地变出结果。"},
+  assign:{mom:"就像在便签上写'名字=东西'，以后叫这个名字就能找到它。",brother:"把糖果放进贴了名字的小盒子，下次直接喊名字就拿到。"},
+  call:{mom:"就像请别人帮忙做一件事，把材料递过去，等他给回结果。",brother:"小狐狸对着小伙伴喊一声，小伙伴就跑去把活干完啦。"}
+};
+function explainStmt(node,mode,parts){
+  if(!node) return;
+  function push(text){ parts.push(text); }
+  switch(node.type){
+    case "func":
+      push(plainOr(mode,"定义函数 `"+node.name+"`，接收参数 "+ (node.params.length?node.params.join("、")+" ":"") +"，把一段功能打包好随时能调用。",
+        ANALOGY.func.mom+" 函数 `"+node.name+"` 就像一个魔法盒子，你放进 "+node.params.join("、")+" 就能变出结果。",
+        ANALOGY.func.brother+" 小狐狸的魔法盒子叫 `"+node.name+"`，吃进 "+node.params.join("、")+" 就吐出答案。"));
+      (node.body||[]).forEach(function(s){ explainStmt(s,mode,parts); });
+      break;
+    case "for":
+      push(plainOr(mode,"用 for 循环：让 "+exprText(node.target)+" 依次取 "+exprText(node.iter)+" 中的每一个值，重复执行循环体。",
+        ANALOGY.loop.mom+" 这里让 "+exprText(node.target)+" 一个一个走过 "+exprText(node.iter)+" 里的成员，每次都做一遍同样的事。",
+        ANALOGY.loop.brother+" 小火车的乘客 "+exprText(node.target)+" 挨个上车，每上一站就按一次喇叭（执行一次）。"));
+      (node.body||[]).forEach(function(s){ explainStmt(s,mode,parts); });
+      break;
+    case "while":
+      push(plainOr(mode,"只要条件 "+exprText(node.test)+" 成立，就不断重复执行循环体。",
+        "就像妈妈说的'只要碗里还有饭，就继续吃'——条件成立就一直循环。",
+        "小狐狸说'只要 "+exprText(node.test)+" 还是真的，我就一直转圈圈'。"));
+      (node.body||[]).forEach(function(s){ explainStmt(s,mode,parts); });
+      break;
+    case "if":
+      push(plainOr(mode,"判断 "+exprText(node.test)+"：成立就走上面的分支，不成立看下面的 elif / else。",
+        ANALOGY.cond.mom+" 先看看 "+exprText(node.test)+" 对不对，对了走这边，不对再问下一个问题。",
+        ANALOGY.cond.brother+" 小裁判先看 "+exprText(node.test)+" 成不成立，举绿牌走这路，否则换牌走别的路。"));
+      (node.body||[]).forEach(function(s){ explainStmt(s,mode,parts); });
+      (node.elifs||[]).forEach(function(e){ push(plainOr(mode,"否则再判断 "+exprText(e.test)+"。","如果上面没中，就再看看 "+exprText(e.test)+"。","上一个没中？那再问一次 "+exprText(e.test)+"。")); e.body.forEach(function(s){explainStmt(s,mode,parts);}); });
+      (node.orelse||[]).forEach(function(s){ push(plainOr(mode,"上面都不成立时执行这里。","前面都没中，就走这个兜底分支。","全都没中，小狐狸兜底走这里。")); explainStmt(s,mode,parts); });
+      break;
+    case "assign":
+      if(node.value && node.value.type==="listcomp"){
+        push(plainOr(mode,"用列表推导式生成列表，再把结果存到 "+exprText(node.targets[0])+"："+exprText(node.value)+"。",
+          "小狐狸用自动流水线做出一串糖果，收进叫 "+exprText(node.targets[0])+" 的盒子里。",
+          "小狐狸开了流水线产出一串糖，装进 "+exprText(node.targets[0])+" 盒子。"));
+        break;
+      }
+      push(plainOr(mode,"把 "+exprText(node.value)+" 赋值给 "+exprText(node.targets[0])+"。",
+        ANALOGY.assign.mom+" 在便签上写："+exprText(node.targets[0])+" = "+exprText(node.value)+"。",
+        ANALOGY.assign.brother+" 把 "+exprText(node.value)+" 装进叫 "+exprText(node.targets[0])+" 的小盒子。"));
+      break;
+    case "augassign":
+      push(plainOr(mode,exprText(node.target)+" "+node.op+"= "+exprText(node.value)+"，即把自身更新后再存回。","在原来基础上做一步运算再放回盒子里。","小狐狸给盒子里的东西再加点料。"));
+      break;
+    case "return":
+      push(plainOr(mode,"返回结果 "+exprText(node.value)+"，函数到这里结束。","榨汁机把果汁从出口递出来，活干完了。","魔法盒子'噗'地吐出 "+exprText(node.value)+" 就关门啦。"));
+      break;
+    case "expr":
+      if(node.value&&node.value.type==="call") push(plainOr(mode,"调用 "+exprText(node.value)+"。",ANALOGY.call.mom+" 请人帮忙执行 "+exprText(node.value)+"。","小狐狸喊一声 "+exprText(node.value)+" 让小伙伴跑腿。"));
+      else push(plainOr(mode,"执行表达式 "+exprText(node.value)+"。","做了一件事："+exprText(node.value)+"。","小狐狸算了算 "+exprText(node.value)+"。"));
+      break;
+    case "import": push(plainOr(mode,"引入外部模块 "+node.names.join("、")+"，好借用别人写好的功能。","就像从工具箱里拿出 "+node.names.join("、")+" 这件工具来用。","小狐狸借来了 "+node.names.join("、")+" 小伙伴的本领。")); break;
+    case "pass": push(plainOr(mode,"pass 表示这里先空着，什么都不做（占个位）。","相当于'此处省略'，先放着以后补。","小狐狸在这儿打了个哈欠，先不动。")); break;
+    case "class": push(plainOr(mode,"定义一个类（模板）"+node.name+"。","就像画了一张'饼干模具'，以后能按它做出很多同款饼干。","小狐狸画了个叫 "+node.name+" 的图纸，照着能捏出好多小伙伴。")); (node.body||[]).forEach(function(s){explainStmt(s,mode,parts);}); break;
+    case "listcomp": push(plainOr(mode,"用列表推导式快速生成列表："+exprText(node)+"。","列表推导式像一个自动流水线，按规则把原料变成一串成品。","小狐狸开了条流水线，'唰唰唰'产出一串小糖果。")); break;
+    default: push(plainOr(mode,"执行一步操作。","做了一件事。","小狐狸动了一下。"));
+  }
+}
+function plainOr(mode,plain,mom,brother){
+  if(mode==="mom") return mom; if(mode==="brother") return brother; return plain;
+}
+function explainProgram(src,mode){
+  var t=tokenizeToLines(src);
+  var ast=parse(t.lines);
+  var parts=[];
+  var sum=summarize(ast);
+  var head="这段代码一共有 "+sum.func+" 个函数、 "+sum.loop+" 处循环、 "+sum.cond+" 个判断、 "+sum.assign+" 次赋值。";
+  if(mode==="mom") parts.push("小狐狸读了一遍：这其实是一个"+ (sum.func?"会打包功能的":"" ) +"小剧本，下面我一句句翻译给你听～");
+  else if(mode==="brother") parts.push("小狐狸来啦！我把代码变成小故事讲给你听：");
+  else parts.push(head);
+  (ast.body||[]).forEach(function(s){ explainStmt(s,mode,parts); });
+  return parts.join("\n\n");
+}
+
+// ---------- 统一分析入口 ----------
+function analyze(src,mode){
+  mode=mode||"plain";
+  var t=tokenizeToLines(src);
+  var ast=parse(t.lines);
+  var errors=findErrorsWrapper(src,ast,t.errors);
+  var struct=findStructureIssues(t.lines);
+  errors=errors.concat(struct);
+  if(struct.length && errors.length>struct.length){ errors=errors.filter(function(e){ return e.severity!=="ok"; }); }
+  var complexity=analyzeComplexity(ast);
+  var explain=explainProgram(src,mode);
+  return {ast:ast,errors:errors,complexity:complexity,explain:explain};
+}
+
+// ---------- 练习自测：比对用户输出与期望输出 ----------
+function checkExercise(expected, actual){
+  function norm(s){ return String(s==null?"":s).replace(/^\s+|\s+$/g,""); }
+  var e=norm(expected), a=norm(actual);
+  return { pass: e===a, expected:e, actual:a };
+}
+
+// ---------- 迷你 Python 执行器（真实跑代码） ----------
+function truthy(v){ if(v===null||v===undefined) return false; if(v===true) return true; if(v===false) return false; if(typeof v==="number") return v!==0&&!isNaN(v); if(typeof v==="string") return v.length>0; if(Array.isArray(v)) return v.length>0; return true; }
+function pyRange(){
+  var a=arguments;
+  if(a.length===1) return rangeN(0,Number(a[0]),1);
+  if(a.length===2) return rangeN(Number(a[0]),Number(a[1]),1);
+  return rangeN(Number(a[0]),Number(a[1]),Number(a[2]));
+}
+function rangeN(s,e,step){ var r=[]; if(step>0){ for(var i=s;i<e;i+=step) r.push(i);} else if(step<0){ for(var i=s;i>e;i+=step) r.push(i);} return r; }
+function pyEq(a,b){ if(Array.isArray(a)&&Array.isArray(b)){ if(a.length!==b.length) return false; for(var i=0;i<a.length;i++) if(!pyEq(a[i],b[i])) return false; return true; } return a===b; }
+
+var PY_METHODS={
+  append:function(o,a){ if(Array.isArray(o)) o.push(a[0]); return null; },
+  pop:function(o,a){ if(Array.isArray(o)) return a.length?o.splice(a[0],1)[0]:o.pop(); return null; },
+  upper:function(o){ return String(o).toUpperCase(); },
+  lower:function(o){ return String(o).toLowerCase(); },
+  strip:function(o){ return String(o).replace(/^\s+|\s+$/g,""); },
+  replace:function(o,a){ return String(o).split(String(a[0])).join(String(a[1])); },
+  split:function(o,a){ return String(o).split(a.length?String(a[0]):/\s+/); },
+  join:function(o,a){ return (a[0]||[]).join(String(o)); }
+};
+
+function execute(src,opts){
+  opts=opts||{};
+  var t=tokenizeToLines(src);
+  var ast=parse(t.lines);
+  var output="";
+  var trace=opts.trace?[]:null;
+  var STEP_CAP=200000, steps=0;
+
+  function newEnv(parent){ return {vars:{},parent:parent||null}; }
+  function lookup(env,name){
+    var e=env;
+    while(e){ if(Object.prototype.hasOwnProperty.call(e.vars,name)) return e.vars[name]; e=e.parent; }
+    return undefined;
+  }
+  function assignTo(env,target,value){
+    if(target.type==="name"){ env.vars[target.value]=value; return; }
+    if(target.type==="subscript"){
+      var arr=evalNode(target.value,env); var idx=pyIndex(arr,target.slice,env);
+      arr[idx]=value; return;
+    }
+    // list/tuple 解包
+    if(target.type==="list"&&Array.isArray(value)){
+      for(var k=0;k<target.elts.length;k++){ assignTo(env,target.elts[k],value[k]); } return;
+    }
+    throw new Error("不支持的赋值目标");
+  }
+  function pyIndex(arr,node,env){
+    var idx=evalNode(node,env);
+    if(Array.isArray(arr)&&idx<0) idx=arr.length+idx;
+    return idx;
+  }
+
+  function evalNode(node,env){
+    if(!node) return null;
+    switch(node.type){
+      case "num": return node.value;
+      case "str": return node.value;
+      case "bool": return node.value;
+      case "none": return null;
+      case "tuple": return node.elts.map(function(e){return evalNode(e,env);});
+      case "name": { var v=lookup(env,node.value); if(v===undefined && !BUILTINS.has(node.value)) throw new Error("变量 `"+node.value+"` 还没定义（第 "+node.line+" 行）"); if(v===undefined) return makeBuiltin(node.value); return v; }
+      case "binop": {
+        var l=evalNode(node.left,env), r=evalNode(node.right,env);
+        switch(node.op){
+          case "+": return (typeof l==="string"||Array.isArray(l))?concat(l,r):l+r;
+          case "-": return l-r; case "*": return (typeof l==="string"||Array.isArray(l))?repeat(l,r):l*r;
+          case "/": return l/r; case "//": return Math.floor(l/r); case "%": return l%r; case "**": return Math.pow(l,r);
+        }
+        return null;
+      }
+      case "cmp": { var l=evalNode(node.left,env), r=evalNode(node.right,env); switch(node.op){ case "==":return pyEq(l,r); case "!=":return !pyEq(l,r); case "<":return l<r; case ">":return l>r; case "<=":return l<=r; case ">=":return l>=r; case "in":return Array.isArray(r)?r.indexOf(l)>=0:(String(r).indexOf(String(l))>=0); case "is":return l===r; } return false; }
+      case "boolop": { if(node.op==="and"){ var a=evalNode(node.values[0],env); return truthy(a)?evalNode(node.values[1],env):a; } var b=evalNode(node.values[0],env); return truthy(b)?b:evalNode(node.values[1],env); }
+      case "unaryop": { var v=evalNode(node.operand,env); return node.op==="not"?!truthy(v):(node.op==="-"?-v:v); }
+      case "list": return node.elts.map(function(e){return evalNode(e,env);});
+      case "listcomp": { var a=[]; evalComp(node,env,0,a); return a; }
+      case "call": return evalCall(node,env);
+      case "attr": return evalNode(node.value,env); // 仅作为方法载体在 call 中处理
+      case "subscript": { var arr=evalNode(node.value,env); if(node.sliceEnd){ var s=pyIndex(arr,node.slice,env); var eN=node.sliceEnd.type==="none"?arr.length:pyIndex(arr,node.sliceEnd,env); return arr.slice(s,eN); } return arr[pyIndex(arr,node.slice,env)]; }
+    }
+    return null;
+  }
+  function concat(a,b){ if(Array.isArray(a)&&Array.isArray(b)) return a.concat(b); return String(a)+String(b); }
+  function repeat(a,b){ if(Array.isArray(a)){ var r=[]; for(var i=0;i<b;i++) r=r.concat(a); return r; } return a.repeat(b); }
+  function shortVal(v){ if(v===null) return "None"; if(v===true) return "True"; if(v===false) return "False"; if(Array.isArray(v)) return "["+v.map(shortVal).join(", ")+"]"; return String(v); }
+  function evalComp(node,env,idx,accum){
+    if(idx>=node.comps.length){ accum.push(evalNode(node.oexpr,env)); return; }
+    var c=node.comps[idx];
+    var it=evalNode(c.iter,env);
+    if(typeof it==="string") it=it.split("");
+    if(!Array.isArray(it)) throw new Error("推导式的可迭代对象不是列表（第 "+(node.line||0)+" 行）");
+    for(var i=0;i<it.length;i++){
+      assignTo(env,c.target,it[i]);
+      if(c.cond && !truthy(evalNode(c.cond,env))) continue;
+      evalComp(node,env,idx+1,accum);
+    }
+  }
+
+  function makeBuiltin(name){
+    var map={range:pyRange,len:function(a){return a.length;},sum:function(a){return a.reduce(function(x,y){return x+y;},0);},
+      min:function(a){return Math.min.apply(null,a);},max:function(a){return Math.max.apply(null,a);},abs:function(a){return Math.abs(a);},
+      int:function(a){return parseInt(a,10)||0;},float:function(a){return Number(a);},str:function(a){return a===null?"None":String(a);},
+      bool:function(a){return truthy(a);},list:function(a){return Array.isArray(a)?a.slice():(a?[].concat(a):[]);},sorted:function(a){return a.slice().sort(function(x,y){return x>y?1:x<y?-1:0;});},
+      print:function(){ var s=Array.prototype.map.call(arguments,function(x){return x===null?"None":(typeof x==="boolean"?(x?"True":"False"):String(x));}).join(" "); output+=s+"\n"; return null; },
+      input:function(){ throw new Error("标准运行环境没有 input()，先用固定值代替吧～"); },
+      round:function(a){return Math.round(a);},pow:function(a,b){return Math.pow(a,b);},enumerate:function(a){return a.map(function(x,i){return [i,x];});},
+      zip:function(){ var arrs=[].slice.call(arguments);var n=Math.min.apply(null,arrs.map(function(x){return x.length;}));var r=[];for(var i=0;i<n;i++){r.push(arrs.map(function(a){return a[i];}));}return r;},
+      abs:function(a){return Math.abs(a);},any:function(a){return a.some(truthy);},all:function(a){return a.every(truthy);},repr:function(a){return String(a);},bool:function(a){return truthy(a);}};
+    return map[name];
+  }
+  function evalCall(node,env){
+    if(node.func.type==="name"){
+      var fn=evalNode(node.func,env);
+      var args=node.args.map(function(a){return evalNode(a,env);});
+      if(typeof fn==="function") return fn.apply(null,args);
+      if(fn&&fn._user) return callUser(fn,args,env);
+      throw new Error("`"+node.func.value+"` 不是可调用的东西（第 "+node.line+" 行）");
+    }
+    if(node.func.type==="attr"){
+      var obj=evalNode(node.func.value,env);
+      var m=PY_METHODS[node.func.attr];
+      var a=node.args.map(function(x){return evalNode(x,env);});
+      if(m) return m(obj,a);
+      throw new Error("对象没有 `"+node.func.attr+"` 这个方法（第 "+node.line+" 行）");
+    }
+    throw new Error("不支持的调用（第 "+node.line+" 行）");
+  }
+  function callUser(fn,args,callEnv){
+    var env=newEnv(fn.env);
+    fn.params.forEach(function(p,i){ env.vars[p]=args[i]; });
+    var ret={value:null,returned:false};
+    execBlock(fn.body,env,ret);
+    return ret.value;
+  }
+  function execBlock(nodes,env,ret,ctrl){
+    ctrl=ctrl||{brk:false,cont:false};
+    for(var i=0;i<nodes.length;i++){
+      if(ctrl.brk||ctrl.cont) return;
+      execStmt(nodes[i],env,ret,ctrl);
+      if(ret.returned) return;
+      if(ctrl.brk||ctrl.cont) return;
+    }
+  }
+  function execStmt(node,env,ret,ctrl){
+    if(++steps>STEP_CAP) throw new Error("循环次数太多啦，小狐狸怕是遇到死循环，先停下～");
+    if(trace && node.line) trace.push("L"+node.line+": "+stmtBrief(node));
+    switch(node.type){
+      case "func": env.vars[node.name]={_user:true,params:node.params,body:node.body,env:env}; return;
+      case "class": env.vars[node.name]={_class:true}; return;
+      case "import": (node.names||[]).forEach(function(n){ env.vars[n]={_user:true,params:[],body:[],env:env}; }); return;
+      case "assign": {
+        var tg=node.targets[0];
+        var v=evalNode(node.value,env);
+        if((tg.type==="tuple"||tg.type==="list") && Array.isArray(v)){
+          for(var k=0;k<tg.elts.length;k++){ assignTo(env,tg.elts[k],v[k]); }
+        } else { assignTo(env,tg,v); }
+        if(trace) trace.push("L"+node.line+": "+exprText(tg)+" = "+shortVal(v));
+        return;
+      }
+      case "augassign": { var cur=evalNode(node.target,env); var add=evalNode(node.value,env); var r; switch(node.op){case "+=":r=(typeof cur==="number"&&typeof add==="number")?cur+add:concat(cur,add);break;case "-=":r=cur-add;break;case "*=":r=repeat(cur,add);break;case "/=":r=cur/add;break;case "//=":r=Math.floor(cur/add);break;case "%=":r=cur%add;break;} assignTo(env,node.target,r); return; }
+      case "return": ret.value=evalNode(node.value,env); ret.returned=true; return;
+      case "if": {
+        if(truthy(evalNode(node.test,env))){ execBlock(node.body,env,ret,ctrl); return; }
+        for(var k=0;k<node.elifs.length;k++){ if(truthy(evalNode(node.elifs[k].test,env))){ execBlock(node.elifs[k].body,env,ret,ctrl); return; } }
+        execBlock(node.orelse,env,ret,ctrl); return;
+      }
+      case "for": {
+        var it=evalNode(node.iter,env); if(typeof it==="string") it=it.split("");
+        if(!Array.isArray(it)) throw new Error("for 循环只能遍历列表/字符串/range（第 "+node.line+" 行）");
+        for(var i=0;i<it.length;i++){
+          if(ctrl && ctrl.brk) break;
+          var lctrl={brk:false,cont:false};
+          assignTo(env,node.target,it[i]);
+          if(trace) trace.push("L"+node.line+": 第 "+(i+1)+" 轮，"+exprText(node.target)+" = "+shortVal(it[i]));
+          execBlock(node.body,env,ret,lctrl);
+          if(ret.returned) return;
+          if(lctrl.brk) break;
+        }
+        return;
+      }
+      case "while": {
+        while(truthy(evalNode(node.test,env))){
+          var lctrl2={brk:false,cont:false};
+          execBlock(node.body,env,ret,lctrl2);
+          if(ret.returned) return;
+          if(lctrl2.brk) break;
+        }
+        return;
+      }
+      case "expr": {
+        if(node.value&&node.value.type==="call"&&node.value.func.type==="name"&&node.value.func.value==="print"){
+          if(trace){ var before=output.length; evalNode(node.value,env); var line=output.slice(before).replace(/\n$/,""); trace.push("L"+node.line+": 输出 → "+line); }
+          else evalNode(node.value,env);
+          return;
+        }
+        evalNode(node.value,env); return;
+      }
+      case "break": if(ctrl) ctrl.brk=true; return;
+      case "continue": if(ctrl) ctrl.cont=true; return;
+      case "pass": return;
+      default: return;
+    }
+  }
+  function stmtBrief(node){
+    if(node.type==="func") return "def "+node.name+"()";
+    if(node.type==="assign") return exprText(node.targets[0])+" = ...";
+    if(node.type==="for") return "for "+exprText(node.target)+" in ...";
+    if(node.type==="if") return "if "+exprText(node.test);
+    if(node.type==="while") return "while "+exprText(node.test);
+    if(node.type==="expr"&&node.value.type==="call") return exprText(node.value);
+    return node.type;
+  }
+
+  var env=newEnv(null);
+  var ret={value:null,returned:false};
+  execBlock(ast.body,env,ret);
+  return {output:output.replace(/\n$/,""),trace:trace,result:ret.value,error:null};
+}
+
+// =====================================================================
+// 以下为浏览器交互（DOM）。在 Node vm 测试环境中不自动执行。
+// =====================================================================
+function initApp(){
+  var codeIn=document.getElementById("codeIn");
+  var outBox=document.getElementById("outBox");
+  var complexBox=document.getElementById("complexBox");
+  var issueBox=document.getElementById("issueBox");
+  var runBox=document.getElementById("runBox");
+  var traceBox=document.getElementById("traceBox");
+  var modeTabs=document.getElementById("modeTabs");
+  var examplesEl=document.getElementById("examples");
+  var mode="mom";
+
+  var EXAMPLES=[
+    {label:"循环打印",code:"for i in range(5):\n    print(i)"},
+    {label:"条件判断",code:"x = 8\nif x > 0:\n    print('正数')\nelse:\n    print('负数')"},
+    {label:"函数",code:"def add(a, b):\n    return a + b\n\nprint(add(2, 3))"},
+    {label:"列表求和",code:"numbers = [1, 2, 3]\nprint(sum(numbers))"},
+    {label:"双层循环",code:"for i in range(3):\n    for j in range(3):\n        print(i, j)"},
+    {label:"漏写变量",code:"print(score)\nscore = 100"}
+  ];
+  EXAMPLES.forEach(function(ex){
+    var el=document.createElement("span");
+    el.className="example"; el.textContent=ex.label;
+    el.addEventListener("click",function(){ codeIn.value=ex.code; doExplain(); });
+    examplesEl.appendChild(el);
+  });
+
+  // ---- 练习模式 ----
+  var EXERCISES=[
+    {title:"打印 0 1 2", prompt:"用 for 循环打印数字 0、1、2，每行一个。", starter:"for i in range(3):\n    print(i)", expected:"0\n1\n2"},
+    {title:"1 到 5 求和", prompt:"计算 1+2+3+4+5 的和，并把结果打印出来。", starter:"total = 0\n# 在这里写循环把 1~5 累加进去\nprint(total)", expected:"15"},
+    {title:"翻倍函数", prompt:"写一个函数 double(x) 返回 x*2，然后打印 double(5) 的结果。", starter:"def double(x):\n    return x * 2\n\nprint(double(5))", expected:"10"},
+    {title:"条件判断", prompt:"设 n = 10，如果 n 等于 10 就打印 'yes'，否则打印 'no'。", starter:"n = 10\nif n == 10:\n    print('yes')\nelse:\n    print('no')", expected:"yes"}
+  ];
+  var exSelect=document.getElementById("exSelect");
+  var exPrompt=document.getElementById("exPrompt");
+  var exCode=document.getElementById("exCode");
+  var exResult=document.getElementById("exResult");
+  var exIdx=0;
+  function loadEx(i){
+    exIdx=i; var ex=EXERCISES[i];
+    exPrompt.innerHTML="<b>"+esc(ex.title)+"</b>："+esc(ex.prompt);
+    exCode.value=ex.starter;
+    exResult.innerHTML='<span class="muted">写好代码后点「检查我的答案」。</span>';
+  }
+  EXERCISES.forEach(function(ex,i){
+    var el=document.createElement("span");
+    el.className="example"; el.textContent=ex.title;
+    el.addEventListener("click",function(){ loadEx(i); });
+    exSelect.appendChild(el);
+  });
+  document.getElementById("exCheck").addEventListener("click",function(){
+    var ex=EXERCISES[exIdx];
+    var res;
+    try{ res=execute(exCode.value); }
+    catch(e){ exResult.innerHTML='<div class="issue err">运行出错：'+esc(e.message)+'</div>'; return; }
+    var r=checkExercise(ex.expected, res.output);
+    if(r.pass){ exResult.innerHTML='<div class="issue ok">✅ 答对了！输出和预期一致：<br>'+esc(r.actual)+'</div>'; }
+    else{
+      exResult.innerHTML='<div class="issue err">❌ 还差一点。你的输出是：<br>'+esc(r.actual||"(空)")+'<br>小狐狸提示：预期结果是<br>'+esc(r.expected)+'</div>';
+    }
+  });
+  document.getElementById("exReset").addEventListener("click",function(){ loadEx(exIdx); });
+  loadEx(0);
+
+  function doExplain(){
+    var src=codeIn.value;
+    var r;
+    try{ r=analyze(src,mode); }
+    catch(e){ outBox.innerHTML='<span class="tag">出错</span>\n小狐狸解析时卡住了：'+esc(e.message); return; }
+    var localHtml='<span class="tag">'+(mode==="mom"?"给妈妈听":mode==="brother"?"给弟弟听":"标准解释")+'</span>\n'+esc(r.explain);
+    outBox.innerHTML=localHtml;
+    enhanceExplain(src, mode, localHtml);
+    // 复杂度
+    var c=r.complexity;
+    var cls=c.depth<=0?"o1":"on";
+    var html='<span class="badge '+cls+'">'+esc(c.label)+'</span>';
+    if(c.notes.length) html+="\n"+c.notes.map(esc).join("\n");
+    else html+="\n语句基本是直来直去的，不会随数据量明显变慢。";
+    complexBox.innerHTML=html;
+    // 问题
+    if(r.errors.length===1 && r.errors[0].severity==="ok"){ issueBox.innerHTML='<div class="issue ok">✅ '+esc(r.errors[0].msg)+'</div>'; }
+    else{
+      issueBox.innerHTML=r.errors.map(function(e){
+        var ic=e.severity==="err"?"issue err":"issue warn";
+        return '<div class="'+ic+'">'+(e.line?(e.line+": "):"")+esc(e.msg)+'</div>';
+      }).join("");
+    }
+  }
+
+  function enhanceExplain(src, mode, localHtml){
+    var API_ROOT = localStorage.getItem("hub_api") || "http://127.0.0.1:8787";
+    var sysMap = {
+      mom:"你擅长用完全不懂编程的妈妈能听懂的生活比喻，把 Python 代码逐句翻译成大白话，亲切、口语化、不超过 250 字。",
+      brother:"你用小学生能听懂的童话比喻（小狐狸、魔法盒子等）讲 Python 代码，活泼有趣，不超过 250 字。",
+      plain:"你用简洁准确的中文把 Python 代码逐句解释清楚，面向初学者，不超过 250 字。"
+    };
+    fetch(API_ROOT+"/api/llm",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({system:sysMap[mode]||sysMap.plain, user:"请用上面口吻讲解这段代码：\n"+src})})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        if(j && j.ok && j.content){
+          var tag = mode==="mom"?"妈妈版":mode==="brother"?"弟弟版":"标准";
+          outBox.innerHTML='<span class="tag">AI 讲解（'+tag+'）</span>\n'+esc(j.content);
+        }
+      })
+      .catch(function(){ /* 保留本地讲解 */ });
+  }
+
+  modeTabs.addEventListener("click",function(ev){
+    var t=ev.target.closest(".tab"); if(!t) return;
+    Array.prototype.forEach.call(modeTabs.children,function(x){x.classList.remove("on");});
+    t.classList.add("on"); mode=t.dataset.mode; doExplain();
+  });
+  document.getElementById("explainBtn").addEventListener("click",doExplain);
+  document.getElementById("copyBtn").addEventListener("click",function(){
+    var text=outBox.innerText+"\n\n复杂度："+complexBox.innerText+"\n\n问题："+issueBox.innerText;
+    if(navigator.clipboard) navigator.clipboard.writeText(text).then(function(){alert("已复制");});
+    else alert(text);
+  });
+  document.getElementById("clearBtn").addEventListener("click",function(){
+    codeIn.value=""; outBox.innerHTML='<span class="tag">等待输入</span>点击上方「小狐狸讲解」，我会把代码翻译成大白话～';
+    complexBox.innerHTML='<span class="muted">点击「小狐狸讲解」后，这里会显示这段代码大概要跑多久。</span>';
+    issueBox.innerHTML='<span class="muted">点击「小狐狸讲解」后，这里会列出可能写错的地方。</span>';
+    runBox.innerHTML='<span class="muted">点击「运行一下」，小狐狸会真正执行这段代码并告诉你输出。</span>';
+    traceBox.style.display="none";
+  });
+
+  // 运行（cycle 2 接入 execute；此处先占位，执行情况见 execute 实现）
+  document.getElementById("runBtn").addEventListener("click",function(){
+    var btn=this; btn.disabled=true;
+    try{ runCode(codeIn.value); }
+    finally{ btn.disabled=false; }
+  });
+  function runCode(src){
+    var res;
+    try{ res=execute(src); }
+    catch(e){ runBox.innerHTML='<span class="tag">运行时错误</span>\n'+esc(e.message); traceBox.style.display="none"; return; }
+    runBox.innerHTML='<span class="tag">运行输出</span>\n'+(res.output||"(没有输出)");
+    if(res.trace&&res.trace.length){ traceBox.style.display="block"; traceBox.textContent=res.trace.join("\n"); }
+    else traceBox.style.display="none";
+  }
+
+  doExplain();
+}
+
+if (typeof window!=="undefined" && typeof document!=="undefined" && document.getElementById){
+  initApp();
+}
+</script>
+</body>
+</html>

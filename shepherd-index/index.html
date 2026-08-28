@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>牧羊人指标 · 市场走势温度计</title>
+<style>
+  :root{
+    --bg:#0f0f23; --card:#1a1a2e; --line:#2a2a44; --txt:#e6e6f0; --sub:#9a9ab5;
+    --grad1:#667eea; --grad2:#764ba2; --up:#ff4d4f; --down:#00d486; --gray:#8a8a9a;
+    --gold:#f6c453; --hot:#ff7a45; --cold:#4aa8ff;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;padding:18px;line-height:1.5;}
+  h1{font-size:22px;margin:0 0 4px;
+    background:linear-gradient(90deg,var(--grad1),var(--grad2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .sub{color:var(--sub);font-size:13px;margin-bottom:16px;}
+  .wrap{max-width:880px;margin:0 auto;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px;}
+  /* 温度计大卡 */
+  .thermo{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+  .gauge{position:relative;width:160px;height:160px;}
+  .gauge svg{transform:rotate(-90deg);}
+  .temp-num{font-size:40px;font-weight:800;text-align:center;margin-top:-92px;position:relative;}
+  .temp-lab{text-align:center;font-size:14px;font-weight:700;margin-top:6px;}
+  .verdict{font-size:15px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;flex:1;min-width:240px;}
+  .verdict b{font-size:16px;}
+  /* 指标网格 */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;}
+  .ind{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;position:relative;overflow:hidden;}
+  .ind .bar{position:absolute;left:0;top:0;bottom:0;width:5px;}
+  .ind .nm{font-size:13px;color:var(--sub);}
+  .ind .vl{font-size:22px;font-weight:800;margin:2px 0;}
+  .ind .st{font-size:12px;font-weight:700;}
+  .ind .th{font-size:11px;color:var(--sub);margin-top:4px;}
+  /* 表单 */
+  input,select,button{font-family:inherit;}
+  input[type=number]{width:90px;background:var(--bg);border:1px solid var(--line);color:var(--txt);
+    border-radius:8px;padding:6px 8px;font-size:14px;}
+  button{cursor:pointer;background:linear-gradient(90deg,var(--grad1),var(--grad2));color:#fff;border:none;
+    border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;margin-top:8px;}
+  button.ghost{background:var(--bg);border:1px solid var(--line);color:var(--txt);}
+  button:hover{opacity:.9;}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0;}
+  .hidden{display:none;}
+  .small{font-size:12px;color:var(--sub);}
+  footer{margin-top:18px;color:var(--sub);font-size:12px;text-align:center;}
+  a.cfg{color:var(--grad1);cursor:pointer;font-size:12px;}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;}
+  .modal .box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;width:340px;}
+  .modal input{width:100%;margin:6px 0;}
+  .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;margin-left:6px;}
+
+  .hubfoot{max-width:1180px;margin:30px auto 0;padding:16px;text-align:center;
+    font-size:12px;color:var(--sub);border-top:1px solid var(--line);line-height:1.8}
+  .hubfoot a{color:var(--g1);text-decoration:none;font-weight:600}
+  .hubfoot a:hover{text-decoration:underline}
+
+  .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35);transition:filter .15s}
+  .hubhome:hover{filter:brightness(1.12)}
+</style>
+</head>
+<body>
+  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+
+<div class="wrap">
+  <h1>🐑 牧羊人指标 · 市场走势温度计</h1>
+  <div class="sub">提炼自抖音博主「股海牧羊人」《炒股绕不开的第一步》· 情绪温度计方法论 · 8 项市场强弱指标综合打分</div>
+
+  <!-- 温度计 -->
+  <div class="card">
+    <div class="thermo">
+      <div class="gauge">
+        <svg width="160" height="160">
+          <circle cx="80" cy="80" r="70" stroke="#2a2a44" stroke-width="14" fill="none"/>
+          <circle id="gaugeArc" cx="80" cy="80" r="70" stroke="url(#gg)" stroke-width="14" fill="none"
+            stroke-linecap="round" stroke-dasharray="439.8" stroke-dashoffset="439.8"/>
+          <defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#4aa8ff"/><stop offset="50%" stop-color="#f6c453"/><stop offset="100%" stop-color="#ff7a45"/>
+          </linearGradient></defs>
+        </svg>
+        <div class="temp-num" id="tempNum">--</div>
+      </div>
+      <div>
+        <div class="temp-lab" id="tempLab">综合温度</div>
+        <div class="verdict" id="verdict">点击「测算今日走势」开始，或先填真实数据接口拉取实时快照。</div>
+      </div>
+    </div>
+    <div class="row">
+      <button id="btnCalc">📊 测算今日走势（演示）</button>
+      <button id="btnLive" class="ghost">🔗 拉取真实快照</button>
+      <a class="cfg" id="cfgOpen">⚙️ 数据接口配置</a>
+    </div>
+    <div class="small" id="dataNote"></div>
+  </div>
+
+  <!-- 温度历史 -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <b style="font-size:15px">🌡️ 温度历史走势</b>
+      <button id="btnClearHist" class="ghost" style="padding:4px 10px;font-size:12px">清空</button>
+    </div>
+    <canvas id="histChart" height="120" style="width:100%;height:120px;background:var(--card2);border-radius:10px"></canvas>
+    <div class="small" id="histNote" style="margin-top:6px;color:var(--sub)">每次测算/拉取快照会记录温度，形成你的情绪温度计曲线（本地保存）。</div>
+  </div>
+
+  <!-- 指标录入/展示 -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <b style="font-size:15px;">8 项情绪指标</b>
+      <span class="small">红=偏热（利多） · 蓝=偏冷（利空） · 灰=中性</span>
+    </div>
+    <div class="grid" id="indGrid" style="margin-top:10px;"></div>
+    <details style="margin-top:10px;">
+      <summary class="small" style="cursor:pointer;">✏️ 手动录入/微调指标值</summary>
+      <div id="editArea" style="margin-top:10px;"></div>
+      <button id="btnApply" class="ghost">✔️ 应用录入值并测算</button>
+    </details>
+  </div>
+
+  <!-- 走势结论 -->
+  <div class="card" id="conclusionCard" style="display:none;">
+    <b style="font-size:15px;">📈 走势研判</b>
+    <div id="conclusion" style="margin-top:8px;"></div>
+  </div>
+
+  <footer>
+    双击即用的零依赖小工具 · 指标口径与 StockSignal《市场情绪》模块一致（modules/shepherd.py）<br>
+    本工具为情绪参考，不构成投资建议 · 数据可接后端 akshare 真实抓取
+  </footer>
+</div>
+
+<!-- 配置弹窗 -->
+<div class="modal" id="cfgModal">
+  <div class="box">
+    <b>数据接口配置</b>
+    <p class="small">填你运行的 Flask 后端地址（含 /api/shepherd 端点），即可拉取真实 akshare 快照。<br>
+    默认本地：<code>http://127.0.0.1:8787</code></p>
+    <input id="apiUrl" placeholder="http://127.0.0.1:8787" value="http://127.0.0.1:8787">
+    <div class="row">
+      <button id="cfgSave">保存</button>
+      <button class="ghost" id="cfgClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== 8 项指标阈值(与 StockSignal THRESHOLDS 一致) =====
+const THRESH = {
+  up_count:     {nm:"上涨家数", unit:"家", dir:1,  hot:3000, warm:1500, hotLabel:"高温(可出手)", coldLabel:"低温(先防守)"},
+  down_count:   {nm:"下跌家数", unit:"家", dir:-1, hot:1500, warm:3000, hotLabel:"低温(可出手)", coldLabel:"高温(先防守)"},
+  limit_up:     {nm:"涨停家数", unit:"家", dir:1,  hot:50,   warm:20,   hotLabel:"亢奋",       coldLabel:"低迷"},
+  limit_down:   {nm:"跌停家数", unit:"家", dir:-1, hot:5,    warm:15,   hotLabel:"安全",       coldLabel:"恐慌(>30)"},
+  zt_prev_ret:  {nm:"昨日涨停表现", unit:"%", dir:1, hot:3.0, warm:0.0, hotLabel:"炸裂",       coldLabel:"吃面"},
+  red_ratio:    {nm:"红盘占比", unit:"%", dir:1,  hot:60.0, warm:45.0, hotLabel:"普涨",       coldLabel:"普跌"},
+  connect_hl:   {nm:"连板高度", unit:"板", dir:1,  hot:6,    warm:3,    hotLabel:"高风险偏好", coldLabel:"冰点"},
+  zt_fail_ratio:{nm:"炸板率",  unit:"%", dir:-1, hot:30.0, warm:50.0, hotLabel:"封板稳",     coldLabel:"分歧大"},
+};
+
+let API_URL = localStorage.getItem("shep_api") || localStorage.getItem("hub_api") || "http://127.0.0.1:8787";
+let CUR = {}; // 当前指标值
+
+// ===== 单指标阈值打分(0-100) =====
+function scoreOne(k, v){
+  const t = THRESH[k];
+  if (t.dir > 0) return v >= t.hot ? 100 : (v >= t.warm ? 50 : 10);
+  return v <= t.hot ? 100 : (v <= t.warm ? 50 : 10);
+}
+function levelOf(k, v){
+  const t = THRESH[k];
+  if (t.dir > 0) return v >= t.hot ? "hot" : (v >= t.warm ? "mid" : "cold");
+  return v <= t.hot ? "hot" : (v <= t.warm ? "mid" : "cold");
+}
+function tempColor(t){ return t>=70 ? "#ff7a45" : (t>=45 ? "#f6c453" : "#4aa8ff"); }
+
+// ===== 渲染指标卡 =====
+function renderIndicators(){
+  const g = document.getElementById("indGrid");
+  g.innerHTML = "";
+  for (const k in THRESH){
+    const t = THRESH[k], v = CUR[k];
+    const lv = v==null ? "mid" : levelOf(k, v);
+    const colorMap = {hot:"var(--up)", mid:"var(--gray)", cold:"var(--cold)"};
+    const barColor = colorMap[lv];
+    const stText = lv==="hot" ? t.hotLabel : (lv==="cold" ? t.coldLabel : "常温");
+    const stColor = lv==="hot" ? "var(--up)" : (lv==="cold" ? "var(--cold)" : "var(--gray)");
+    g.insertAdjacentHTML("beforeend", `
+      <div class="ind">
+        <div class="bar" style="background:${barColor}"></div>
+        <div class="nm">${t.nm}</div>
+        <div class="vl">${v==null?"--":(t.unit==="%"||t.unit==="板"?v:v)}<span style="font-size:12px;color:var(--sub)"> ${t.unit}</span></div>
+        <div class="st" style="color:${stColor}">${stText}</div>
+        <div class="th">高≥${t.hot} · 中≥${t.warm}</div>
+      </div>`);
+  }
+}
+
+// ===== 渲染录入框 =====
+function renderEdit(){
+  const a = document.getElementById("editArea");
+  a.innerHTML = "";
+  for (const k in THRESH){
+    const t = THRESH[k];
+    a.insertAdjacentHTML("beforeend", `
+      <div class="row">
+        <span style="width:90px;font-size:13px">${t.nm}</span>
+        <input type="number" step="0.01" id="in_${k}" value="${CUR[k]==null?'':CUR[k]}" placeholder="${t.unit}">
+      </div>`);
+  }
+}
+
+// ===== 综合温度 + 走势研判 =====
+function compute(){
+  const subs = [];
+  for (const k in THRESH){ if (CUR[k]!=null) subs.push(scoreOne(k, CUR[k])); }
+  const temp = subs.length ? subs.reduce((a,b)=>a+b,0)/subs.length : 50;
+  // 仪表盘
+  const arc = document.getElementById("gaugeArc");
+  arc.style.strokeDashoffset = 439.8 * (1 - temp/100);
+  arc.style.stroke = tempColor(temp);
+  document.getElementById("tempNum").textContent = temp.toFixed(0);
+  document.getElementById("tempNum").style.color = tempColor(temp);
+  document.getElementById("tempLab").textContent = "综合温度 " + temp.toFixed(0) + " / 100";
+
+  // 研判结论
+  let verdict, conclusion, vColor;
+  if (temp >= 70){
+    verdict = `<b style="color:var(--up)">🌡️ 贪婪区（可出手）</b>`;
+    conclusion = `市场情绪高温，赚钱效应强、资金风险偏好高。牧羊人原话：「先看大盘脸色，高温时可出手」。<br>
+      • 涨停 ${CUR.limit_up??"--"} 家、连板高度 ${CUR.connect_hl??"--"} 板，短线活跃；<br>
+      • 红盘占比 ${CUR.red_ratio??"--"}%、昨日涨停表现 ${CUR.zt_prev_ret??"--"}%，追涨情绪饱满。<br>
+      <b>操作参考</b>：可积极参与，但高温往往伴随分歧放大（炸板率 ${CUR.zt_fail_ratio??"--"}%），注意去弱留强、别在一致高潮时接最后一棒。`;
+    vColor = "var(--up)";
+  } else if (temp >= 45){
+    verdict = `<b style="color:var(--gold)">⚖️ 中性区（谨慎）</b>`;
+    conclusion = `市场情绪不冷不热，多空拉锯。<br>
+      • 涨跌家数大致均衡（涨 ${CUR.up_count??"--"} / 跌 ${CUR.down_count??"--"}），红盘占比 ${CUR.red_ratio??"--"}%；<br>
+      • 涨停 ${CUR.limit_up??"--"} 家、连板 ${CUR.connect_hl??"--"} 板，结构性机会为主。<br>
+      <b>操作参考</b>：控制仓位、轻仓试错，等温度明确升温或降温再加大动作。`;
+    vColor = "var(--gold)";
+  } else {
+    verdict = `<b style="color:var(--cold)">🥶 恐惧区（先防守）</b>`;
+    conclusion = `市场情绪低温，亏钱效应明显、资金避险。<br>
+      • 下跌 ${CUR.down_count??"--"} 家、跌停 ${CUR.limit_down??"--"} 家，红盘占比仅 ${CUR.red_ratio??"--"}%；<br>
+      • 昨日涨停表现 ${CUR.zt_prev_ret??"--"}%（若为负即「吃面」），连板高度 ${CUR.connect_hl??"--"} 板（冰点）。<br>
+      <b>操作参考</b>：牧羊人建议「先防守」——减少出手、保住本金，等恐慌释放、温度回升再布局。`;
+    vColor = "var(--cold)";
+  }
+  document.getElementById("verdict").innerHTML = verdict;
+  document.getElementById("verdict").style.borderColor = vColor;
+  document.getElementById("conclusion").innerHTML = conclusion;
+  document.getElementById("conclusionCard").style.display = "block";
+  pushHistory(temp);
+  return temp;
+}
+// ===== 温度历史 =====
+function pushHistory(temp){
+  let h = [];
+  try{ h = JSON.parse(localStorage.getItem("shep_hist") || "[]"); }catch(e){}
+  h.push({t: new Date().toISOString().slice(0,16).replace("T"," "), v: Math.round(temp)});
+  if(h.length > 60) h = h.slice(-60);
+  localStorage.setItem("shep_hist", JSON.stringify(h));
+  drawHist();
+}
+function drawHist(){
+  const cv = document.getElementById("histChart");
+  const ctx = cv.getContext("2d");
+  let h = [];
+  try{ h = JSON.parse(localStorage.getItem("shep_hist") || "[]"); }catch(e){}
+  const W = cv.clientWidth || 600, H = 120;
+  cv.width = W; cv.height = H;
+  ctx.clearRect(0,0,W,H);
+  // 网格线
+  ctx.strokeStyle = "rgba(255,255,255,.06)";
+  [0.25,0.5,0.75].forEach(g=>{ const y=H*g; ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke(); });
+  if(h.length < 2){ ctx.fillStyle="#9a9ab0"; ctx.font="12px sans-serif"; ctx.textAlign="center"; ctx.fillText("至少测算 2 次后出现曲线",W/2,H/2); return; }
+  const pad=8, plotW=W-pad*2, plotH=H-pad*2;
+  const X=i=> pad + plotW*(i/(h.length-1));
+  const Y=v=> pad + plotH*(1-v/100);
+  // 区域填充
+  ctx.beginPath(); ctx.moveTo(X(0),Y(h[0].v));
+  h.forEach((p,i)=>ctx.lineTo(X(i),Y(p.v)));
+  ctx.lineTo(X(h.length-1),H-pad); ctx.lineTo(X(0),H-pad); ctx.closePath();
+  const grad=ctx.createLinearGradient(0,0,0,H); grad.addColorStop(0,"rgba(246,196,83,.35)");grad.addColorStop(1,"rgba(246,196,83,0)");
+  ctx.fillStyle=grad; ctx.fill();
+  // 折线
+  ctx.beginPath(); ctx.moveTo(X(0),Y(h[0].v));
+  h.forEach((p,i)=>{ if(i>0)ctx.lineTo(X(i),Y(p.v)); });
+  ctx.strokeStyle="#f6c453"; ctx.lineWidth=2; ctx.stroke();
+  // 末点
+  const last=h[h.length-1]; ctx.fillStyle="#f6c453"; ctx.beginPath(); ctx.arc(X(h.length-1),Y(last.v),3,0,7); ctx.fill();
+  ctx.fillStyle="#9a9ab0"; ctx.font="11px sans-serif"; ctx.textAlign="right";
+  ctx.fillText(last.v+"° "+last.t, W-pad, Y(last.v)-6);
+}
+
+// ===== 演示快照(偏热市, 2026-08-21 结构) =====
+function demoSnapshot(){
+  CUR = {
+    up_count:3200, down_count:1400, limit_up:62, limit_down:4,
+    zt_prev_ret:3.4, red_ratio:69.6, connect_hl:7, zt_fail_ratio:28.0
+  };
+  document.getElementById("dataNote").textContent = "当前为内置演示快照（偏热市结构）。点击「拉取真实快照」可换 akshare 真实数据。";
+  renderIndicators(); renderEdit(); compute();
+}
+
+// ===== 拉取真实快照 =====
+async function fetchLive(){
+  if (!API_URL){ alert("请先在「数据接口配置」里填写后端地址"); return; }
+  document.getElementById("dataNote").textContent = "正在拉取真实快照…";
+  try{
+    const r = await fetch(API_URL.replace(/\/$/,"") + "/api/shepherd");
+    const j = await r.json();
+    if (j.ok && j.indicators){
+      CUR = j.indicators;
+      document.getElementById("dataNote").textContent =
+        (j.offline ? "⚠️ 后端处于离线模式，返回演示数据。" : "✅ 已拉取真实 akshare 快照，日期：" + j.date)
+        + " 温度：" + j.temperature;
+      renderIndicators(); renderEdit(); compute();
+    } else {
+      document.getElementById("dataNote").textContent = "拉取失败：" + (j.error||"未知错误");
+    }
+  }catch(e){
+    document.getElementById("dataNote").textContent = "拉取异常：" + e.message + "（确认后端已启动且地址正确）";
+  }
+}
+
+// ===== 事件 =====
+document.getElementById("btnCalc").addEventListener("click", demoSnapshot);
+document.getElementById("btnLive").addEventListener("click", fetchLive);
+document.getElementById("btnApply").addEventListener("click", ()=>{
+  for (const k in THRESH){
+    const el = document.getElementById("in_"+k);
+    const v = parseFloat(el.value);
+    CUR[k] = isNaN(v) ? null : v;
+  }
+  renderIndicators(); compute();
+  document.getElementById("dataNote").textContent = "已应用手动录入值。";
+});
+document.getElementById("cfgOpen").addEventListener("click", ()=>{
+  document.getElementById("apiUrl").value = API_URL || "http://127.0.0.1:8787";
+  document.getElementById("cfgModal").style.display = "flex";
+});
+document.getElementById("cfgClose").addEventListener("click", ()=>document.getElementById("cfgModal").style.display="none");
+document.getElementById("cfgSave").addEventListener("click", ()=>{
+  API_URL = document.getElementById("apiUrl").value.trim();
+  localStorage.setItem("shep_api", API_URL);
+  document.getElementById("cfgModal").style.display="none";
+  fetchLive();
+});
+
+document.getElementById("btnClearHist").addEventListener("click", ()=>{
+  if(confirm("确定清空温度历史？")){ localStorage.removeItem("shep_hist"); drawHist(); }
+});
+
+// ===== 全自动：进入即显示内置快照，并探测后端，可达则自动拉取真实快照 =====
+demoSnapshot();
+(function autoLive(){
+  const base = (API_URL||"http://127.0.0.1:8787").replace(/\/+$/,"");
+  const c = new AbortController(); const t = setTimeout(()=>c.abort(), 3000);
+  fetch(base + "/api/health", {cache:"no-store", signal:c.signal})
+    .then(r=> r.ok ? fetchLive() : null)
+    .catch(()=>{});
+})();
+
+// 初始
+renderIndicators(); renderEdit(); drawHist();
+</script>
+
+  <footer class="hubfoot">
+    <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
+    <span>数据来自公开接口或本地演示，仅供学习与参考，不构成任何投资建议。</span>
+  </footer>
+</body>
+</html>
