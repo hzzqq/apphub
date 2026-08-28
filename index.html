@@ -42,6 +42,11 @@
   .needapi{font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;white-space:nowrap;
     border:1px solid #2a5a4a;color:var(--down);background:var(--card2);cursor:help}
   .needapi.off{border-color:#5a4a2a;color:#ffb74d}
+  /* 键盘可达性(cycle 54): 此前只有输入框有焦点样式, 按钮/链接被键盘 Tab 聚焦时没有任何可见指示,
+     纯键盘用户无法判断焦点落在哪里。此处为所有可交互元素补上统一的键盘焦点轮廓。 */
+  button:focus-visible, a:focus-visible, .card:focus-visible, .chip:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px; border-radius:8px;
+  }
   .desc{font-size:12.5px;color:var(--sub);line-height:1.55;flex:1;min-height:42px}
   .open{display:inline-flex;align-items:center;justify-content:center;gap:6px;
     background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;text-decoration:none;
@@ -289,9 +294,29 @@ function loadPrefs(){
   curSort = localStorage.getItem("hub_sort") || "name";
 }
 
-function openApp(dir){
+/* 解析 openApp 的两种调用形式（顶层导出以便单测）:
+ *   1) 链接 onclick: openApp(event, dir)   2) 键盘 Enter: openApp(dir) */
+function parseOpenArgs(a, b){
+  return (typeof b === "string") ? { ev:a, dir:b } : { ev:null, dir:a };
+}
+
+/* 打开应用。支持两种调用：
+ *   1) 链接 onclick: openApp(event, dir) —— 取消时返回 false 阻止跳转，否则交给 <a href> 打开
+ *   2) 键盘 Enter:   openApp(dir)        —— 无事件对象，内部自行 window.open
+ * 依赖后端的应用在后端未连接时提示一次，避免把本地样本误当真实数据。 */
+function openApp(a, b){
+  const parsed = parseOpenArgs(a, b);
+  const ev = parsed.ev, dir = parsed.dir;
+  if(!dir) return false;
+  if(needsBackend(dir) && !backendUp){
+    if(!confirm("「" + dir + "」需要后端才有真实数据。\n当前后端未连接，打开后将显示本地样本/离线演示。\n\n是否继续打开？")){
+      if(ev) ev.preventDefault();
+      return false;   // 取消时不打开，也不记入最近使用
+    }
+  }
   pushRecent(dir);
-  window.open(dir + "/index.html", "_blank", "noopener");
+  if(!ev) window.open(dir + "/index.html", "_blank", "noopener");   // 键盘调用需自行打开
+  return true;
 }
 
 function copyPath(e, dir){
@@ -417,6 +442,12 @@ function render(){
     const ae = document.activeElement;
     const inInput = ae && (ae.tagName==="INPUT" || ae.tagName==="TEXTAREA" || ae.tagName==="SELECT" || ae.isContentEditable);
     if(e.key==="/" && !inInput){ e.preventDefault(); const s=document.getElementById("search"); if(s) s.focus(); return; }
+    // 焦点在搜索框内时按 Esc 应先清空搜索(符合直觉); 此前被下方的 inInput 直接放行而无法清空
+    if(e.key==="Escape" && inInput){
+      const s = document.getElementById("search");
+      if(s && s.value){ s.value = ""; curQ = ""; render(); s.focus(); }
+      return;
+    }
     if(inInput) return;
     const cards = Array.prototype.slice.call(document.querySelectorAll("#grid .card"));
     if(!cards.length) return;
@@ -484,18 +515,8 @@ function backendBadgeText(up){ return up ? "🔌 真实数据" : "⚠ 本地样�
 
 let backendUp = false;   // 由 initApi 的 probe() 探测结果维护
 
-/* 打开依赖后端的应用前，若后端未连接则提示一次，
-   避免用户把本地样本误当成真实数据（真实痛点）。取消则不打开、也不记入最近使用。 */
-function openApp(ev, dir){
-  if(needsBackend(dir) && !backendUp){
-    if(!confirm("「" + dir + "」需要后端才有真实数据。\n当前后端未连接，打开后将显示本地样本/离线演示。\n\n是否继续打开？")){
-      ev.preventDefault();
-      return false;
-    }
-  }
-  pushRecent(dir);
-  return true;
-}
+/* 注：openApp 已在文件上方统一定义（链接点击与键盘 Enter 两种调用形式），此处不再重复定义，
+   避免同名函数覆盖导致键盘打开失效的回归。 */
 /* 后端连通性变化后只更新徽标文本，避免重绘整个网格 */
 function updateBackendBadges(){
   document.querySelectorAll(".needapi").forEach(function(el){

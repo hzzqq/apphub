@@ -116,6 +116,27 @@ ok("依赖清单无重复", new Set(napi.NEEDS_BACKEND).size === napi.NEEDS_BACK
 ok("已连后端 -> 真实数据徽标", napi.backendBadgeText(true) === "🔌 真实数据");
 ok("未连后端 -> 本地样本徽标", napi.backendBadgeText(false) === "⚠ 本地样本");
 
+/* ============================================================
+ *  Round 4: openApp 参数兼容（防同名函数覆盖导致键盘打开失效的回归）
+ * ============================================================ */
+const m6 = html.match(/function parseOpenArgs\(a, b\)\{[\s\S]*?\n\}/);
+if (!m6) throw new Error("index.html 中未找到 parseOpenArgs");
+const parseOpenArgs = vm.runInContext(m6[0] + "\n;parseOpenArgs", sandbox);
+
+console.log("\n[Round 4] openApp 参数兼容 parseOpenArgs");
+ok("(event, dir) 形式解析出 ev 与 dir", (() => {
+  const r = parseOpenArgs({ type: "click" }, "futures-inventory");
+  return r.dir === "futures-inventory" && r.ev && r.ev.type === "click";
+})());
+ok("(dir) 形式 ev 为 null", (() => {
+  const r = parseOpenArgs("futures-inventory");
+  return r.dir === "futures-inventory" && r.ev === null;
+})());
+ok("(dir, undefined) 仍按单参处理", parseOpenArgs("etf-picker", undefined).dir === "etf-picker");
+ok("缺 dir 时返回 undefined 供调用方拦截", parseOpenArgs(undefined).dir === undefined);
+// 关键回归防线: 曾因重复定义 openApp 导致键盘 Enter 打开应用失效
+ok("index.html 中 openApp 只定义一次", (html.match(/function openApp\(/g) || []).length === 1);
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }
