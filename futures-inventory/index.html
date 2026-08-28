@@ -791,6 +791,64 @@ function dataQuality(data, metricKey){
   return { total, missingInv, zeroOrNeg, anomalies, gapRuns };
 }
 
+/* ====================== 数据新鲜度（cycle 49） ====================== */
+/* 背景：KPI 只报"最新库存 X 吨"却不告知该数字属于哪一天，用户无法判断是否需要刷新。
+   本模块统一给出：数据截止日 / 距今天数 / 新鲜度等级 / 下次预计发布日。 */
+function fmtLocalDate(d){
+  const p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+/* 距今天数（本地零点为基准，忽略时分秒）；日期非法返回 null */
+function daysSince(dateStr, todayDate){
+  if(!dateStr) return null;
+  const d = new Date(dateStr + "T00:00:00");
+  if(isNaN(d.getTime())) return null;
+  const t = todayDate || new Date();
+  const t0 = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  return Math.round((t0 - d) / 86400000);
+}
+/* 数据新鲜度：返回 {date, ageDays, level, cycleDays}
+   level: fresh(<=1个发布周期) / lagging(<=2个周期) / stale(>2个周期) / empty(无数据) / unknown(日期非法) */
+function freshnessInfo(data, metricKey, cycleDays, todayDate){
+  cycleDays = cycleDays || 7;                       // 交易所库存按周发布
+  if(!data || !data.length) return { date:null, ageDays:null, level:"empty" };
+  metricKey = (metricKey === "auto") ? (window.__bestInvMetric || "inventory_total") : metricKey;
+  let latestDate = null;
+  for(let i = data.length - 1; i >= 0; i--){
+    const d = data[i];
+    if(!d || !d.date) continue;
+    if(getInvValue(d, metricKey) != null){ latestDate = d.date; break; }
+  }
+  if(!latestDate) return { date:null, ageDays:null, level:"empty" };
+  const ageDays = daysSince(latestDate, todayDate);
+  if(ageDays == null) return { date:latestDate, ageDays:null, level:"unknown" };
+  const level = ageDays <= cycleDays ? "fresh" : (ageDays <= cycleDays * 2 ? "lagging" : "stale");
+  return { date:latestDate, ageDays:ageDays, level:level, cycleDays:cycleDays };
+}
+/* 下次预计发布日：从给定日期往后找第一个匹配 weekday 的日子（JS getDay 语义，0=周日） */
+function nextReleaseDate(rule, fromDateStr){
+  if(!rule || rule.weekday == null) return null;
+  const base = fromDateStr ? new Date(fromDateStr + "T00:00:00") : new Date();
+  if(isNaN(base.getTime())) return null;
+  const d = new Date(base.getTime());
+  d.setDate(d.getDate() + 1);
+  let guard = 0;
+  while(d.getDay() !== rule.weekday && guard++ < 14) d.setDate(d.getDate() + 1);
+  return d.getDay() === rule.weekday ? fmtLocalDate(d) : null;
+}
+/* 新鲜度徽标 HTML（内容均为内部生成，无用户输入，故无需 esc） */
+function freshnessBadgeHTML(fr, nextDate){
+  if(!fr || fr.level === "empty")   return " · <span style=\"color:#9a9ab0\">📭 该区间无库存数据</span>";
+  if(fr.level === "unknown")        return " · <span style=\"color:#9a9ab0\">数据截至 " + fr.date + "</span>";
+  const ICON = { fresh:"🟢", lagging:"🟡", stale:"🔴" };
+  const COL  = { fresh:"#00d486", lagging:"#ffb74d", stale:"#ff4d4f" };
+  const TIP  = { fresh:"数据较新", lagging:"已超过一个发布周期，可能滞后", stale:"明显滞后，建议点「刷新数据」" };
+  let s = " · <span title=\"" + (TIP[fr.level] || "") + "\" style=\"color:" + COL[fr.level] + "\">"
+        + (ICON[fr.level] || "") + " 数据截至 " + fr.date + "（" + fr.ageDays + "天前）</span>";
+  if(fr.level !== "fresh" && nextDate) s += " <span style=\"color:#9a9ab0\">下次预计 " + nextDate + "</span>";
+  return s;
+}
+
 /* ====================== 绘制（Canvas 双轴折线） ====================== */
 function draw(){
   const code=document.getElementById("symbol").value;
@@ -830,11 +888,16 @@ function draw(){
     if(isCrude){
       for(let i=data.length-1;i>=0;i--){ if(data[i].eia_crude_change!=null){ lastEiaDate=data[i].date; break; } }
       const latest = chg && chg.value!=null ? (chg.value>=0?"+":"")+chg.value.toFixed(1) : "—";
-      html = "最新EIA库存变动 <b>" + latest + "</b> 百万桶（周变动，数据截至 " + (lastEiaDate||"—") + "）";
+      const frE = freshnessInfo(data, "eia_crude_change");
+      html = "最新EIA库存变动 <b>" + latest + "</b> 百万桶（周变动）"
+           + freshnessBadgeHTML(frE, nextReleaseDate(releaseInfo(curExch, code), frE.date));
     } else {
       html = "最新库存 <b>" + (chg && chg.value!=null ? Math.round(chg.value).toLocaleString() : "—") + "</b> 吨" +
         " · 环比 <b style=\"color:" + (chg?col(chg.mom):"var(--sub)") + "\">" + (chg?fmt(chg.mom):"—") + "</b>" +
         " · 同比 <b style=\"color:" + (chg?col(chg.yoy):"var(--sub)") + "\">" + (chg?fmt(chg.yoy):"—") + "</b>";
+      // 新鲜度：告知该库存数字属于哪一天 + 是否滞后 + 下次预计发布日
+      const fr = freshnessInfo(data, metricKey);
+      html += freshnessBadgeHTML(fr, nextReleaseDate(releaseInfo(curExch, code), fr.date));
     }
     if(curBasis){
       let lastBasis=null;

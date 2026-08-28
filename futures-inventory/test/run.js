@@ -396,6 +396,65 @@ if (RD && RD["SHFE:sp"]) {
   ok("映射后 null 不被转成 0", mapped.find(m=>m.date==="2026-06-26").inventory_total === null);
 }
 
+/* ============================================================
+ *  Round 13: 数据新鲜度（数据截止日 / 距今天数 / 滞后告警 / 下次预计发布）
+ * ============================================================ */
+if (typeof sandbox.freshnessInfo === "function") {
+  console.log("\n[Round 13] 数据新鲜度");
+  const TD = new Date("2026-08-28T00:00:00");   // 固定"今天"，保证用例可重复
+  const mk = (date, inv) => ({ date, close: 1, inventory: inv });
+
+  ok("daysSince 1天前", sandbox.daysSince("2026-08-27", TD) === 1);
+  ok("daysSince 7天前", sandbox.daysSince("2026-08-21", TD) === 7);
+  ok("daysSince 未来日期为负", sandbox.daysSince("2026-09-01", TD) === -4);
+  ok("daysSince 非法日期=null", sandbox.daysSince("bad-date", TD) === null);
+  ok("daysSince 空值=null", sandbox.daysSince(null, TD) === null);
+
+  ok("空数组 -> empty", sandbox.freshnessInfo([], "inventory", 7, TD).level === "empty");
+  ok("无库存数据 -> empty", sandbox.freshnessInfo([mk("2026-08-27", null)], "inventory", 7, TD).level === "empty");
+
+  const f1 = sandbox.freshnessInfo([mk("2026-08-26", 100), mk("2026-08-27", 120)], "inventory", 7, TD);
+  ok("1天前 -> fresh", f1.level === "fresh" && f1.date === "2026-08-27" && f1.ageDays === 1);
+
+  const f2 = sandbox.freshnessInfo([mk("2026-08-20", 100), mk("2026-08-27", null)], "inventory", 7, TD);
+  ok("跳过无库存日取最后有库存日(8天前) -> lagging", f2.date === "2026-08-20" && f2.ageDays === 8 && f2.level === "lagging");
+
+  const f3 = sandbox.freshnessInfo([mk("2026-08-13", 100)], "inventory", 7, TD);
+  ok("15天前 -> stale", f3.level === "stale" && f3.ageDays === 15);
+
+  ok("恰好7天仍算 fresh(<=1个周期)", sandbox.freshnessInfo([mk("2026-08-21", 100)], "inventory", 7, TD).level === "fresh");
+  ok("恰好14天算 lagging(<=2个周期)", sandbox.freshnessInfo([mk("2026-08-14", 100)], "inventory", 7, TD).level === "lagging");
+  ok("非法日期 -> unknown 且保留 date", (() => {
+    const u = sandbox.freshnessInfo([{ date: "xx", inventory: 1 }], "inventory", 7, TD);
+    return u.level === "unknown" && u.date === "xx";
+  })());
+
+  // nextReleaseDate：2026-08-28 为周五(getDay=5)
+  ok("周五规则 -> 下个周五 2026-09-04", sandbox.nextReleaseDate({ weekday: 5 }, "2026-08-28") === "2026-09-04");
+  ok("周三规则 -> 下个周三 2026-09-02", sandbox.nextReleaseDate({ weekday: 3 }, "2026-08-28") === "2026-09-02");
+  ok("非法基准日 -> null", sandbox.nextReleaseDate({ weekday: 5 }, "not-a-date") === null);
+  ok("无规则 -> null", sandbox.nextReleaseDate(null, "2026-08-28") === null);
+
+  // 徽标文案
+  ok("empty 徽标提示无库存", sandbox.freshnessBadgeHTML({ level: "empty" }).indexOf("无库存数据") >= 0);
+  ok("stale 徽标含日期+下次预计", (() => {
+    const s = sandbox.freshnessBadgeHTML({ level: "stale", date: "2026-08-13", ageDays: 15 }, "2026-09-04");
+    return s.indexOf("2026-08-13") >= 0 && s.indexOf("下次预计 2026-09-04") >= 0;
+  })());
+  ok("fresh 徽标不显示下次预计(避免噪音)", sandbox.freshnessBadgeHTML({ level: "fresh", date: "2026-08-27", ageDays: 1 }, "2026-09-04").indexOf("下次预计") < 0);
+  ok("stale 用红色告警", sandbox.freshnessBadgeHTML({ level: "stale", date: "2026-08-13", ageDays: 15 }).indexOf("#ff4d4f") >= 0);
+
+  // 集成：内置真实纸浆样本
+  if (RD && RD["SHFE:sp"]) {
+    const fr = sandbox.freshnessInfo(RD["SHFE:sp"], "inventory_total", 7, TD);
+    ok("真实样本新鲜度 date 非空", typeof fr.date === "string" && fr.date.length === 10);
+    ok("真实样本 ageDays 为数字", typeof fr.ageDays === "number");
+    ok("真实样本 level 合法", ["fresh", "lagging", "stale"].indexOf(fr.level) >= 0);
+  }
+} else {
+  console.log("\n[Round 13] 数据新鲜度 —— 本轮尚未实现，跳过");
+}
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }
