@@ -91,6 +91,31 @@ ok("缺字段不崩溃(可选字段缺失仍出文案)", (() => {
   catch (e) { return false; }
 })());
 
+/* ============================================================
+ *  Round 3: 后端依赖标注（哪些 App 必须连后端才有真实数据）
+ * ============================================================ */
+const m3 = html.match(/const NEEDS_BACKEND = \[[\s\S]*?\];/);
+const m4 = html.match(/function needsBackend\(dir\)\{[^}]*?\}/);
+const m5 = html.match(/function backendBadgeText\(up\)\{[^}]*?\}/);
+if (!m3 || !m4 || !m5) throw new Error("index.html 中未找到后端依赖标注相关定义");
+const napi = vm.runInContext(
+  m3[0] + "\n" + m4[0] + "\n" + m5[0] +
+  "\n;({ needsBackend: needsBackend, backendBadgeText: backendBadgeText, NEEDS_BACKEND: NEEDS_BACKEND })",
+  sandbox
+);
+
+console.log("\n[Round 3] 后端依赖标注 needsBackend");
+ok("期库镜需后端", napi.needsBackend("futures-inventory") === true);
+ok("价差望远镜需后端", napi.needsBackend("futures-spread") === true);
+ok("ETF 精选器需后端", napi.needsBackend("etf-picker") === true);
+ok("桌面宠物不需后端", napi.needsBackend("desktop-pet") === false);
+ok("番茄钟不需后端", napi.needsBackend("focus-timer") === false);
+ok("未知目录返回 false", napi.needsBackend("no-such-app") === false);
+ok("依赖清单含 10 个 App", napi.NEEDS_BACKEND.length === 10);
+ok("依赖清单无重复", new Set(napi.NEEDS_BACKEND).size === napi.NEEDS_BACKEND.length);
+ok("已连后端 -> 真实数据徽标", napi.backendBadgeText(true) === "🔌 真实数据");
+ok("未连后端 -> 本地样本徽标", napi.backendBadgeText(false) === "⚠ 本地样本");
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }

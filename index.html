@@ -39,6 +39,9 @@
   .cat.fin{color:var(--inv);border-color:#5a4a2a}
   .cat.life{color:var(--down);border-color:#2a5a4a}
   .cat.tool{color:var(--g1);border-color:#3a3a6a}
+  .needapi{font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;white-space:nowrap;
+    border:1px solid #2a5a4a;color:var(--down);background:var(--card2);cursor:help}
+  .needapi.off{border-color:#5a4a2a;color:#ffb74d}
   .desc{font-size:12.5px;color:var(--sub);line-height:1.55;flex:1;min-height:42px}
   .open{display:inline-flex;align-items:center;justify-content:center;gap:6px;
     background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;text-decoration:none;
@@ -372,9 +375,13 @@ function render(){
           '<div class="ctag" title="点击按标签筛选" onclick="tagFilter(event,\'' + a.tag + '\')">' + a.tag + '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="desc">' + a.desc + '</div>' +
+      '<div class="desc">' + a.desc +
+        (needsBackend(a.dir)
+          ? ' <span class="needapi' + (backendUp ? "" : " off") + '" title="该应用需要后端才有真实数据；未连接时显示本地样本/离线演示">' + backendBadgeText(backendUp) + '</span>'
+          : '') +
+      '</div>' +
       '<div class="cact">' +
-        '<a class="open" href="' + a.dir + '/index.html" target="_blank" rel="noopener" onclick="pushRecent(\'' + a.dir + '\')">打开应用 →</a>' +
+        '<a class="open" href="' + a.dir + '/index.html" target="_blank" rel="noopener" onclick="return openApp(event,\'' + a.dir + '\')">打开应用 →</a>' +
         '<button class="copybtn" type="button" onclick="copyPath(event,\'' + a.dir + '\')">📋 复制路径</button>' +
       '</div>';
     grid.appendChild(el);
@@ -462,6 +469,41 @@ function formatDataStatus(j){
   return { text:text, cls:cls };
 }
 
+/* ====================== 后端依赖标注（cycle 53） ======================
+ * 背景：老板曾困惑"为什么期库镜显示的是合成数据" —— 根因之一是不清楚
+ * 哪些 App 必须连后端才有真实数据。此处把这份依赖显式化到卡片上。
+ * 列表由代码实证得出：这些 App 会读取 hub_api / 各自的 *_api 地址并发起请求;
+ * 其余 App 纯本地运行，不联网也有完整功能。 */
+const NEEDS_BACKEND = ["code-teacher", "etf-picker", "futures-inventory", "futures-spread",
+  "holdings-check", "kpattern", "sector-rotation", "shepherd-index", "smart-order", "trading-agents"];
+
+/* 该 App 是否需要后端才能看到真实数据（顶层导出以便单测） */
+function needsBackend(dir){ return NEEDS_BACKEND.indexOf(dir) >= 0; }
+/* 徽标文案（顶层导出以便单测） */
+function backendBadgeText(up){ return up ? "🔌 真实数据" : "⚠ 本地样本"; }
+
+let backendUp = false;   // 由 initApi 的 probe() 探测结果维护
+
+/* 打开依赖后端的应用前，若后端未连接则提示一次，
+   避免用户把本地样本误当成真实数据（真实痛点）。取消则不打开、也不记入最近使用。 */
+function openApp(ev, dir){
+  if(needsBackend(dir) && !backendUp){
+    if(!confirm("「" + dir + "」需要后端才有真实数据。\n当前后端未连接，打开后将显示本地样本/离线演示。\n\n是否继续打开？")){
+      ev.preventDefault();
+      return false;
+    }
+  }
+  pushRecent(dir);
+  return true;
+}
+/* 后端连通性变化后只更新徽标文本，避免重绘整个网格 */
+function updateBackendBadges(){
+  document.querySelectorAll(".needapi").forEach(function(el){
+    el.textContent = backendBadgeText(backendUp);
+    el.className = "needapi" + (backendUp ? "" : " off");
+  });
+}
+
 // 真实数据接口（统一后端）配置：写入 localStorage.hub_api，所有 App 共用
 // 部署即同源：通过 http(s) 打开站点时，后端已托管前端，API 默认走同源(location.origin)，
 // 对方无需手填地址；仅本地双击 file:// 打开才默认指向本机 127.0.0.1:8787。
@@ -485,6 +527,7 @@ function formatDataStatus(j){
         const j = await r.json().catch(()=>({}));
         state.textContent = (j.offline ? "✓ 已连接（离线样本模式）" : "✓ 已连接（真实数据）");
         state.className="apistate ok";
+        backendUp = true; updateBackendBadges();
         // 数据新鲜度：连上后端后展示各品种缓存的滞后期，判断自动刷新是否真的生效
         try{
           const ctl = new AbortController();
@@ -496,9 +539,10 @@ function formatDataStatus(j){
         }catch(e){
           if(dsEl){ dsEl.textContent = ""; dsEl.className = "apistate"; }
         }
-      } else { state.textContent="✗ 接口无响应"; state.className="apistate bad"; }
+      } else { state.textContent="✗ 接口无响应"; state.className="apistate bad"; backendUp = false; updateBackendBadges(); }
     }catch(e){
       state.textContent="⚪ 后端未启动（App 自动用本地样本/离线演示）"; state.className="apistate";
+      backendUp = false; updateBackendBadges();
     }
   }
   function save(){
