@@ -13,9 +13,13 @@ const html = fs.readFileSync(path.resolve(__dirname, "..", "index.html"), "utf8"
 const m = html.match(/function validateBackup\(payload\)\{[\s\S]*?\n\}/);
 if (!m) throw new Error("index.html 中未找到 validateBackup");
 
+const m2 = html.match(/function formatDataStatus\(j\)\{[\s\S]*?\n\}/);
+if (!m2) throw new Error("index.html 中未找到 formatDataStatus");
+
 const sandbox = { console };
 vm.createContext(sandbox);
 const validateBackup = vm.runInContext(m[0] + "\n;validateBackup", sandbox);
+const formatDataStatus = vm.runInContext(m2[0] + "\n;formatDataStatus", sandbox);
 
 let pass = 0, fail = 0;
 const failed = [];
@@ -58,6 +62,34 @@ ok("超过 8MB 被拒绝", validateBackup(big).ok === false);
 ok("键名允许点/冒号/下划线/连字符", validateBackup({ format: "apphub-backup", data: { "a.b:c_d-e": "1" } }).ok === true);
 ok("值含 HTML 仍按字符串通过(由各 App 的 esc 负责转义)",
   validateBackup({ format: "apphub-backup", data: { note: "<img onerror=1>" } }).ok === true);
+
+/* ============================================================
+ *  Round 2: 数据新鲜度文案（大厅展示 /api/data_status 结论）
+ * ============================================================ */
+console.log("\n[Round 2] 数据新鲜度文案 formatDataStatus");
+
+ok("无效响应返回空文案", formatDataStatus(null).text === "");
+ok("ok=false 返回空文案", formatDataStatus({ ok: false, count: 10 }).text === "");
+ok("count=0 返回空文案", formatDataStatus({ ok: true, count: 0 }).text === "");
+
+const fresh = formatDataStatus({ ok: true, count: 55, with_data: 55, newest_age_days: 1, avg_age_days: 1.1, stale_count: 0 });
+ok("含品种数与最新天数", fresh.text.indexOf("55 个品种") >= 0 && fresh.text.indexOf("最新 1 天前") >= 0);
+ok("含平均滞后天数", fresh.text.indexOf("平均 1.1 天") >= 0);
+ok("无滞后时不显示警告", fresh.text.indexOf("滞后") < 0);
+ok("新鲜数据标记为 ok(绿)", fresh.cls === "ok");
+
+const lagged = formatDataStatus({ ok: true, count: 55, with_data: 55, newest_age_days: 9, avg_age_days: 12.4, stale_count: 3 });
+ok("有滞后显示警告数", lagged.text.indexOf("⚠ 3 个滞后") >= 0);
+ok("有滞后标记为 bad(红)", lagged.cls === "bad");
+
+const mid = formatDataStatus({ ok: true, count: 55, with_data: 55, newest_age_days: 10, avg_age_days: 11, stale_count: 0 });
+ok("最新>7天但无滞后 -> 中性", mid.cls === "");
+
+ok("无数据日期时提示", formatDataStatus({ ok: true, count: 55, with_data: 0 }).text.indexOf("暂无数据日期") >= 0);
+ok("缺字段不崩溃(可选字段缺失仍出文案)", (() => {
+  try { return formatDataStatus({ ok: true, count: 5, with_data: 5 }).text.indexOf("5 个品种") >= 0; }
+  catch (e) { return false; }
+})());
 
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);

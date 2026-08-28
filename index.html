@@ -140,6 +140,7 @@
       <input id="apiInput" placeholder="http://127.0.0.1:8787（留空则各 App 用本地静态样本/离线演示）">
       <button class="randbtn" id="apiSave">保存</button>
       <span id="apiState" class="apistate"></span>
+      <span id="dataStat" class="apistate"></span>
       <span class="apihint">所有行情/数据类 App 共用此地址；起后端：<code>cd backend &amp;&amp; python app.py</code></span>
     </div>
     <div class="apipanel" id="bkPanel">
@@ -446,6 +447,21 @@ document.getElementById("randBtn").addEventListener("click", ()=>{
   window.open(a.dir+"/index.html", "_blank", "noopener");
 });
 
+/* 把 /api/data_status 响应格式化为大厅展示文案（顶层导出以便单测）。
+   目的：连上后端后，一眼看出"各品种数据最新到哪天"，判断自动刷新是否真的生效。 */
+function formatDataStatus(j){
+  if(!j || j.ok !== true) return { text:"", cls:"" };
+  const n = j.count || 0, wd = j.with_data || 0;
+  if(!n) return { text:"", cls:"" };
+  if(!wd) return { text:"📊 " + n + " 个品种缓存，暂无数据日期", cls:"" };
+  const newest = j.newest_age_days, avg = j.avg_age_days, stale = j.stale_count || 0;
+  let text = "📊 " + wd + " 个品种 · 最新 " + (newest == null ? "—" : newest + " 天前");
+  if(avg != null) text += " · 平均 " + avg + " 天";
+  if(stale > 0)  text += " · ⚠ " + stale + " 个滞后";
+  const cls = stale > 0 ? "bad" : ((newest != null && newest <= 7) ? "ok" : "");
+  return { text:text, cls:cls };
+}
+
 // 真实数据接口（统一后端）配置：写入 localStorage.hub_api，所有 App 共用
 // 部署即同源：通过 http(s) 打开站点时，后端已托管前端，API 默认走同源(location.origin)，
 // 对方无需手填地址；仅本地双击 file:// 打开才默认指向本机 127.0.0.1:8787。
@@ -453,12 +469,14 @@ document.getElementById("randBtn").addEventListener("click", ()=>{
   const DEF = (location.protocol === "file:") ? "http://127.0.0.1:8787" : location.origin;
   const input = document.getElementById("apiInput");
   const state = document.getElementById("apiState");
+  const dsEl  = document.getElementById("dataStat");
   // 自动默认指向统一后端（只写一次，不覆盖用户自定义）
   if(!localStorage.getItem("hub_api")) localStorage.setItem("hub_api", DEF);
   input.value = localStorage.getItem("hub_api") || DEF;
   async function probe(){
     const v = (input.value.trim().replace(/\/+$/,"")) || DEF;
     state.textContent="检测中…"; state.className="apistate";
+    if(dsEl){ dsEl.textContent=""; dsEl.className="apistate"; }   // 每次重测先清空上次的结论
     try{
       const c = new AbortController(); const t = setTimeout(()=>c.abort(), 3000);
       const r = await fetch(v + "/api/health", {cache:"no-store", signal:c.signal});
@@ -467,6 +485,17 @@ document.getElementById("randBtn").addEventListener("click", ()=>{
         const j = await r.json().catch(()=>({}));
         state.textContent = (j.offline ? "✓ 已连接（离线样本模式）" : "✓ 已连接（真实数据）");
         state.className="apistate ok";
+        // 数据新鲜度：连上后端后展示各品种缓存的滞后期，判断自动刷新是否真的生效
+        try{
+          const ctl = new AbortController();
+          const tt = setTimeout(() => ctl.abort(), 5000);
+          const ds = await (await fetch(v + "/api/data_status", {cache:"no-store", signal:ctl.signal})).json();
+          clearTimeout(tt);
+          const f = formatDataStatus(ds);
+          if(dsEl){ dsEl.textContent = f.text; dsEl.className = "apistate" + (f.cls ? " " + f.cls : ""); }
+        }catch(e){
+          if(dsEl){ dsEl.textContent = ""; dsEl.className = "apistate"; }
+        }
       } else { state.textContent="✗ 接口无响应"; state.className="apistate bad"; }
     }catch(e){
       state.textContent="⚪ 后端未启动（App 自动用本地样本/离线演示）"; state.className="apistate";
