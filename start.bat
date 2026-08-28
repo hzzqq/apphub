@@ -27,10 +27,16 @@ if errorlevel 1 (
   echo [ok] Backend deps ready
 )
 
-REM 3) Start Flask backend (separate window, stays running)
-REM    OFFLINE_MODE=False => fetch real data when online, auto-fallback to samples when offline.
-set OFFLINE_MODE=False
-echo [*] Starting backend at http://127.0.0.1:8787 (OFFLINE_MODE=False) ...
+REM 3) Decide data mode by akshare availability
+python -c "import akshare" >nul 2>nul
+if not errorlevel 1 (
+  set OFFLINE_MODE=False
+  echo [*] akshare detected -> LIVE data mode (real-time fetch + auto-refresh)
+) else (
+  set OFFLINE_MODE=True
+  echo [*] akshare NOT installed -> OFFLINE mode (bundled real cached data + samples)
+)
+echo [*] Starting backend at http://127.0.0.1:8787 (OFFLINE_MODE=%OFFLINE_MODE%) ...
 start "HubBackend" python backend/app.py
 
 REM 4) Wait for backend

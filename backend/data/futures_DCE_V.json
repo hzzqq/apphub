@@ -1,0 +1,4502 @@
+[
+{
+"date": "2024-08-06",
+"close": 5609.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-07",
+"close": 5607.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-08",
+"close": 5566.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-09",
+"close": 5543.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-12",
+"close": 5478.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-13",
+"close": 5395.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-14",
+"close": 5425.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-15",
+"close": 5332.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-16",
+"close": 5344.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-19",
+"close": 5406.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-20",
+"close": 5437.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-21",
+"close": 5539.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-22",
+"close": 5623.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-23",
+"close": 5542.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-26",
+"close": 5661.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-27",
+"close": 5669.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-28",
+"close": 5626.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-29",
+"close": 5621.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-08-30",
+"close": 5586.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-02",
+"close": 5470.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-03",
+"close": 5410.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-04",
+"close": 5367.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-05",
+"close": 5330.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-06",
+"close": 5358.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-09",
+"close": 5398.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-10",
+"close": 5339.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-11",
+"close": 5390.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-12",
+"close": 5397.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-13",
+"close": 5326.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-18",
+"close": 5202.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-19",
+"close": 5289.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-20",
+"close": 5229.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-23",
+"close": 5189.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-24",
+"close": 5388.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-25",
+"close": 5428.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-26",
+"close": 5490.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-27",
+"close": 5557.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-09-30",
+"close": 5799.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-08",
+"close": 5676.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-09",
+"close": 5580.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-10",
+"close": 5566.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-11",
+"close": 5594.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-14",
+"close": 5611.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-15",
+"close": 5633.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-16",
+"close": 5609.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-17",
+"close": 5441.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-18",
+"close": 5452.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-21",
+"close": 5367.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-22",
+"close": 5403.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-23",
+"close": 5390.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-24",
+"close": 5422.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-25",
+"close": 5495.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-28",
+"close": 5568.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-29",
+"close": 5450.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-30",
+"close": 5471.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-10-31",
+"close": 5480.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-01",
+"close": 5418.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-04",
+"close": 5478.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-05",
+"close": 5442.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-06",
+"close": 5391.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-07",
+"close": 5461.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-08",
+"close": 5393.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-11",
+"close": 5335.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-12",
+"close": 5350.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-13",
+"close": 5347.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-14",
+"close": 5310.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-15",
+"close": 5282.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-18",
+"close": 5284.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-19",
+"close": 5292.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-20",
+"close": 5282.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-21",
+"close": 5308.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-22",
+"close": 5236.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-25",
+"close": 5269.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-26",
+"close": 5246.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-27",
+"close": 5237.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-28",
+"close": 5207.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-11-29",
+"close": 5208.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-02",
+"close": 5160.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-03",
+"close": 5099.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-04",
+"close": 5035.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-05",
+"close": 5047.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-06",
+"close": 4973.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-09",
+"close": 4969.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-10",
+"close": 5013.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-11",
+"close": 5055.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-12",
+"close": 5076.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-13",
+"close": 5023.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-16",
+"close": 5050.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-17",
+"close": 5031.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-18",
+"close": 5028.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-19",
+"close": 4980.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-20",
+"close": 4999.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-23",
+"close": 5359.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-24",
+"close": 5347.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-25",
+"close": 5317.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-26",
+"close": 5301.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-27",
+"close": 5271.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-30",
+"close": 5326.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2024-12-31",
+"close": 5290.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-02",
+"close": 5237.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-03",
+"close": 5145.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-06",
+"close": 5150.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-07",
+"close": 5087.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-08",
+"close": 5067.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-09",
+"close": 5145.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-10",
+"close": 5130.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-13",
+"close": 5208.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-14",
+"close": 5237.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-15",
+"close": 5276.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-16",
+"close": 5346.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-17",
+"close": 5326.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-20",
+"close": 5279.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-21",
+"close": 5304.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-22",
+"close": 5289.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-23",
+"close": 5158.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-24",
+"close": 5175.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-01-27",
+"close": 5268.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-05",
+"close": 5163.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-06",
+"close": 5166.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-07",
+"close": 5230.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-10",
+"close": 5212.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-11",
+"close": 5226.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-12",
+"close": 5273.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-13",
+"close": 5190.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-14",
+"close": 5229.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-17",
+"close": 5277.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-18",
+"close": 5279.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-19",
+"close": 5271.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-20",
+"close": 5290.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-21",
+"close": 5263.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-24",
+"close": 5255.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-25",
+"close": 5211.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-26",
+"close": 5167.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-27",
+"close": 5190.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-02-28",
+"close": 5180.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-03",
+"close": 5228.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-04",
+"close": 5185.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-05",
+"close": 5109.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-06",
+"close": 5135.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-07",
+"close": 5110.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-10",
+"close": 5082.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-11",
+"close": 5060.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-12",
+"close": 5018.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-13",
+"close": 5036.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-14",
+"close": 5068.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-17",
+"close": 5065.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-18",
+"close": 5007.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-19",
+"close": 5026.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-20",
+"close": 5030.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-21",
+"close": 5020.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-24",
+"close": 5159.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-25",
+"close": 5127.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-26",
+"close": 5118.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-27",
+"close": 5129.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-28",
+"close": 5118.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-03-31",
+"close": 5079.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-01",
+"close": 5099.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-02",
+"close": 5072.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-03",
+"close": 5069.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-07",
+"close": 4929.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-08",
+"close": 4907.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-09",
+"close": 4861.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-10",
+"close": 4933.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-11",
+"close": 4930.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-14",
+"close": 4951.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-15",
+"close": 5067.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-16",
+"close": 5054.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-17",
+"close": 5033.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-18",
+"close": 5032.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-21",
+"close": 5045.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-22",
+"close": 4935.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-23",
+"close": 5006.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-24",
+"close": 4968.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-25",
+"close": 4961.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-28",
+"close": 4989.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-29",
+"close": 4949.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-04-30",
+"close": 4942.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-06",
+"close": 4854.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-07",
+"close": 4876.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-08",
+"close": 4839.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-09",
+"close": 4805.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-12",
+"close": 4836.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-13",
+"close": 4837.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-14",
+"close": 4986.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-15",
+"close": 5041.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-16",
+"close": 4947.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-19",
+"close": 4959.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-20",
+"close": 4949.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-21",
+"close": 4969.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-22",
+"close": 4926.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-23",
+"close": 4854.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-26",
+"close": 4865.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-27",
+"close": 4793.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-28",
+"close": 4758.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-29",
+"close": 4744.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-05-30",
+"close": 4764.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-03",
+"close": 4745.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-04",
+"close": 4834.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-05",
+"close": 4747.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-06",
+"close": 4790.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-09",
+"close": 4816.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-10",
+"close": 4810.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-11",
+"close": 4832.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-12",
+"close": 4826.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-13",
+"close": 4859.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-16",
+"close": 4860.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-17",
+"close": 4833.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-18",
+"close": 4899.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-19",
+"close": 4900.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-20",
+"close": 4903.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-23",
+"close": 4896.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-24",
+"close": 4844.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-25",
+"close": 4871.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-26",
+"close": 4872.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-27",
+"close": 4919.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-06-30",
+"close": 4889.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-01",
+"close": 4821.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-02",
+"close": 4930.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-03",
+"close": 4914.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-04",
+"close": 4906.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-07",
+"close": 4892.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-08",
+"close": 4894.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-09",
+"close": 4963.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-10",
+"close": 5040.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-11",
+"close": 4980.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-14",
+"close": 5010.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-15",
+"close": 4975.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-16",
+"close": 4934.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-17",
+"close": 4955.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-18",
+"close": 4937.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-21",
+"close": 5118.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-22",
+"close": 5260.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-23",
+"close": 5151.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-24",
+"close": 5238.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-25",
+"close": 5373.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-28",
+"close": 5149.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-29",
+"close": 5192.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-30",
+"close": 5159.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-07-31",
+"close": 5041.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-01",
+"close": 5015.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-04",
+"close": 4981.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-05",
+"close": 5042.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-06",
+"close": 5051.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-07",
+"close": 5046.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-08",
+"close": 4993.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-11",
+"close": 5010.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-12",
+"close": 5047.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-13",
+"close": 5167.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-14",
+"close": 5124.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-15",
+"close": 5097.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-18",
+"close": 5054.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-19",
+"close": 5001.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-20",
+"close": 5008.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-21",
+"close": 5004.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-22",
+"close": 5019.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-25",
+"close": 5047.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-26",
+"close": 4999.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-27",
+"close": 4949.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-28",
+"close": 4946.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-08-29",
+"close": 4907.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-01",
+"close": 4894.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-02",
+"close": 4888.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-03",
+"close": 4878.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-04",
+"close": 4883.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-05",
+"close": 4913.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-08",
+"close": 4890.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-09",
+"close": 4847.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-10",
+"close": 4857.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-11",
+"close": 4888.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-12",
+"close": 4876.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-15",
+"close": 4921.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-16",
+"close": 4960.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-17",
+"close": 4973.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-18",
+"close": 4923.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-19",
+"close": 4950.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-22",
+"close": 4938.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-23",
+"close": 4891.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-24",
+"close": 4919.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-25",
+"close": 4935.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-26",
+"close": 4897.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-29",
+"close": 4896.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-09-30",
+"close": 4839.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-09",
+"close": 4769.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-10",
+"close": 4735.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-13",
+"close": 4721.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-14",
+"close": 4692.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-15",
+"close": 4677.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-16",
+"close": 4694.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-17",
+"close": 4688.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-20",
+"close": 4702.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-21",
+"close": 4699.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-22",
+"close": 4719.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-23",
+"close": 4730.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-24",
+"close": 4708.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-27",
+"close": 4746.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-28",
+"close": 4716.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-29",
+"close": 4775.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-30",
+"close": 4766.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-10-31",
+"close": 4701.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-03",
+"close": 4680.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-04",
+"close": 4670.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-05",
+"close": 4638.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-06",
+"close": 4630.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-07",
+"close": 4611.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-10",
+"close": 4614.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-11",
+"close": 4572.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-12",
+"close": 4581.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-13",
+"close": 4586.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-14",
+"close": 4608.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-17",
+"close": 4601.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-18",
+"close": 4520.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-19",
+"close": 4492.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-20",
+"close": 4456.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-21",
+"close": 4456.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-24",
+"close": 4496.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-25",
+"close": 4491.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-26",
+"close": 4489.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-27",
+"close": 4517.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-11-28",
+"close": 4549.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-01",
+"close": 4553.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-02",
+"close": 4575.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-03",
+"close": 4541.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-04",
+"close": 4500.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-05",
+"close": 4426.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-08",
+"close": 4431.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-09",
+"close": 4367.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-10",
+"close": 4328.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-11",
+"close": 4276.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-12",
+"close": 4220.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-15",
+"close": 4315.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-16",
+"close": 4669.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-17",
+"close": 4680.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-18",
+"close": 4708.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-19",
+"close": 4652.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-22",
+"close": 4591.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-23",
+"close": 4738.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-24",
+"close": 4781.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-25",
+"close": 4757.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-26",
+"close": 4832.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-29",
+"close": 4777.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-30",
+"close": 4810.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2025-12-31",
+"close": 4805.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-05",
+"close": 4764.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-06",
+"close": 4919.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-07",
+"close": 4972.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-08",
+"close": 4905.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-09",
+"close": 4897.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-12",
+"close": 4940.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-13",
+"close": 4888.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-14",
+"close": 4878.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-15",
+"close": 4868.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-16",
+"close": 4803.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-19",
+"close": 4801.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-20",
+"close": 4807.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-21",
+"close": 4743.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-22",
+"close": 4849.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-23",
+"close": 4921.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-26",
+"close": 4959.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-27",
+"close": 4911.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-28",
+"close": 4913.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-29",
+"close": 4895.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-01-30",
+"close": 5063.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-02-02",
+"close": 5014.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-02-03",
+"close": 5071.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-02-04",
+"close": 5155.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-02-05",
+"close": 5052.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-02-06",
+"close": 4981.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-02-09",
+"close": 4992.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-02-10",
+"close": 4971.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-02-11",
+"close": 4990.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-02-12",
+"close": 4938.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-02-13",
+"close": 4905.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-02-24",
+"close": 4948.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-02-25",
+"close": 4963.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-02-26",
+"close": 4855.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-02-27",
+"close": 4792.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-02",
+"close": 4868.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-03",
+"close": 4939.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-04",
+"close": 4995.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-05",
+"close": 5016.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-06",
+"close": 5276.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-09",
+"close": 5466.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-10",
+"close": 5229.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-11",
+"close": 5571.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-12",
+"close": 5620.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-13",
+"close": 5724.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-16",
+"close": 5849.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-17",
+"close": 5901.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-18",
+"close": 5735.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-19",
+"close": 5860.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-20",
+"close": 5875.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-23",
+"close": 6251.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-24",
+"close": 5853.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-25",
+"close": 5703.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-26",
+"close": 5650.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-27",
+"close": 5615.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-30",
+"close": 5551.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-03-31",
+"close": 5353.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-01",
+"close": 5256.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-02",
+"close": 5494.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-03",
+"close": 5428.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-07",
+"close": 5398.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-08",
+"close": 5160.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-09",
+"close": 5093.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-10",
+"close": 4952.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-13",
+"close": 5092.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-14",
+"close": 5039.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-15",
+"close": 5100.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-16",
+"close": 5109.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-17",
+"close": 5093.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-20",
+"close": 5147.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-21",
+"close": 5134.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-22",
+"close": 5230.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-23",
+"close": 5189.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-24",
+"close": 5153.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-27",
+"close": 5228.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-28",
+"close": 5358.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-29",
+"close": 5295.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-04-30",
+"close": 5272.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-06",
+"close": 5319.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-07",
+"close": 5163.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-08",
+"close": 5145.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-11",
+"close": 5133.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-12",
+"close": 5105.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-13",
+"close": 5229.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-14",
+"close": 5056.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-15",
+"close": 5027.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-18",
+"close": 5109.0,
+"inventory": null,
+"inventory_total": null,
+"inventory_circ": null,
+"inventory_warehouse": null,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-19",
+"close": 5050.0,
+"inventory": 103456.0,
+"inventory_total": 103456.0,
+"inventory_circ": null,
+"inventory_warehouse": 103456.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-20",
+"close": 4947.0,
+"inventory": 103456.0,
+"inventory_total": 103456.0,
+"inventory_circ": null,
+"inventory_warehouse": 103456.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-21",
+"close": 4865.0,
+"inventory": 103418.0,
+"inventory_total": 103418.0,
+"inventory_circ": null,
+"inventory_warehouse": 103418.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-22",
+"close": 4846.0,
+"inventory": 103685.0,
+"inventory_total": 103685.0,
+"inventory_circ": null,
+"inventory_warehouse": 103685.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-25",
+"close": 4914.0,
+"inventory": 103192.0,
+"inventory_total": 103192.0,
+"inventory_circ": null,
+"inventory_warehouse": 103192.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-26",
+"close": 4854.0,
+"inventory": 103152.0,
+"inventory_total": 103152.0,
+"inventory_circ": null,
+"inventory_warehouse": 103152.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-27",
+"close": 4873.0,
+"inventory": 103455.0,
+"inventory_total": 103455.0,
+"inventory_circ": null,
+"inventory_warehouse": 103455.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-28",
+"close": 4939.0,
+"inventory": 103402.0,
+"inventory_total": 103402.0,
+"inventory_circ": null,
+"inventory_warehouse": 103402.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-05-29",
+"close": 4924.0,
+"inventory": 103402.0,
+"inventory_total": 103402.0,
+"inventory_circ": null,
+"inventory_warehouse": 103402.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-01",
+"close": 4993.0,
+"inventory": 103710.0,
+"inventory_total": 103710.0,
+"inventory_circ": null,
+"inventory_warehouse": 103710.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-02",
+"close": 4950.0,
+"inventory": 103859.0,
+"inventory_total": 103859.0,
+"inventory_circ": null,
+"inventory_warehouse": 103859.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-03",
+"close": 4943.0,
+"inventory": 103719.0,
+"inventory_total": 103719.0,
+"inventory_circ": null,
+"inventory_warehouse": 103719.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-04",
+"close": 4819.0,
+"inventory": 103866.0,
+"inventory_total": 103866.0,
+"inventory_circ": null,
+"inventory_warehouse": 103866.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-05",
+"close": 4767.0,
+"inventory": 103866.0,
+"inventory_total": 103866.0,
+"inventory_circ": null,
+"inventory_warehouse": 103866.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-08",
+"close": 4778.0,
+"inventory": 103906.0,
+"inventory_total": 103906.0,
+"inventory_circ": null,
+"inventory_warehouse": 103906.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-09",
+"close": 4717.0,
+"inventory": 103506.0,
+"inventory_total": 103506.0,
+"inventory_circ": null,
+"inventory_warehouse": 103506.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-10",
+"close": 4706.0,
+"inventory": 107076.0,
+"inventory_total": 107076.0,
+"inventory_circ": null,
+"inventory_warehouse": 107076.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-11",
+"close": 4716.0,
+"inventory": 115330.0,
+"inventory_total": 115330.0,
+"inventory_circ": null,
+"inventory_warehouse": 115330.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-12",
+"close": 4741.0,
+"inventory": 115726.0,
+"inventory_total": 115726.0,
+"inventory_circ": null,
+"inventory_warehouse": 115726.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-15",
+"close": 4692.0,
+"inventory": 116299.0,
+"inventory_total": 116299.0,
+"inventory_circ": null,
+"inventory_warehouse": 116299.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-16",
+"close": 4637.0,
+"inventory": 116281.0,
+"inventory_total": 116281.0,
+"inventory_circ": null,
+"inventory_warehouse": 116281.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-17",
+"close": 4618.0,
+"inventory": 116261.0,
+"inventory_total": 116261.0,
+"inventory_circ": null,
+"inventory_warehouse": 116261.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-18",
+"close": 4616.0,
+"inventory": 115598.0,
+"inventory_total": 115598.0,
+"inventory_circ": null,
+"inventory_warehouse": 115598.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-22",
+"close": 4535.0,
+"inventory": 116070.0,
+"inventory_total": 116070.0,
+"inventory_circ": null,
+"inventory_warehouse": 116070.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-23",
+"close": 4444.0,
+"inventory": 115970.0,
+"inventory_total": 115970.0,
+"inventory_circ": null,
+"inventory_warehouse": 115970.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-24",
+"close": 4490.0,
+"inventory": 115970.0,
+"inventory_total": 115970.0,
+"inventory_circ": null,
+"inventory_warehouse": 115970.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-25",
+"close": 4469.0,
+"inventory": 116106.0,
+"inventory_total": 116106.0,
+"inventory_circ": null,
+"inventory_warehouse": 116106.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-26",
+"close": 4388.0,
+"inventory": 115730.0,
+"inventory_total": 115730.0,
+"inventory_circ": null,
+"inventory_warehouse": 115730.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-29",
+"close": 4391.0,
+"inventory": 116335.0,
+"inventory_total": 116335.0,
+"inventory_circ": null,
+"inventory_warehouse": 116335.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-06-30",
+"close": 4456.0,
+"inventory": 115061.0,
+"inventory_total": 115061.0,
+"inventory_circ": null,
+"inventory_warehouse": 115061.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-01",
+"close": 4392.0,
+"inventory": 115440.0,
+"inventory_total": 115440.0,
+"inventory_circ": null,
+"inventory_warehouse": 115440.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-02",
+"close": 4369.0,
+"inventory": 115202.0,
+"inventory_total": 115202.0,
+"inventory_circ": null,
+"inventory_warehouse": 115202.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-03",
+"close": 4453.0,
+"inventory": 114774.0,
+"inventory_total": 114774.0,
+"inventory_circ": null,
+"inventory_warehouse": 114774.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-06",
+"close": 4450.0,
+"inventory": 114707.0,
+"inventory_total": 114707.0,
+"inventory_circ": null,
+"inventory_warehouse": 114707.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-07",
+"close": 4439.0,
+"inventory": 114519.0,
+"inventory_total": 114519.0,
+"inventory_circ": null,
+"inventory_warehouse": 114519.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-08",
+"close": 4480.0,
+"inventory": 115053.0,
+"inventory_total": 115053.0,
+"inventory_circ": null,
+"inventory_warehouse": 115053.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-09",
+"close": 4511.0,
+"inventory": 115153.0,
+"inventory_total": 115153.0,
+"inventory_circ": null,
+"inventory_warehouse": 115153.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-10",
+"close": 4534.0,
+"inventory": 115711.0,
+"inventory_total": 115711.0,
+"inventory_circ": null,
+"inventory_warehouse": 115711.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-13",
+"close": 4488.0,
+"inventory": 119469.0,
+"inventory_total": 119469.0,
+"inventory_circ": null,
+"inventory_warehouse": 119469.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-14",
+"close": 4579.0,
+"inventory": 119835.0,
+"inventory_total": 119835.0,
+"inventory_circ": null,
+"inventory_warehouse": 119835.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-15",
+"close": 4598.0,
+"inventory": 119757.0,
+"inventory_total": 119757.0,
+"inventory_circ": null,
+"inventory_warehouse": 119757.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-16",
+"close": 4590.0,
+"inventory": 119757.0,
+"inventory_total": 119757.0,
+"inventory_circ": null,
+"inventory_warehouse": 119757.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-17",
+"close": 4440.0,
+"inventory": 119737.0,
+"inventory_total": 119737.0,
+"inventory_circ": null,
+"inventory_warehouse": 119737.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-20",
+"close": 4713.0,
+"inventory": 119424.0,
+"inventory_total": 119424.0,
+"inventory_circ": null,
+"inventory_warehouse": 119424.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-21",
+"close": 4587.0,
+"inventory": 119334.0,
+"inventory_total": 119334.0,
+"inventory_circ": null,
+"inventory_warehouse": 119334.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-22",
+"close": 4565.0,
+"inventory": 119184.0,
+"inventory_total": 119184.0,
+"inventory_circ": null,
+"inventory_warehouse": 119184.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-23",
+"close": 4618.0,
+"inventory": 119184.0,
+"inventory_total": 119184.0,
+"inventory_circ": null,
+"inventory_warehouse": 119184.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-24",
+"close": 4656.0,
+"inventory": 119128.0,
+"inventory_total": 119128.0,
+"inventory_circ": null,
+"inventory_warehouse": 119128.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-27",
+"close": 4536.0,
+"inventory": 119072.0,
+"inventory_total": 119072.0,
+"inventory_circ": null,
+"inventory_warehouse": 119072.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-28",
+"close": 4503.0,
+"inventory": 118957.0,
+"inventory_total": 118957.0,
+"inventory_circ": null,
+"inventory_warehouse": 118957.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-29",
+"close": 4523.0,
+"inventory": 118201.0,
+"inventory_total": 118201.0,
+"inventory_circ": null,
+"inventory_warehouse": 118201.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-30",
+"close": 4467.0,
+"inventory": 118234.0,
+"inventory_total": 118234.0,
+"inventory_circ": null,
+"inventory_warehouse": 118234.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-07-31",
+"close": 4480.0,
+"inventory": 119274.0,
+"inventory_total": 119274.0,
+"inventory_circ": null,
+"inventory_warehouse": 119274.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-03",
+"close": 4451.0,
+"inventory": 119214.0,
+"inventory_total": 119214.0,
+"inventory_circ": null,
+"inventory_warehouse": 119214.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-04",
+"close": 4471.0,
+"inventory": 119188.0,
+"inventory_total": 119188.0,
+"inventory_circ": null,
+"inventory_warehouse": 119188.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-05",
+"close": 4461.0,
+"inventory": 119004.0,
+"inventory_total": 119004.0,
+"inventory_circ": null,
+"inventory_warehouse": 119004.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-06",
+"close": 4529.0,
+"inventory": 118942.0,
+"inventory_total": 118942.0,
+"inventory_circ": null,
+"inventory_warehouse": 118942.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-07",
+"close": 4507.0,
+"inventory": 118648.0,
+"inventory_total": 118648.0,
+"inventory_circ": null,
+"inventory_warehouse": 118648.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-10",
+"close": 4498.0,
+"inventory": 118556.0,
+"inventory_total": 118556.0,
+"inventory_circ": null,
+"inventory_warehouse": 118556.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-11",
+"close": 4556.0,
+"inventory": 118656.0,
+"inventory_total": 118656.0,
+"inventory_circ": null,
+"inventory_warehouse": 118656.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-12",
+"close": 4528.0,
+"inventory": 118055.0,
+"inventory_total": 118055.0,
+"inventory_circ": null,
+"inventory_warehouse": 118055.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-13",
+"close": 4511.0,
+"inventory": 121079.0,
+"inventory_total": 121079.0,
+"inventory_circ": null,
+"inventory_warehouse": 121079.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-14",
+"close": 4496.0,
+"inventory": 121053.0,
+"inventory_total": 121053.0,
+"inventory_circ": null,
+"inventory_warehouse": 121053.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-17",
+"close": 4581.0,
+"inventory": 120991.0,
+"inventory_total": 120991.0,
+"inventory_circ": null,
+"inventory_warehouse": 120991.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-18",
+"close": 4744.0,
+"inventory": 120984.0,
+"inventory_total": 120984.0,
+"inventory_circ": null,
+"inventory_warehouse": 120984.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-19",
+"close": 4746.0,
+"inventory": 121096.0,
+"inventory_total": 121096.0,
+"inventory_circ": null,
+"inventory_warehouse": 121096.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-20",
+"close": 4710.0,
+"inventory": 121045.0,
+"inventory_total": 121045.0,
+"inventory_circ": null,
+"inventory_warehouse": 121045.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-21",
+"close": 4679.0,
+"inventory": 121011.0,
+"inventory_total": 121011.0,
+"inventory_circ": null,
+"inventory_warehouse": 121011.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-24",
+"close": 4644.0,
+"inventory": 120897.0,
+"inventory_total": 120897.0,
+"inventory_circ": null,
+"inventory_warehouse": 120897.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-25",
+"close": 4539.0,
+"inventory": 120812.0,
+"inventory_total": 120812.0,
+"inventory_circ": null,
+"inventory_warehouse": 120812.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-26",
+"close": 4466.0,
+"inventory": 119836.0,
+"inventory_total": 119836.0,
+"inventory_circ": null,
+"inventory_warehouse": 119836.0,
+"inventory_bonded": null
+},
+{
+"date": "2026-08-27",
+"close": 4473.0,
+"inventory": 119398.0,
+"inventory_total": 119398.0,
+"inventory_circ": null,
+"inventory_warehouse": 119398.0,
+"inventory_bonded": null
+}
+]

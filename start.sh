@@ -16,13 +16,22 @@ echo "[ok] 使用 $PY: $($PY --version 2>&1)"
 # 2) 确保后端依赖
 $PY -c "import flask" >/dev/null 2>&1 || $PY -m pip install Flask flask-cors
 
-# 3) 启动 Flask 后端（后台常驻）
+# 3) 按 akshare 是否存在决定数据模式
+if $PY -c "import akshare" >/dev/null 2>&1; then
+  export OFFLINE_MODE=False
+  echo "[*] 检测到 akshare -> 实时数据模式（实时抓取 + 自动刷新）"
+else
+  export OFFLINE_MODE=True
+  echo "[*] 未安装 akshare -> 离线模式（内置真实缓存数据 + 样本）"
+fi
+
+# 4) 启动 Flask 后端（后台常驻）
 echo "[*] 启动后端 http://127.0.0.1:8787 ..."
 nohup $PY backend/app.py >backend.log 2>&1 &
 BACK_PID=$!
 sleep 4
 
-# 4) 抓取真实期货数据（有网才成功，失败不影响大厅）
+# 5) 抓取真实期货数据（有网才成功，失败不影响大厅）
 if $PY -c "import akshare" >/dev/null 2>&1; then
   echo "[*] 抓取真实期货数据 (纸浆SP等) ..."
   $PY backend/fetch_real_futures.py || echo "[跳过] 抓取失败，期库镜将使用内置样本"

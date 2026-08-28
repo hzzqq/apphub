@@ -1,0 +1,7 @@
+# App Hub 统一后端依赖
+# 安装: pip install -r requirements.txt
+flask>=3.0
+flask-cors>=4.0
+# 实时数据抓取(akshare 会顺带拉取 lxml/requests/pandas 等依赖, 安装稍慢)
+# 若只想用本地缓存快照/离线样本, 可不装 akshare, 并设置 OFFLINE_MODE=True
+akshare>=1.13

@@ -1,0 +1,7 @@
+[
+  {"id": "starfield", "name": "星辰暗域", "desc": "StockSignal 经典深空紫蓝", "bg": "#0f0f23", "card": "#1a1a2e", "card2": "#221a3a", "txt": "#e6e6f0", "sub": "#8a8a9a", "line": "#2a2a44", "accent": "#667eea", "accent2": "#764ba2", "up": "#ff4d4f", "down": "#00d486"},
+  {"id": "miku", "name": "Miku Codex", "desc": "初音未来薄荷粉蓝", "bg": "#f0f8ff", "card": "#ffffff", "card2": "#e6f7ff", "txt": "#1a1a2e", "sub": "#5a6b7b", "line": "#cce7f0", "accent": "#39c5bb", "accent2": "#ff99cc", "up": "#ff4d4f", "down": "#00aa6a"},
+  {"id": "cyber", "name": "赛博霓虹", "desc": "高对比黑底霓虹", "bg": "#050505", "card": "#111111", "card2": "#1a1a1a", "txt": "#e6e6f0", "sub": "#8a8a9a", "line": "#2a2a44", "accent": "#00f0ff", "accent2": "#ff00aa", "up": "#ff2a6d", "down": "#05ffa1"},
+  {"id": "paper", "name": "护眼纸墨", "desc": "低对比暖灰阅读", "bg": "#f4f1ea", "card": "#ffffff", "card2": "#f9f7f2", "txt": "#2c2c2c", "sub": "#666666", "line": "#ddd8cf", "accent": "#8b5e3c", "accent2": "#5c7a29", "up": "#c0392b", "down": "#27ae60"},
+  {"id": "sakura", "name": "樱花粉境", "desc": "柔和粉紫少女风", "bg": "#fff5f8", "card": "#fff0f5", "card2": "#ffe4ed", "txt": "#3a2434", "sub": "#7a5c6e", "line": "#f0d0de", "accent": "#ff6b9d", "accent2": "#c44569", "up": "#ff4d4f", "down": "#00d486"}
+]

@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>财报日历 · EarningsCalendar</title>
+<style>
+  :root{
+    --bg:#0f0f23; --card:#1a1a2e; --card2:#21213a; --radius:12px;
+    --up:#ff4d4f; --down:#00d486; --memo:#8a8a9a;
+    --grad:linear-gradient(135deg,#667eea,#764ba2);
+    --text:#e8e8f0; --sub:#9a9ab0; --line:#2a2a44;
+    --sh:#ff8f6b; --sz:#5b9bff; --bj:#c08bff; --hk:#f5c451; --oth:#9a9ab0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.6;padding:24px;max-width:1180px;margin:0 auto;}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:6px;}
+  .logo{width:42px;height:42px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:22px;}
+  h1{font-size:22px;font-weight:700;}
+  .tag{font-size:12px;color:var(--sub);background:var(--card2);padding:2px 8px;border-radius:20px;}
+  .desc{color:var(--sub);font-size:13px;margin:8px 0 18px;}
+  .panel{background:var(--card);border-radius:var(--radius);padding:18px;border:1px solid var(--line);margin-bottom:16px;}
+  .panel h3{font-size:15px;margin-bottom:10px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  input,select{background:var(--card2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px;font-size:14px;}
+  input[type=date]{color-scheme:dark;}
+  .btn{background:var(--grad);color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}
+  .btn:hover{opacity:.9;}
+  .btn.ghost{background:var(--card2);color:var(--text);}
+  .btn.sm{padding:4px 10px;font-size:12px;}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+  .stat{background:var(--card2);border-radius:8px;padding:8px 14px;font-size:13px;}
+  .stat b{font-size:18px;color:var(--up);}
+  .seg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .seg button{background:transparent;border:none;color:var(--sub);padding:7px 12px;cursor:pointer;font-size:13px;}
+  .seg button.on{background:var(--grad);color:#fff;}
+  .mbtn{background:var(--card2);border:1px solid var(--line);color:var(--sub);border-radius:18px;padding:5px 14px;cursor:pointer;font-size:13px;}
+  .mbtn.on{background:var(--grad);color:#fff;border-color:transparent;}
+
+  /* 日历网格 */
+  .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .cal-nav{display:flex;align-items:center;gap:12px;}
+  .cal-title{font-size:17px;font-weight:700;}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .dow{text-align:center;font-size:12px;color:var(--sub);padding:4px 0;}
+  .day{background:var(--card2);border:1px solid var(--line);border-radius:8px;min-height:74px;padding:6px;font-size:12px;display:flex;flex-direction:column;gap:3px;}
+  .day.out{opacity:.35;}
+  .day.today{outline:1px solid var(--up);}
+  .day.soon{background:rgba(245,166,35,.14);border-color:rgba(245,166,35,.5);}
+  .dnum{color:var(--sub);font-weight:600;}
+  .chip{background:rgba(255,255,255,.06);border-radius:5px;padding:2px 5px;font-size:11px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid var(--oth);}
+  .chip:hover{background:rgba(255,255,255,.12);}
+  .chip.sh{border-left-color:var(--sh);}
+  .chip.sz{border-left-color:var(--sz);}
+  .chip.bj{border-left-color:var(--bj);}
+  .chip.hk{border-left-color:var(--hk);}
+  .chip.focus{box-shadow:0 0 0 1px var(--up) inset;}
+
+  /* 列表 */
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px;}
+  th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);}
+  th{color:var(--sub);font-weight:500;}
+  .soon{background:rgba(245,166,35,.10);}
+  .badge{font-size:11px;padding:1px 7px;border-radius:10px;}
+  .badge.sh{background:rgba(255,143,107,.18);color:var(--sh);}
+  .badge.sz{background:rgba(91,155,255,.18);color:var(--sz);}
+  .badge.bj{background:rgba(192,139,255,.18);color:var(--bj);}
+  .badge.hk{background:rgba(245,196,81,.18);color:var(--hk);}
+  .badge.oth{background:rgba(154,154,176,.18);color:var(--oth);}
+  .badge.q{background:rgba(102,126,234,.2);color:#9ab0ff;}
+  .badge.src{background:rgba(154,154,176,.18);color:var(--sub);margin-left:4px;font-size:10px}
+  .ann{display:inline-flex;gap:6px;}
+  .ann .a{cursor:pointer;border:1px solid var(--line);border-radius:14px;padding:2px 9px;font-size:12px;color:var(--sub);user-select:none;}
+  .ann .a.seen{background:rgba(0,212,134,.16);color:var(--down);border-color:transparent;}
+  .ann .a.focus{background:rgba(255,77,79,.16);color:var(--up);border-color:transparent;}
+  .del{color:var(--down);cursor:pointer;font-size:12px;}
+  .edit{color:#9ab0ff;cursor:pointer;font-size:12px;}
+  .muted{color:var(--memo);}
+  .hint{font-size:12px;color:var(--memo);margin-top:8px;}
+  #toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#2a1f2e;border:1px solid #5a2a40;color:#f0b8c8;padding:12px 20px;border-radius:10px;display:none;z-index:99;font-size:14px;}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin-top:8px;}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:middle;}
+
+  .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35);}
+  .hubhome:hover{filter:brightness(1.12)}
+  .hubfoot{max-width:1180px;margin:30px auto 0;padding:16px;text-align:center;font-size:12px;color:var(--sub);border-top:1px solid var(--line);line-height:1.8}
+  .hubfoot a{color:#9ab0ff;text-decoration:none;font-weight:600}
+</style>
+</head>
+<body>
+  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+
+<header>
+  <div class="logo">📅</div>
+  <div><h1>财报日历 <span class="tag">EarningsCalendar</span></h1></div>
+</header>
+<div class="desc">按月份浏览 A股/港股上市公司财报披露预约，按市场（沪/深/京/港）与板块筛选、搜索个股，临近披露高亮提醒；可对个股标注「已看 / 重点关注」。内置样本数据兜底，标注本地保存。</div>
+
+<div id="toast"></div>
+
+<!-- 筛选栏 -->
+<div class="panel">
+  <div class="row" style="justify-content:space-between">
+    <div class="row">
+      <span class="muted" style="font-size:13px">市场：</span>
+      <span id="markets" class="row" style="gap:6px"></span>
+    </div>
+    <div class="row">
+      <label for="sector" class="muted" style="font-size:13px">板块</label>
+      <select id="sector"><option value="">全部板块</option></select>
+      <label for="q" class="muted" style="font-size:13px">搜索</label>
+      <input id="q" placeholder="搜索代码/名称，如 600519 或 茅台" style="min-width:220px" aria-label="搜索代码或名称" />
+      <button class="btn ghost sm" id="clearBtn">清空筛选</button>
+    </div>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--sh)"></i>沪市</span>
+    <span><i style="background:var(--sz)"></i>深市</span>
+    <span><i style="background:var(--bj)"></i>京市</span>
+    <span><i style="background:var(--hk)"></i>港股</span>
+    <span><i style="background:rgba(245,166,35,.6)"></i>7天内临近披露</span>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <span class="muted" style="font-size:13px">临近：</span>
+    <span id="ranges" class="row" style="gap:6px"></span>
+  </div>
+</div>
+
+<!-- 数据源（可选）-->
+<div class="panel">
+  <h3>🌐 数据源（可选）</h3>
+  <div class="row">
+    <input id="extUrl" placeholder="可选：填入返回 {rows:[{code,name,market,sector,type,date}]} 的接口地址，留空只用内置样本" style="flex:1" />
+    <button class="btn ghost sm" id="loadExt">加载外部数据</button>
+    <button class="btn ghost sm" id="clearExt">清除</button>
+  </div>
+  <div class="hint" id="extHint">内置样本覆盖沪/深/京/港多板块演示数据；接入你自己的数据源可查看任意股票真实披露预约（加载失败会自动回退样本）。</div>
+</div>
+
+<!-- 日历 -->
+<div class="panel">
+  <div class="cal-head">
+    <div class="cal-nav">
+      <button class="btn ghost sm" id="prevM">‹</button>
+      <span class="cal-title" id="calTitle">—</span>
+      <button class="btn ghost sm" id="nextM">›</button>
+      <button class="btn ghost sm" id="todayM">今天</button>
+    </div>
+    <div class="seg" id="viewSeg">
+      <button data-view="cal" class="on">📅 日历</button>
+      <button data-view="list">📋 列表</button>
+    </div>
+  </div>
+  <div id="calView">
+    <div class="grid" id="dowRow"></div>
+    <div class="grid" id="calGrid"></div>
+    <div id="calHint" class="hint" style="margin-top:8px"></div>
+  </div>
+  <div id="listView" style="display:none">
+    <table id="tbl"><thead><tr><th>代码</th><th>名称</th><th>市场</th><th>板块</th><th>类型</th><th>披露日</th><th>倒计时</th><th>标注</th><th></th></tr></thead><tbody></tbody></table>
+  </div>
+</div>
+
+<!-- 添加 -->
+<div class="panel">
+  <h3>➕ 手动添加披露预约</h3>
+  <div class="row">
+    <input id="code" placeholder="股票代码 如 600519" style="width:150px" />
+    <input id="name" placeholder="名称（留空自动识别）" style="width:160px" />
+    <select id="type" aria-label="披露类型">
+      <option value="年报">年报</option>
+      <option value="中报">中报</option>
+      <option value="一季报">一季报</option>
+      <option value="三季报">三季报</option>
+    </select>
+    <label for="date" class="muted" style="font-size:13px">披露日</label>
+    <input type="date" id="date" aria-label="披露日期" />
+    <input id="sectorIn" placeholder="板块（可选）" style="width:130px" aria-label="板块" />
+    <input id="expect" placeholder="预期（可选）" style="flex:1;min-width:150px" />
+    <button class="btn" id="add">添加</button>
+  </div>
+  <div class="stats">
+    <div class="stat">当前显示 <b id="cShow">0</b></div>
+    <div class="stat">临近(7天内) <b id="cSoon">0</b></div>
+    <div class="stat">重点关注 <b id="cFocus">0</b></div>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <button class="btn ghost sm" id="expCsv">导出 CSV</button>
+    <button class="btn ghost sm" id="expJson">导出 JSON</button>
+    <button class="btn ghost sm" id="imp">导入 JSON</button>
+    <input type="file" id="file" accept="application/json" style="display:none" />
+    <button class="btn ghost sm" id="resetAnn">清除我的标注</button>
+  </div>
+  <div class="hint">💡 点击日历中的个股可聚焦搜索；点击列表「已看 / 重点关注」可切换标注（本地保存）。样本数据为演示用途，真实披露以交易所公告为准。</div>
+</div>
+
+<footer class="hubfoot">
+  <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
+  <span>数据来自内置样本或本地录入，仅供学习与参考，不构成任何投资建议。</span>
+</footer>
+
+<script>
+"use strict";
+/* ============ 常量与状态 ============ */
+var KEY = "earn_cal_items_v1";
+var ANNKEY = "earn_cal_ann_v1";
+var MARKETS = ["全部", "沪", "深", "京", "港"];
+var SAMPLE = [
+  // 沪
+  {code:"600519", name:"贵州茅台", sector:"白酒",   type:"年报",  off:6},
+  {code:"600519", name:"贵州茅台", sector:"白酒",   type:"一季报", off:18},
+  {code:"601318", name:"中国平安", sector:"保险",   type:"中报",  off:3},
+  {code:"600036", name:"招商银行", sector:"银行",   type:"年报",  off:11},
+  {code:"600276", name:"恒瑞医药", sector:"医药",   type:"三季报", off:-2},
+  {code:"601012", name:"隆基绿能", sector:"光伏",   type:"中报",  off:9},
+  // 深
+  {code:"000001", name:"平安银行", sector:"银行",   type:"年报",  off:14},
+  {code:"000333", name:"美的集团", sector:"家电",   type:"三季报", off:2},
+  {code:"300750", name:"宁德时代", sector:"新能源", type:"中报",  off:5},
+  {code:"002594", name:"比亚迪",   sector:"汽车",   type:"年报",  off:21},
+  {code:"000858", name:"五粮液",   sector:"白酒",   type:"一季报", off:7},
+  // 京
+  {code:"830799", name:"艾融软件", sector:"软件",   type:"年报",  off:4},
+  {code:"835174", name:"五新隧装", sector:"机械",   type:"中报",  off:12},
+  {code:"920002", name:"万达轴承", sector:"机械",   type:"三季报", off:8},
+  // 港
+  {code:"00700", name:"腾讯控股", sector:"互联网", type:"年报",  off:10},
+  {code:"09988", name:"阿里巴巴", sector:"互联网", type:"中报",  off:1},
+  {code:"03690", name:"美团",     sector:"互联网", type:"三季报", off:16},
+  {code:"00939", name:"建设银行", sector:"银行",   type:"年报",  off:13}
+];
+
+var items = loadItems();          // 用户录入的披露预约（持久化）
+var ann = loadAnn();              // 标注 {id:{seen:bool,focus:bool}}
+var extEvents = [];               // 外部数据源加载的事件
+var SRCKEY = "earn_cal_src_v1";
+var view = "cal";
+var curY, curM;                   // 当前日历年份/月份(0-11)
+var filter = { market:"全部", sector:"", q:"", range:"all" };
+var editingId = null;
+
+/* ============ 纯函数（可被测试断言） ============ */
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function todayStr(){
+  var n=new Date(), p=function(x){return String(x).padStart(2,'0');};
+  return n.getFullYear()+"-"+p(n.getMonth()+1)+"-"+p(n.getDate());
+}
+function daysBetween(a,b){ return Math.round((new Date(a)-new Date(b))/86400000); }
+function addDays(dateStr, n){
+  var d=new Date(dateStr); d.setDate(d.getDate()+n);
+  var p=function(x){return String(x).padStart(2,'0');};
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+}
+
+// 由代码推导市场：沪/深/京/港/其他
+function marketOf(code){
+  code=String(code==null?"":code).trim();
+  if(/^\d{5}$/.test(code)) return "港";
+  if(/^92\d{4}$/.test(code)) return "京";
+  if(/^[0-9]\d{5}$/.test(code)){
+    var p=code.charAt(0);
+    if(p==="6"||p==="9") return "沪";
+    if(p==="0"||p==="3") return "深";
+    if(p==="8"||p==="4") return "京";
+  }
+  return "其他";
+}
+
+// CSV 单元格转义（防公式注入 + 引号/逗号/换行）
+function csvEscape(v){
+  var s=String(v==null?"":v);
+  if(/^[=+\-@]/.test(s)) s="'"+s;
+  if(/[",\n\r]/.test(s)) s='"'+(s.replace(/"/g,'""'))+'"';
+  return s;
+}
+// 将对象数组导出为带 BOM 的 CSV 字符串
+function toCSV(rows, headers, keys){
+  var lines=[headers.join(",")];
+  rows.forEach(function(r){
+    lines.push(keys.map(function(k){return csvEscape(r[k]);}).join(","));
+  });
+  return "﻿"+lines.join("\r\n");
+}
+
+// 归一化样本 + 用户数据为统一事件结构
+function sampleEvents(){
+  var t=todayStr();
+  return SAMPLE.map(function(s){
+    var date=addDays(t, s.off);
+    return {
+      id:"s_"+s.code+"_"+s.type+"_"+date,
+      code:s.code, name:s.name, sector:s.sector||"其他",
+      type:s.type, date:date, market:marketOf(s.code),
+      expect:"", editable:false, source:"sample"
+    };
+  });
+}
+function allEvents(){
+  var user=items.map(function(i){ return {
+    id:i.id, code:i.code, name:i.name, sector:i.sector||"其他",
+    type:i.type, date:i.date, market:marketOf(i.code),
+    expect:i.expect||"", editable:true, source:"user"
+  };});
+  return dedupe(sampleEvents().concat(user).concat(extEvents));
+}
+// 归一化外部接口单行数据为事件；非法（缺代码/日期或格式错）返回 null
+function normExternalRow(r){
+  if(!r || typeof r!=="object") return null;
+  var code=String(r.code==null?"":r.code).trim();
+  var date=String(r.date==null?"":r.date).trim();
+  if(!/^\d{4,8}$/.test(code) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  return {
+    id:"x_"+code+"_"+String(r.type||"年报")+"_"+date,
+    code:code, name:String(r.name==null?"":r.name).trim()||code,
+    sector:String(r.sector==null?"":r.sector).trim()||"其他",
+    type:String(r.type||"年报"), date:date,
+    market:r.market?String(r.market):marketOf(code),
+    expect:"", editable:false, source:"ext"
+  };
+}
+// 将外部 rows 数组归一化为事件列表（自动过滤无效行）
+function mergeExternal(rows){ return Array.isArray(rows) ? rows.map(normExternalRow).filter(Boolean) : []; }
+// 从外部接口返回体中提取事件数组：兼容裸数组 / {rows} / {data} / {list} / {events} 等常见结构
+function extractRows(payload){
+  if(!payload || typeof payload!=="object") return null;
+  if(Array.isArray(payload)) return payload;
+  if(Array.isArray(payload.rows))  return payload.rows;
+  if(Array.isArray(payload.data))  return payload.data;
+  if(Array.isArray(payload.list))  return payload.list;
+  if(Array.isArray(payload.events))return payload.events;
+  return null;
+}
+// 归一化整个外部响应：成功返回事件数组，结构无法识别返回 null（纯函数，便于测试与失败回退）
+function normalizeExternalPayload(d){ var rows=extractRows(d); return rows ? mergeExternal(rows) : null; }
+// 标注合并到事件上
+function withAnn(events){
+  return events.map(function(e){
+    var a=ann[e.id]||{};
+    e.seen=!!a.seen; e.focus=!!a.focus; return e;
+  });
+}
+// 筛选：市场 / 板块 / 关键词（代码或名称包含）/ 临近范围
+function filterEvents(events, f){
+  f=f||{};
+  var q=(f.q||"").trim().toLowerCase();
+  var t=todayStr();
+  return events.filter(function(e){
+    if(f.market && f.market!=="全部" && e.market!==f.market) return false;
+    if(f.sector && e.sector!==f.sector) return false;
+    if(q && !(String(e.code).toLowerCase().indexOf(q)>=0 || String(e.name).toLowerCase().indexOf(q)>=0)) return false;
+    if(f.range==="today" && e.date!==t) return false;
+    if(f.range==="week"){ var d=daysBetween(e.date,t); if(!(d>=0 && d<=7)) return false; }
+    return true;
+  });
+}
+// 生成某年某月的日历矩阵（周为行，单元格含 inMonth 标记）
+function buildMonthMatrix(year, month){
+  var first=new Date(year, month, 1);
+  var start=new Date(year, month, 1); start.setDate(1-(first.getDay()===0?6:first.getDay()-1)); // 周一为起点
+  var weeks=[], cur=new Date(start);
+  for(var w=0;w<6;w++){
+    var row=[];
+    for(var d=0;d<7;d++){
+      row.push({date:fmt(cur), day:cur.getDate(), inMonth:cur.getMonth()===month});
+      cur.setDate(cur.getDate()+1);
+    }
+    weeks.push(row);
+  }
+  return weeks;
+}
+function fmt(d){
+  var p=function(x){return String(x).padStart(2,'0');};
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+}
+// 在事件集合上切换标注（返回新 ann 对象，纯函数）
+function toggleAnnotation(annState, id, kind){
+  var next=JSON.parse(JSON.stringify(annState||{}));
+  var cur=next[id]||{seen:false,focus:false};
+  cur[kind]=!cur[kind];
+  if(!cur.seen && !cur.focus){ delete next[id]; } else { next[id]=cur; }
+  return next;
+}
+// 合并两个 events 列表做去重（按 code+type+date）；冲突时优先保留用户手动录入项（editable）
+function dedupe(events){
+  var seen={}, out=[];
+  events.forEach(function(e){
+    var k=e.code+"|"+e.type+"|"+e.date;
+    if(!seen[k]){ seen[k]=e; out.push(e); }
+    else if(e.editable && !seen[k].editable){ // 用户项覆盖样本/外部同名项，避免用户录入被吞
+      var idx=out.indexOf(seen[k]); if(idx>=0) out[idx]=e; seen[k]=e;
+    }
+  });
+  return out;
+}
+
+/* ============ 持久化 ============ */
+function loadItems(){
+  try{ var v=JSON.parse(localStorage.getItem(KEY)); return Array.isArray(v)?v:[]; }catch(e){ return []; }
+}
+function persistItems(){ localStorage.setItem(KEY, JSON.stringify(items)); }
+function loadAnn(){
+  try{ var v=JSON.parse(localStorage.getItem(ANNKEY)); return v&&typeof v==="object"?v:{}; }catch(e){ return {}; }
+}
+function persistAnn(){ localStorage.setItem(ANNKEY, JSON.stringify(ann)); }
+
+/* ============ 渲染 ============ */
+function visibleEvents(){
+  return withAnn(filterEvents(allEvents(), filter));
+}
+function renderStats(){
+  var ev=visibleEvents();
+  var soon=ev.filter(function(e){ var d=daysBetween(e.date,todayStr()); return d>=0 && d<=7; }).length;
+  var focus=ev.filter(function(e){return e.focus;}).length;
+  setText("cShow", ev.length);
+  setText("cSoon", soon);
+  setText("cFocus", focus);
+}
+function setText(id,t){ var el=document.getElementById(id); if(el) el.textContent=t; }
+
+function render(){
+  renderStats();
+  if(view==="cal") renderCalendar(); else renderList();
+}
+
+function renderCalendar(){
+  var weeks=buildMonthMatrix(curY, curM);
+  var ev=visibleEvents();
+  // 按日期分组
+  var byDate={};
+  ev.forEach(function(e){ (byDate[e.date]=byDate[e.date]||[]).push(e); });
+  var t=todayStr();
+  var grid=document.getElementById("calGrid");
+  var html="";
+  weeks.forEach(function(row){
+    row.forEach(function(cell){
+      var inM=cell.inMonth;
+      var dayEvents=byDate[cell.date]||[];
+      var soon=dayEvents.some(function(e){ var d=daysBetween(e.date,t); return d>=0 && d<=7; });
+      var cls="day"+(inM?"":" out")+(cell.date===t?" today":"")+(soon&&inM?" soon":"");
+      var chips=dayEvents.slice(0,4).map(function(e){
+        var m=e.market==="其他"?"oth":e.market.toLowerCase();
+        var fc=e.focus?" focus":"";
+        return '<div class="chip '+m+fc+'" data-id="'+esc(e.id)+'" title="'+esc(e.name)+' '+esc(e.type)+'">'+esc(e.code)+' '+esc(e.name)+'</div>';
+      }).join("");
+      var more=dayEvents.length>4?'<div class="muted" style="font-size:10px">+'+(dayEvents.length-4)+'</div>':"";
+      html+='<div class="'+cls+'"><div class="dnum">'+cell.day+'</div>'+chips+more+'</div>';
+    });
+  });
+      grid.innerHTML=html;
+      setText("calTitle", curY+"年"+(curM+1)+"月");
+      setText("calHint", ev.length===0 ? "当前筛选条件下没有披露预约，试试调整市场/板块或清空搜索 👆" : "");
+      // chip 点击 → 聚焦搜索并跳到列表视图
+      grid.querySelectorAll(".chip").forEach(function(ch){
+        ch.onclick=function(){ var id=ch.dataset.id; var e=ev.find(function(x){return x.id===id;}); if(!e)return;
+          filter.q=e.code; document.getElementById("q").value=e.code; switchView("list"); };
+      });
+}
+
+function renderList(){
+  var ev=visibleEvents().slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
+  var tb=document.querySelector("#tbl tbody");
+  if(!ev.length){
+    tb.innerHTML='<tr><td colspan="9" class="muted" style="text-align:center;padding:18px">没有匹配的披露预约，试试调整筛选条件 👆</td></tr>';
+    return;
+  }
+  tb.innerHTML=ev.map(function(e){
+    var d=daysBetween(e.date,todayStr());
+    var cd, cls="";
+    if(d<0){ cd="逾期"+(-d)+"天"; cls="soon"; }
+    else if(d<=7){ cd=d+"天后"; cls="soon"; }
+    else { cd=d+"天后"; }
+    var m=e.market==="其他"?"oth":e.market.toLowerCase();
+    var srcTag = e.source==="sample" ? '<span class="badge src">🧪演示</span>' : e.source==="user" ? '<span class="badge src">✏️自录</span>' : e.source==="ext" ? '<span class="badge src">🔗外部</span>' : '';
+    return '<tr class="'+cls+'">'
+      +'<td>'+esc(e.code)+'</td><td>'+esc(e.name)+'</td>'
+      +'<td><span class="badge '+m+'">'+e.market+'</span></td>'
+      +'<td>'+esc(e.sector)+'</td>'
+      +'<td><span class="badge q">'+esc(e.type)+'</span>'+srcTag+'</td>'
+      +'<td>'+esc(e.date)+'</td><td>'+cd+'</td>'
+      +'<td><span class="ann">'
+        +'<span class="a seen'+(e.seen?'':'')+'" data-id="'+esc(e.id)+'" data-k="seen">已看</span>'
+        +'<span class="a focus'+(e.focus?'':'')+'" data-id="'+esc(e.id)+'" data-k="focus">重点关注</span>'
+      +'</span></td>'
+      +'<td>'+(e.editable?'<span class="edit" data-id="'+esc(e.id)+'">编辑</span> · <span class="del" data-id="'+esc(e.id)+'">删除</span>':'<span class="muted">样本</span>')+'</td>'
+    +'</tr>';
+  }).join("");
+  tb.querySelectorAll(".ann .a").forEach(function(a){
+    a.onclick=function(){ ann=toggleAnnotation(ann, a.dataset.id, a.dataset.k); persistAnn(); render(); };
+  });
+  tb.querySelectorAll(".del").forEach(function(el){
+    el.onclick=function(){ if(confirm("删除这条预约？")){ items=items.filter(function(i){return i.id!==el.dataset.id;}); persistItems(); render(); } };
+  });
+  tb.querySelectorAll(".edit").forEach(function(el){
+    el.onclick=function(){
+      var it=items.find(function(i){return i.id===el.dataset.id;}); if(!it)return;
+      editingId=it.id; setAddLabel();
+      document.getElementById("code").value=it.code;
+      document.getElementById("name").value=(it.name===it.code)?"":it.name;
+      document.getElementById("type").value=it.type;
+      document.getElementById("date").value=it.date;
+      document.getElementById("sectorIn").value=it.sector||"";
+      document.getElementById("expect").value=it.expect||"";
+      document.getElementById("code").focus();
+    };
+  });
+}
+
+/* ============ 交互 ============ */
+function toast(msg){
+  var t=document.getElementById("toast"); t.textContent=msg; t.style.display="block";
+  setTimeout(function(){ t.style.display="none"; }, 4500);
+}
+function setAddLabel(){ document.getElementById("add").textContent = editingId ? "保存修改" : "添加"; }
+
+function addItem(payload){
+  var code=String(payload.code||"").trim();
+  var name=String(payload.name||"").trim();
+  var type=payload.type||"年报";
+  var date=payload.date||"";
+  var sector=String(payload.sector||"").trim();
+  var expect=String(payload.expect||"").trim();
+  if(!code||!date) return {ok:false, error:"请填代码和披露日"};
+  if(!/^\d{4,8}$/.test(code)) return {ok:false, error:"股票代码应为 4-8 位数字"};
+  if(editingId){
+    var it=items.find(function(i){return i.id===editingId;});
+    if(it){ it.code=code; it.name=name||code; it.type=type; it.date=date; it.sector=sector; it.expect=expect; persistItems(); }
+    editingId=null; setAddLabel();
+    return {ok:true};
+  }
+  var dup=items.find(function(i){return i.code===code && i.type===type && i.date===date;});
+  if(dup) return {ok:false, error:"已存在相同代码/类型/披露日的预约"};
+  items.push({id:Date.now()+"_"+Math.random().toString(36).slice(2,5), code:code, name:name||code, type:type, date:date, sector:sector, expect:expect});
+  persistItems();
+  return {ok:true};
+}
+
+function importItems(arr){
+  // 兼容两种格式：纯数组，或 {events:[...], annotations:{...}}
+  var events = Array.isArray(arr) ? arr : (arr && Array.isArray(arr.events) ? arr.events : null);
+  var annIn = (arr && arr.annotations && typeof arr.annotations==="object") ? arr.annotations : null;
+  if(!events) return {added:0, skip:0};
+  var map={}; items.forEach(function(i){ map[i.id]=i; });
+  var added=0, skip=0;
+  events.forEach(function(i){
+    if(!i||typeof i!=="object"||!i.code||!i.date){ skip++; return; }
+    var id=i.id||(Date.now()+"_"+Math.random().toString(36).slice(2,5));
+    map[id]={id:id, code:String(i.code), name:i.name?String(i.name):String(i.code),
+      type:i.type||"年报", date:String(i.date), sector:i.sector?String(i.sector):"",
+      expect:i.expect?String(i.expect):""};
+    added++;
+  });
+  items=Object.values(map); persistItems();
+  if(annIn){
+    var changed=false;
+    for(var k in annIn){ if(annIn[k] && (annIn[k].seen||annIn[k].focus)){ ann[k]=annIn[k]; changed=true; } }
+    if(changed) persistAnn();
+  }
+  return {added:added, skip:skip};
+}
+
+/* ============ 事件绑定 ============ */
+function bind(){
+  // 市场按钮
+  var mw=document.getElementById("markets");
+  mw.innerHTML=MARKETS.map(function(m){ return '<button class="mbtn'+(m===filter.market?' on':'')+'" data-m="'+m+'">'+m+'</button>'; }).join("");
+  mw.querySelectorAll(".mbtn").forEach(function(b){
+    b.onclick=function(){ filter.market=b.dataset.m; mw.querySelectorAll(".mbtn").forEach(function(x){x.classList.remove("on");}); b.classList.add("on"); render(); };
+  });
+  // 板块下拉（可随外部数据刷新）
+  rebuildSectors();
+  var sel=document.getElementById("sector");
+  sel.onchange=function(){ filter.sector=sel.value; render(); };
+  // 搜索
+  document.getElementById("q").oninput=function(){ filter.q=this.value.trim(); render(); };
+  document.getElementById("clearBtn").onclick=function(){ filter={market:"全部",sector:"",q:"",range:"all"}; document.getElementById("q").value=""; sel.value=""; mw.querySelectorAll(".mbtn").forEach(function(x){x.classList.remove("on");}); mw.querySelector('[data-m="全部"]').classList.add("on"); rw.querySelectorAll(".mbtn").forEach(function(x){x.classList.remove("on");}); rw.querySelector('[data-r="all"]').classList.add("on"); render(); };
+  // 临近范围快捷筛选
+  var rw=document.getElementById("ranges");
+  var rlabels={all:"全部", today:"今日", week:"7天内"};
+  rw.innerHTML=["all","today","week"].map(function(r){ return '<button class="mbtn'+(filter.range===r?" on":"")+'" data-r="'+r+'">'+rlabels[r]+'</button>'; }).join("");
+  rw.querySelectorAll(".mbtn").forEach(function(b){
+    b.onclick=function(){ filter.range=b.dataset.r; rw.querySelectorAll(".mbtn").forEach(function(x){x.classList.remove("on");}); b.classList.add("on"); render(); };
+  });
+  // 月份导航
+  document.getElementById("prevM").onclick=function(){ curM--; if(curM<0){curM=11;curY--;} renderCalendar(); };
+  document.getElementById("nextM").onclick=function(){ curM++; if(curM>11){curM=0;curY++;} renderCalendar(); };
+  document.getElementById("todayM").onclick=function(){ var n=new Date(); curY=n.getFullYear(); curM=n.getMonth(); renderCalendar(); };
+  // 视图切换
+  document.getElementById("viewSeg").querySelectorAll("button").forEach(function(b){
+    b.onclick=function(){ switchView(b.dataset.view); };
+  });
+  // 星期表头
+  document.getElementById("dowRow").innerHTML=["一","二","三","四","五","六","日"].map(function(d){return '<div class="dow">'+d+'</div>';}).join("");
+  // 添加
+  document.getElementById("add").onclick=function(){
+    var r=addItem({code:document.getElementById("code").value, name:document.getElementById("name").value,
+      type:document.getElementById("type").value, date:document.getElementById("date").value,
+      sector:document.getElementById("sectorIn").value, expect:document.getElementById("expect").value});
+    if(!r.ok){ alert(r.error); return; }
+    document.getElementById("code").value=""; document.getElementById("name").value="";
+    document.getElementById("sectorIn").value=""; document.getElementById("expect").value="";
+    render();
+    if(!editingId) toast("✅ 已添加到财报日历");
+  };
+  // 导出
+  document.getElementById("expCsv").onclick=function(){
+    var rows=withAnn(filterEvents(allEvents(), filter)).map(function(e){ return {id:e.id,code:e.code,name:e.name,market:e.market,sector:e.sector,type:e.type,date:e.date,expect:e.expect,seen:e.seen?"是":"",focus:e.focus?"是":""}; });
+    download(toCSV(rows, ["ID","代码","名称","市场","板块","类型","披露日","预期","已看","重点关注"], ["id","code","name","market","sector","type","date","expect","seen","focus"]), "earnings_calendar.csv", "text/csv;charset=utf-8");
+  };
+  document.getElementById("expJson").onclick=function(){
+    var rows=withAnn(filterEvents(allEvents(), filter)).map(function(e){ return {id:e.id,code:e.code,name:e.name,market:e.market,sector:e.sector,type:e.type,date:e.date,expect:e.expect,seen:e.seen,focus:e.focus}; });
+    download(JSON.stringify({events:rows, annotations:ann}, null, 2), "earnings_calendar.json", "application/json");
+  };
+  document.getElementById("imp").onclick=function(){ document.getElementById("file").click(); };
+  document.getElementById("file").onchange=function(e){
+    var f=e.target.files[0]; if(!f)return;
+    var rd=new FileReader();
+    rd.onload=function(){ try{
+      var r=importItems(JSON.parse(rd.result));
+      render(); toast("导入完成：新增/更新 "+r.added+" 条，跳过 "+r.skip+" 条无效");
+    }catch(err){ alert("导入失败："+err.message); } };
+    rd.readAsText(f);
+  };
+  document.getElementById("resetAnn").onclick=function(){
+    if(confirm("清除全部「已看 / 重点关注」标注？")){ ann={}; persistAnn(); render(); toast("已清除我的标注"); }
+  };
+  // 外部数据源
+  document.getElementById("extUrl").value = localStorage.getItem(SRCKEY) || "";
+  document.getElementById("loadExt").onclick=function(){
+    var url=document.getElementById("extUrl").value.trim();
+    if(!url){ alert("请先填写接口地址"); return; }
+    localStorage.setItem(SRCKEY, url);
+    fetch(url, {cache:"no-store"}).then(function(r){
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return r.json();
+    }).then(function(d){
+      var ev=normalizeExternalPayload(d);
+      if(ev===null){
+        // 结构无法识别：回退样本，避免「加载 0 条」误判成功
+        extEvents=[]; rebuildSectors(); render();
+        setText("extHint", "⚠️ 接口返回结构无法识别（需为数组或含 rows/data/list/events 字段），已回退内置样本。");
+        toast("⚠️ 接口返回结构无法识别，已回退内置样本");
+        return;
+      }
+      extEvents=ev; rebuildSectors(); render();
+      setText("extHint", "已加载 "+extEvents.length+" 条外部披露数据（合并到日历）。");
+      toast("✅ 已加载 "+extEvents.length+" 条外部披露数据");
+    }).catch(function(err){
+      extEvents=[]; rebuildSectors(); render();
+      setText("extHint", "⚠️ 外部数据加载失败（"+(err && err.message || "网络错误")+"），已回退内置样本。");
+      toast("⚠️ 外部数据加载失败，继续使用内置样本");
+    });
+  };
+  document.getElementById("clearExt").onclick=function(){
+    extEvents=[]; localStorage.removeItem(SRCKEY);
+    document.getElementById("extUrl").value=""; rebuildSectors(); render();
+    setText("extHint", "已清除外部数据，恢复内置样本。");
+    toast("已清除外部数据，恢复内置样本");
+  };
+}
+function rebuildSectors(){
+  var sel=document.getElementById("sector");
+  var cur=sel.value;
+  sel.innerHTML="";
+  var o0=document.createElement("option"); o0.value=""; o0.textContent="全部板块"; sel.appendChild(o0);
+  var secs={}; allEvents().forEach(function(e){ secs[e.sector]=1; });
+  Object.keys(secs).sort().forEach(function(s){ var o=document.createElement("option"); o.value=s; o.textContent=s; sel.appendChild(o); });
+  sel.value=cur;
+}
+function download(content, name, mime){
+  var blob=new Blob([content], {type:mime});
+  var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+}
+function switchView(v){
+  view=v;
+  document.getElementById("viewSeg").querySelectorAll("button").forEach(function(x){ x.classList.toggle("on", x.dataset.view===v); });
+  document.getElementById("calView").style.display = v==="cal"?"block":"none";
+  document.getElementById("listView").style.display = v==="list"?"block":"none";
+  render();
+}
+
+/* ============ 启动 ============ */
+function init(){
+  var n=new Date(); curY=n.getFullYear(); curM=n.getMonth();
+  bind();
+  render();
+  checkRemind();
+}
+function checkRemind(){
+  var t=todayStr();
+  // 仅对用户添加的预约提醒（样本日期每天浮动，避免演示数据反复弹窗）
+  withAnn(allEvents()).forEach(function(e){
+    if(e.editable && !e.seen && daysBetween(e.date,t)<=0){
+      toast("📢 "+e.name+"("+e.code+") 的"+e.type+"已到/过披露日，记得查看！");
+      if("Notification" in window && Notification.permission==="granted"){
+        try{ new Notification("财报已披露",{body:e.name+"("+e.code+") "+e.type+" 已披露"}); }catch(_){}
+      }
+    }
+  });
+}
+init();
+</script>
+</body>
+</html>

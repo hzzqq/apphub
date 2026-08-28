@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Theme Studio 主题工坊</title>
+<style id="dynTheme">
+:root{--bg:#0f0f23;--card:#1a1a2e;--card2:#221a3a;--txt:#e6e6f0;--sub:#8a8a9a;--line:#2a2a44;--accent:#667eea;--accent2:#764ba2;--up:#ff4d4f;--down:#00d486;}
+</style>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;min-height:100vh}
+a{color:var(--txt);text-decoration:none}
+.hubhome{position:fixed;top:14px;left:14px;z-index:50;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.hubhome:hover{border-color:var(--accent)}
+.wrap{max-width:1100px;margin:0 auto;padding:70px 16px 40px;display:grid;grid-template-columns:220px 1fr;gap:16px}
+@media(max-width:800px){.wrap{grid-template-columns:1fr}}
+.sidebar{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;height:fit-content}
+.sidebar h3{margin:0 0 12px;font-size:15px}
+.navitem{padding:10px 12px;border-radius:10px;cursor:pointer;font-size:14px;margin-bottom:6px;display:flex;align-items:center;gap:8px;background:transparent;border:1px solid transparent;color:var(--txt);width:100%;text-align:left;font-family:inherit}
+.navitem:hover{background:var(--card2)}
+.navitem.on{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
+.main{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+.hero{text-align:center;padding:30px 0;border-radius:16px;background:linear-gradient(135deg,rgba(102,126,234,.15),rgba(118,75,162,.15));margin-bottom:20px;border:1px solid var(--line)}
+.hero h1{font-size:26px;margin:0}
+.hero p{color:var(--sub);margin-top:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.theme{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.theme:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.theme.on{border-color:var(--accent);box-shadow:0 0 0 2px rgba(102,126,234,.3)}
+.theme .thumb{height:80px;border-radius:10px;margin-bottom:10px}
+.theme .name{font-weight:700;font-size:14px}
+.theme .desc{font-size:12px;color:var(--sub);margin-top:4px}
+.preview{margin-top:18px;padding:16px;background:var(--card2);border-radius:12px;border:1px solid var(--line)}
+.preview h4{margin:0 0 10px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.chip{background:var(--card);border:1px solid var(--line);padding:6px 12px;border-radius:20px;font-size:12px}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:600;margin-top:12px;font-family:inherit}
+.btn:focus-visible,.navitem:focus-visible,.theme:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.ghost{background:var(--card2);color:var(--txt)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.field label{color:var(--sub)}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:14px}
+.swatch{display:flex;align-items:center;gap:8px;font-size:12px}
+.swatch input{width:42px;height:30px;border:1px solid var(--line);border-radius:8px;background:transparent;cursor:pointer;padding:0}
+.swatch .val{font-family:monospace}
+.status{margin-top:14px;border-radius:10px;padding:10px 12px;font-size:13px;display:none}
+.status.show{display:block}
+.status.ok{background:rgba(0,212,134,.12);border:1px solid rgba(0,212,134,.4);color:#00d486}
+.status.err{background:rgba(255,77,79,.12);border:1px solid rgba(255,77,79,.4);color:#ff4d4f}
+.warn{background:rgba(246,196,83,.1);border:1px solid rgba(246,196,83,.3);color:#f6c453;border-radius:10px;padding:10px 12px;font-size:12px;margin-top:14px}
+textarea{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:10px;color:var(--txt);padding:12px;font-family:monospace;font-size:12px;resize:vertical}
+.tabpanel:focus{outline:none}
+.hubfoot{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--sub);flex-wrap:wrap;gap:8px}
+select,input[type=text]{background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13px}
+</style>
+</head>
+<body>
+<a class="hubhome" href="../index.html">🏠 大厅</a>
+<div class="wrap">
+  <div class="sidebar">
+    <h3>🎨 主题工坊</h3>
+    <div role="tablist" aria-label="主题工坊功能区" style="display:flex;flex-direction:column">
+      <button class="navitem on" role="tab" aria-selected="true" aria-controls="tab-themes" id="tab-themes-btn" data-tab="themes"><span>🎨</span>主题库</button>
+      <button class="navitem" role="tab" aria-selected="false" aria-controls="tab-custom" id="tab-custom-btn" data-tab="custom"><span>🛠️</span>自定义</button>
+      <button class="navitem" role="tab" aria-selected="false" aria-controls="tab-generate" id="tab-generate-btn" data-tab="generate"><span>✨</span>智能生成</button>
+      <button class="navitem" role="tab" aria-selected="false" aria-controls="tab-export" id="tab-export-btn" data-tab="export"><span>📤</span>导出 / 导入</button>
+    </div>
+    <div class="warn" style="margin-top:14px">选择主题后会写入共享配置，返回应用大厅即全局生效（含大厅与支持的 App），刷新保持。</div>
+  </div>
+  <div class="main">
+    <!-- 主题库 -->
+    <div class="tabpanel" id="tab-themes" role="tabpanel" aria-labelledby="tab-themes-btn">
+      <div class="hero">
+        <h1>我们今天来构建什么？</h1>
+        <p>选一个喜欢的主题，让 WorkBuddy 微型 App 焕然一新 ✨</p>
+      </div>
+      <h3 style="margin:0 0 12px">热门主题</h3>
+      <div class="grid" id="themeGrid" aria-live="polite"></div>
+      <div class="preview">
+        <h4>当前预览</h4>
+        <div id="previewText">尚未选择主题</div>
+        <div class="row">
+          <div class="chip" style="color:var(--up)">涨红</div>
+          <div class="chip" style="color:var(--down)">跌绿</div>
+          <div class="chip" style="background:var(--card2)">卡片</div>
+        </div>
+      </div>
+    </div>
+    <!-- 自定义 -->
+    <div class="tabpanel" id="tab-custom" role="tabpanel" aria-labelledby="tab-custom-btn" style="display:none">
+      <h3>自定义主题</h3>
+      <p style="color:var(--sub);font-size:13px">挑选任意颜色，实时生成一套协调配色并写入全局。</p>
+      <div class="swatches">
+        <div class="field"><label for="cBg">背景</label><input type="color" id="cBg" value="#0f0f23" aria-label="背景色"></div>
+        <div class="field"><label for="cCard">卡片</label><input type="color" id="cCard" value="#1a1a2e" aria-label="卡片色"></div>
+        <div class="field"><label for="cCard2">卡片2</label><input type="color" id="cCard2" value="#221a3a" aria-label="卡片2色"></div>
+        <div class="field"><label for="cAccent">主色</label><input type="color" id="cAccent" value="#667eea" aria-label="主色"></div>
+        <div class="field"><label for="cAccent2">辅色</label><input type="color" id="cAccent2" value="#764ba2" aria-label="辅色"></div>
+        <div class="field"><label for="cUp">涨色</label><input type="color" id="cUp" value="#ff4d4f" aria-label="涨色"></div>
+        <div class="field"><label for="cDown">跌色</label><input type="color" id="cDown" value="#00d486" aria-label="跌色"></div>
+        <div class="field"><label for="cTxt">文字</label><input type="color" id="cTxt" value="#e6e6f0" aria-label="文字色"></div>
+        <div class="field"><label for="cSub">次要文字</label><input type="color" id="cSub" value="#8a8a9a" aria-label="次要文字色"></div>
+        <div class="field"><label for="cLine">描边</label><input type="color" id="cLine" value="#2a2a44" aria-label="描边色"></div>
+      </div>
+      <div class="row" style="margin-top:14px;align-items:center">
+        <label for="cName" style="color:var(--sub);font-size:13px">主题名</label>
+        <input type="text" id="cName" maxlength="40" placeholder="自定义" style="flex:1;min-width:140px" aria-label="自定义主题名称">
+      </div>
+      <div>
+        <button class="btn" id="applyCustom">应用自定义</button>
+        <button class="btn ghost" id="resetCustom" style="margin-left:8px">恢复默认</button>
+      </div>
+    </div>
+    <!-- 智能生成 -->
+    <div class="tabpanel" id="tab-generate" role="tabpanel" aria-labelledby="tab-generate-btn" style="display:none">
+      <h3>智能生成配色</h3>
+      <p style="color:var(--sub);font-size:13px">给一个种子主色，工坊自动推导背景、卡片、辅色与涨跌色，生成一套协调主题。</p>
+      <div class="row" style="align-items:flex-end;gap:16px">
+        <div class="field"><label for="gSeed">种子主色</label><input type="color" id="gSeed" value="#667eea" aria-label="生成种子主色"></div>
+        <div class="field"><label for="gMode">模式</label>
+          <select id="gMode" aria-label="生成模式">
+            <option value="dark">深色</option>
+            <option value="light">浅色</option>
+          </select>
+        </div>
+        <button class="btn" id="genBtn">生成并应用</button>
+        <button class="btn ghost" id="randomBtn" style="margin-left:8px">🎲 随机惊喜</button>
+      </div>
+      <div class="preview" id="genPreview" style="display:none">
+        <h4>生成预览</h4>
+        <div id="genPreviewText"></div>
+      </div>
+    </div>
+    <!-- 导出 / 导入 -->
+    <div class="tabpanel" id="tab-export" role="tabpanel" aria-labelledby="tab-export-btn" style="display:none">
+      <h3>导出主题配置</h3>
+      <p style="color:var(--sub);font-size:13px">复制这段 JSON 到其他 App 或发给朋友，即可共享同一套配色。</p>
+      <textarea id="exportArea" style="height:200px" aria-label="导出的 JSON 配置" readonly></textarea>
+      <div>
+        <button class="btn" id="copyExport">复制 JSON</button>
+        <button class="btn ghost" id="copyCss" style="margin-left:8px">复制 CSS 变量</button>
+      </div>
+      <h3 style="margin:18px 0 12px">导出 CSS 变量</h3>
+      <textarea id="cssArea" style="height:200px" aria-label="导出的 CSS 变量" readonly></textarea>
+      <h3 style="margin:18px 0 12px">导入主题配置</h3>
+      <p style="color:var(--sub);font-size:13px">把别人分享的 JSON 配置粘贴到这里，即可一键套用（含背景/卡片/主辅色/涨跌色/文字）。</p>
+      <textarea id="importArea" placeholder='{"bg":"#0f0f23","card":"#1a1a2e","card2":"#221a3a","accent":"#667eea","accent2":"#764ba2","up":"#ff4d4f","down":"#00d486"}' style="height:140px" aria-label="待导入的 JSON 配置"></textarea>
+      <button class="btn ghost" id="applyImport">应用导入配置</button>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+    <div class="hubfoot">
+      <a href="../index.html">← 返回应用大厅</a>
+      <span>主题持久化到 localStorage · 返回大厅全局生效 · 可导出共享</span>
+    </div>
+  </div>
+</div>
+<script>
+/* ============ 纯函数层（供 UI 复用 & test/run.js 断言） ============ */
+function esc(s){
+  if(s==null) return "";
+  return String(s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+// 用户自定义文案：仅白名单内联标签(b/i/em/strong/code/span)保留，其余全部转义（含属性一律去除，且开合需成对）
+var SANITIZE_TAGS=["b","i","em","strong","code","span"];
+function sanitizeUserText(s){
+  if(s==null) return "";
+  var out=esc(String(s));
+  var openRe=new RegExp("&lt;("+SANITIZE_TAGS.join("|")+")&gt;","gi");
+  var closeRe=new RegExp("&lt;/("+SANITIZE_TAGS.join("|")+")&gt;","gi");
+  var stack=[];
+  out=out.replace(openRe,function(_,tag){ stack.push(tag); return "<"+tag+">"; });
+  out=out.replace(closeRe,function(_,tag){
+    var i=stack.lastIndexOf(tag);
+    if(i>=0){ stack.splice(i,1); return "</"+tag+">"; }
+    return "&lt;/"+tag+"&gt;"; // 无匹配开放标签→保持转义，杜绝孤立关闭标签
+  });
+  return out;
+}
+function isValidHex(s){
+  return typeof s==="string" && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s);
+}
+function normalizeHex(s){
+  if(!isValidHex(s)) return null;
+  s=s.toLowerCase();
+  if(s.length===4){
+    s="#"+s[1]+s[1]+s[2]+s[2]+s[3]+s[3];
+  }
+  return s;
+}
+function rgbToHex(r,g,b){
+  function h(n){var s=Math.max(0,Math.min(255,Math.round(n))).toString(16);return s.length===1?"0"+s:s;}
+  return "#"+h(r)+h(g)+h(b);
+}
+function hexToRgb(hex){
+  hex=normalizeHex(hex); if(!hex) return null;
+  var num=parseInt(hex.slice(1),16);
+  return {r:(num>>16)&255,g:(num>>8)&255,b:num&255};
+}
+function shade(hex,percent){
+  hex=normalizeHex(hex); if(!hex) return "#000000";
+  var c=hexToRgb(hex),amt=Math.round(2.55*percent);
+  return rgbToHex(c.r+amt,c.g+amt,c.b+amt);
+}
+function relativeLuminance(hex){
+  var c=hexToRgb(hex); if(!c) return 0;
+  function f(x){x/=255;return x<=0.03928?x/12.92:Math.pow((x+0.055)/1.055,2.4);}
+  return 0.2126*f(c.r)+0.7152*f(c.g)+0.0722*f(c.b);
+}
+function contrastText(hex){
+  return relativeLuminance(hex)>0.45 ? "#111111" : "#f5f5fa";
+}
+function hexToHsl(hex){
+  var c=hexToRgb(hex); if(!c) return {h:0,s:0,l:0};
+  var r=c.r/255,g=c.g/255,b=c.b/255;
+  var max=Math.max(r,g,b),min=Math.min(r,g,b),h,s,l=(max+min)/2;
+  if(max===min){h=0;s=0;}
+  else{
+    var d=max-min;
+    s=l>0.5?d/(2-max-min):d/(max+min);
+    if(max===r)h=(g-b)/d+(g<b?6:0);
+    else if(max===g)h=(b-r)/d+2;
+    else h=(r-g)/d+4;
+    h/=6;
+  }
+  return {h:Math.round(h*360),s:Math.round(s*100),l:Math.round(l*100)};
+}
+function hslToHex(h,s,l){
+  h=((h%360)+360)%360; s=Math.max(0,Math.min(100,s))/100; l=Math.max(0,Math.min(100,l))/100;
+  function hue(p,q,t){if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}
+  var r,g,b;
+  if(s===0){r=g=b=l;}
+  else{
+    var q=l<0.5?l*(1+s):l+s-l*s, p=2*l-q;
+    r=hue(p,q,h/360+1/3);g=hue(p,q,h/360);b=hue(p,q,h/360-1/3);
+  }
+  return rgbToHex(r*255,g*255,b*255);
+}
+// 随机生成一个协调的种子主色（供“随机惊喜”使用）
+function randomSeed(){
+  var h=Math.floor(Math.random()*360);
+  return hslToHex(h, Math.floor(55+Math.random()*25), Math.floor(48+Math.random()*12));
+}
+// 基于种子主色推导一套协调主题
+function generateTheme(seedHex,mode){
+  mode = mode==="light" ? "light" : "dark";
+  var base=normalizeHex(seedHex)||"#667eea";
+  var h=hexToHsl(base);
+  var accent=base;
+  var accent2=hslToHex(h.h+40, Math.min(100,h.s), Math.min(72,Math.max(46,h.l+8)));
+  var bg,card,card2,txt,sub,line;
+  if(mode==="light"){
+    bg=hslToHex(h.h,Math.min(28,h.s*0.4),97);
+    card="#ffffff"; card2=hslToHex(h.h,Math.min(28,h.s*0.4),94);
+    txt="#1a1a2e"; sub="#5a6b7b"; line=hslToHex(h.h,25,88);
+  }else{
+    bg=hslToHex(h.h,Math.min(40,h.s*0.5),8);
+    card=hslToHex(h.h,Math.min(40,h.s*0.5),13);
+    card2=hslToHex(h.h,Math.min(45,h.s*0.6),18);
+    txt="#e6e6f0"; sub="#8a8a9a"; line=hslToHex(h.h,30,24);
+  }
+  return {
+    id:"generated", name:"智能生成", desc:"基于 "+base+(mode==="light"?" · 浅色":" · 深色"),
+    bg:bg,card:card,card2:card2,accent:accent,accent2:accent2,txt:txt,sub:sub,line:line,
+    up:"#ff4d4f",down:"#00d486"
+  };
+}
+// 校验并补全导入主题；非法字段抛错，缺省字段用合理默认值补齐
+function validateTheme(obj){
+  if(!obj || typeof obj!=="object") throw new Error("配置不是合法的对象");
+  if(!isValidHex(obj.bg)) throw new Error("缺少或非法字段 bg（需 #rgb 或 #rrggbb）");
+  if(!isValidHex(obj.accent)) throw new Error("缺少或非法字段 accent（需 #rgb 或 #rrggbb）");
+  var fields=["bg","card","card2","accent","accent2","up","down","txt","sub","line"];
+  var out={id:"imported",name:"导入主题",desc:"外部导入"};
+  for(var i=0;i<fields.length;i++){
+    var k=fields[i];
+    if(obj[k]!=null){
+      var n=normalizeHex(obj[k]);
+      if(!n) throw new Error("字段 "+k+" 不是合法十六进制颜色");
+      out[k]=n;
+    }
+  }
+  out.bg=normalizeHex(obj.bg); out.accent=normalizeHex(obj.accent);
+  if(!out.card) out.card=shade(out.bg,5);
+  if(!out.card2) out.card2=shade(out.bg,10);
+  out.txt=out.txt||contrastText(out.bg);
+  out.sub=out.sub||(relativeLuminance(out.bg)<0.3?"#8a8a9a":"#5a6b7b");
+  if(!out.line) out.line=shade(out.bg,18);
+  if(!out.accent2) out.accent2=shade(out.accent,12);
+  if(!out.up) out.up="#ff4d4f";
+  if(!out.down) out.down="#00d486";
+  if(obj.name) out.name=String(obj.name).slice(0,40);
+  if(obj.desc) out.desc=String(obj.desc).slice(0,80);
+  return out;
+}
+// 仅导出安全、已归一化的颜色字段（杜绝 CSS 注入）
+function themeToCssVars(t){
+  var map={bg:"--bg",card:"--card",card2:"--card2",txt:"--txt",sub:"--sub",line:"--line",accent:"--accent",accent2:"--accent2",up:"--up",down:"--down"};
+  var lines=[];
+  for(var k in map){
+    var v=t[k]!=null?normalizeHex(t[k]):null;
+    if(!v) v="#000000";
+    lines.push("  "+map[k]+": "+v+";");
+  }
+  return ":root{\n"+lines.join("\n")+"\n}";
+}
+function exportCss(t){
+  return "/* "+(sanitizeUserText(t.name||"主题"))+" · 由 Theme Studio 导出 */\n"+themeToCssVars(t);
+}
+function themeToJson(t){
+  var keys=["bg","card","card2","accent","accent2","up","down","txt","sub","line","name","desc"];
+  var o={};
+  for(var i=0;i<keys.length;i++){var k=keys[i];if(t[k]!=null)o[k]=t[k];}
+  return o;
+}
+
+/* ============ 应用数据 ============ */
+var THEMES=[
+  {id:"starfield",name:"星辰暗域",desc:"StockSignal 经典深空紫蓝",bg:"#0f0f23",card:"#1a1a2e",card2:"#221a3a",accent:"#667eea",accent2:"#764ba2",up:"#ff4d4f",down:"#00d486",txt:"#e6e6f0",sub:"#8a8a9a",line:"#2a2a44"},
+  {id:"miku",name:"Miku Codex",desc:"初音未来薄荷粉蓝",bg:"#f0f8ff",card:"#ffffff",card2:"#e6f7ff",accent:"#39c5bb",accent2:"#ff99cc",up:"#ff4d4f",down:"#00aa6a",txt:"#1a1a2e",sub:"#5a6b7b",line:"#cce7f0"},
+  {id:"cyber",name:"赛博霓虹",desc:"高对比黑底霓虹",bg:"#050505",card:"#111111",card2:"#1a1a1a",accent:"#00f0ff",accent2:"#ff00aa",up:"#ff2a6d",down:"#05ffa1",txt:"#f5f5fa",sub:"#9aa",line:"#222"},
+  {id:"paper",name:"护眼纸墨",desc:"低对比暖灰阅读",bg:"#f4f1ea",card:"#ffffff",card2:"#f9f7f2",accent:"#8b5e3c",accent2:"#5c7a29",up:"#c0392b",down:"#27ae60",txt:"#2c2c2c",sub:"#666666",line:"#ddd8cf"},
+  {id:"sakura",name:"樱花粉境",desc:"柔和粉紫少女风",bg:"#fff5f8",card:"#fff0f5",card2:"#ffe4ed",accent:"#ff6b9d",accent2:"#c44569",up:"#ff4d4f",down:"#00d486",txt:"#3a2434",sub:"#7a5c6e",line:"#f0d0de"},
+  {id:"forest",name:"森系护眼",desc:"墨绿自然系",bg:"#0d1f17",card:"#142b20",card2:"#1c3a2a",accent:"#7bc67e",accent2:"#3d9970",up:"#ff9f43",down:"#10ac84",txt:"#e6f0ea",sub:"#9ab",line:"#244"}
+];
+var DEFAULT_THEME=THEMES[0];
+
+/* ============ UI 层 ============ */
+function $(id){return document.getElementById(id);}
+var current=DEFAULT_THEME;
+function setStatus(msg,type){
+  var el=$("status");
+  if(!el) return;
+  el.textContent=msg||"";
+  el.className="status show "+(type||"");
+}
+function applyTheme(t){
+  if(!t) return;
+  current=t;
+  var style=$("dynTheme");
+  if(style) style.textContent=themeToCssVars(t);
+  try{ localStorage.setItem("theme_current",JSON.stringify(t)); localStorage.setItem("theme_config",JSON.stringify(t)); }catch(e){}
+  var pt=$("previewText");
+  if(pt) pt.innerHTML="主色：<span class=\"chip\">"+esc(t.accent)+"</span> 辅色：<span class=\"chip\">"+esc(t.accent2)+"</span> 背景：<span class=\"chip\">"+esc(t.bg)+"</span> 文字：<span class=\"chip\">"+esc(t.txt)+"</span>";
+  var ea=$("exportArea"); if(ea) ea.value=JSON.stringify(themeToJson(t),null,2);
+  var ca=$("cssArea"); if(ca) ca.value=exportCss(t);
+  syncCustomInputs(t);
+  renderGrid();
+}
+function syncCustomInputs(t){
+  var map={cBg:"bg",cCard:"card",cCard2:"card2",cAccent:"accent",cAccent2:"accent2",cUp:"up",cDown:"down",cTxt:"txt",cSub:"sub",cLine:"line"};
+  for(var id in map){var el=$(id);if(el&&t[map[id]])el.value=t[map[id]];}
+}
+function renderGrid(){
+  var grid=$("themeGrid");
+  if(!grid) return;
+  if(!THEMES.length){ grid.innerHTML="<div class='desc'>暂无主题</div>"; return; }
+  grid.innerHTML=THEMES.map(function(t){
+    return "<div class=\"theme "+(current&&current.id===t.id?"on":"")+"\" data-id=\""+esc(t.id)+"\" tabindex=\"0\" role=\"button\" aria-label=\""+esc(t.name)+"\">"+
+      "<div class=\"thumb\" style=\"background:linear-gradient(135deg,"+esc(t.accent)+","+esc(t.accent2)+")\"></div>"+
+      "<div class=\"name\">"+sanitizeUserText(t.name)+"</div>"+
+      "<div class=\"desc\">"+sanitizeUserText(t.desc)+"</div>"+
+    "</div>";
+  }).join("");
+  Array.prototype.forEach.call(grid.querySelectorAll(".theme"),function(el){
+    el.addEventListener("click",function(){
+      var t=THEMES.find(function(x){return x.id===el.dataset.id;});
+      if(t){applyTheme(t);setStatus("已应用主题："+t.name,"ok");}
+    });
+    el.addEventListener("keydown",function(e){
+      if(e.key==="Enter"||e.key===" "){e.preventDefault();el.click();}
+    });
+  });
+}
+function switchTab(name){
+  var tabs=document.querySelectorAll(".navitem");
+  Array.prototype.forEach.call(tabs,function(n){
+    var on=n.dataset.tab===name;
+    n.classList.toggle("on",on);
+    n.setAttribute("aria-selected",on?"true":"false");
+  });
+  var panels=document.querySelectorAll(".tabpanel");
+  Array.prototype.forEach.call(panels,function(p){p.style.display=p.id==="tab-"+name?"block":"none";});
+}
+function readCustom(){
+  return {
+    id:"custom",
+    name:($("cName").value||"自定义").slice(0,40),
+    desc:"用户自定义",
+    bg:$("cBg").value,card:$("cCard").value,card2:$("cCard2").value,
+    accent:$("cAccent").value,accent2:$("cAccent2").value,
+    up:$("cUp").value,down:$("cDown").value,
+    txt:$("cTxt").value,sub:$("cSub").value,line:$("cLine").value
+  };
+}
+function init(){
+  // 还原持久化主题
+  try{
+    var saved=localStorage.getItem("theme_current");
+    if(saved){
+      var parsed=JSON.parse(saved);
+      var found=THEMES.find(function(t){return t.id===parsed.id;});
+      current=found||parsed;
+    }
+  }catch(e){ current=DEFAULT_THEME; }
+  applyTheme(current);
+
+  // 侧边导航
+  Array.prototype.forEach.call(document.querySelectorAll(".navitem"),function(n){
+    n.addEventListener("click",function(){switchTab(n.dataset.tab);});
+  });
+
+  // 自定义
+  $("applyCustom").addEventListener("click",function(){
+    try{
+      var t=validateTheme(readCustom());
+      t.id="custom"; t.name=($("cName").value||"自定义").slice(0,40); t.desc="用户自定义";
+      applyTheme(t); setStatus("已应用自定义主题","ok");
+    }catch(e){ setStatus("自定义失败："+e.message,"err"); }
+  });
+  $("resetCustom").addEventListener("click",function(){ applyTheme(DEFAULT_THEME); setStatus("已恢复默认主题","ok"); });
+
+  // 智能生成
+  $("genBtn").addEventListener("click",function(){
+    try{
+      var seed=$("gSeed").value, mode=$("gMode").value;
+      var t=generateTheme(seed,mode);
+      applyTheme(t);
+      var gp=$("genPreview"); if(gp) gp.style.display="block";
+      var gpt=$("genPreviewText");
+      if(gpt) gpt.innerHTML="种子：<span class=\"chip\">"+esc(seed)+"</span> 主色：<span class=\"chip\">"+esc(t.accent)+"</span> 背景：<span class=\"chip\">"+esc(t.bg)+"</span>";
+      setStatus("已生成并应用："+t.name,"ok");
+    }catch(e){ setStatus("生成失败："+e.message,"err"); }
+  });
+  $("randomBtn").addEventListener("click",function(){
+    try{
+      var seed=randomSeed();
+      $("gSeed").value=seed;
+      var t=generateTheme(seed,$("gMode").value);
+      applyTheme(t);
+      var gp=$("genPreview"); if(gp) gp.style.display="block";
+      var gpt=$("genPreviewText");
+      if(gpt) gpt.innerHTML="种子：<span class=\"chip\">"+esc(seed)+"</span> 主色：<span class=\"chip\">"+esc(t.accent)+"</span> 背景：<span class=\"chip\">"+esc(t.bg)+"</span>";
+      setStatus("已随机生成并应用："+t.name,"ok");
+    }catch(e){ setStatus("生成失败："+e.message,"err"); }
+  });
+
+  // 导出
+  $("copyExport").addEventListener("click",function(){
+    var v=$("exportArea").value;
+    copyText(v).then(function(){setStatus("已复制 JSON 配置","ok");},function(){setStatus("复制失败，请手动选择复制","err");});
+  });
+  $("copyCss").addEventListener("click",function(){
+    var v=$("cssArea").value;
+    copyText(v).then(function(){setStatus("已复制 CSS 变量","ok");},function(){setStatus("复制失败，请手动选择复制","err");});
+  });
+
+  // 导入
+  $("applyImport").addEventListener("click",function(){
+    var raw=$("importArea").value;
+    if(!raw||!raw.trim()){ setStatus("请先粘贴要导入的 JSON 配置","err"); return; }
+    try{
+      var t=validateTheme(JSON.parse(raw));
+      applyTheme(t); setStatus("已应用导入主题，返回大厅即全局生效","ok");
+    }catch(e){ setStatus("导入失败："+e.message,"err"); }
+  });
+}
+function copyText(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise(function(res,rej){
+    try{
+      var ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); document.body.removeChild(ta); res();
+    }catch(e){ rej(e); }
+  });
+}
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init);
+else init();
+</script>
+</body>
+</html>

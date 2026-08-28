@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.tmp
+
+# 运行时日志 (后端会写 backend.log)
+backend.log
+*.log
+
+# 测试/工具缓存
+.pytest_cache/
+.werkzeug/
+
+# 自驱状态 (本地锁/状态, 不入库)
+.workbuddy/

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ETF筛选器 · ETFPicker</title>
+<style>
+  :root{
+    --bg:#0f0f23; --card:#1a1a2e; --line:#2a2a44;
+    --up:#ff4d4f; --down:#00d486; --accent:#667eea; --accent2:#764ba2;
+    --text:#e8e8f0; --sub:#8a8a9a; --warn:#ffb454;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);padding:20px;max-width:1180px;margin:0 auto}
+  h1{font-size:24px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{color:var(--sub);font-size:13px;margin:4px 0 16px}
+  .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  .f{display:flex;flex-direction:column;gap:4px}
+  .f label{font-size:11px;color:var(--sub)}
+  select,input{background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 9px;font-family:inherit}
+  input.invalid{border-color:var(--up)}
+  .err{color:var(--up);font-size:11px;min-height:14px;margin:-4px 0 8px}
+  button{cursor:pointer;border:none;border-radius:8px;padding:8px 14px;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;font-weight:600}
+  button.ghost{background:var(--card);border:1px solid var(--line);color:var(--text)}
+  button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden}
+  th,td{padding:10px 12px;text-align:left;font-size:13px;border-bottom:1px solid var(--line)}
+  th{color:var(--sub);font-weight:600;background:rgba(102,126,234,.08);cursor:pointer;user-select:none}
+  th[aria-sort]::after{content:" ▾";font-size:10px;color:var(--accent)}
+  th.asc[aria-sort]::after{content:" ▴"}
+  tbody tr:hover{background:rgba(102,126,234,.06)}
+  .up{color:var(--up)} .down{color:var(--down)} .muted{color:var(--sub)}
+  .pill{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--bg);color:var(--sub);border:1px solid var(--line)}
+  .star{cursor:pointer;font-size:16px;background:none;border:none;padding:0 4px;color:var(--sub)}
+  .star.on{color:var(--warn)}
+  .cmp{cursor:pointer;width:16px;height:16px;accent-color:var(--accent)}
+  .stat{color:var(--sub);font-size:13px;margin:10px 0}
+  .bar{display:flex;gap:14px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:10px 0;font-size:13px}
+  .bar b{color:var(--text)}
+  .empty{padding:28px;text-align:center;color:var(--sub);font-size:14px}
+  footer{margin-top:20px;color:var(--sub);font-size:12px;text-align:center}
+  .compare{margin:14px 0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:none}
+  .compare.show{display:block}
+  .compare table th,.compare table td{font-size:12px;padding:8px 10px}
+  .best{color:var(--down);font-weight:700}
+  .worst{color:var(--up)}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .hubfoot{max-width:1180px;margin:30px auto 0;padding:16px;text-align:center;font-size:12px;color:var(--sub);border-top:1px solid var(--line);line-height:1.8}
+  .hubfoot a{color:var(--accent);text-decoration:none;font-weight:600}
+  .hubfoot a:hover{text-decoration:underline}
+  .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35)}
+  .hubhome:hover{filter:brightness(1.12)}
+</style>
+</head>
+<body>
+  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+
+<h1>💰 ETF筛选器</h1>
+<div class="sub">按类型 / 行业 / 规模 / 收益区间 / 费率 / 跟踪误差多维筛选与排序 · 自选与对比本地持久化 · 数据源模仿 StockSignal（演示样本）</div>
+
+<form class="filters" id="form" aria-label="ETF 筛选条件">
+  <div class="f"><label for="fType">类型</label><select id="fType" aria-label="类型">
+    <option value="">全部</option><option>宽基</option><option>行业</option><option>主题</option><option>债券</option><option>商品</option><option>跨境</option>
+  </select></div>
+  <div class="f"><label for="fInd">行业 / 主题</label><select id="fInd" aria-label="行业或主题">
+    <option value="">全部</option>
+  </select></div>
+  <div class="f"><label for="fSize">最小规模(亿)</label><input type="number" id="fSize" value="0" min="0" step="1" style="width:100px" aria-label="最小规模"></div>
+  <div class="f"><label for="fRetMin">今年收益 ≥(%)</label><input type="number" id="fRetMin" value="-100" step="0.1" style="width:100px" aria-label="最小收益"></div>
+  <div class="f"><label for="fRetMax">今年收益 ≤(%)</label><input type="number" id="fRetMax" value="1000" step="0.1" style="width:100px" aria-label="最大收益"></div>
+  <div class="f"><label for="fFee">最大费率(%)</label><input type="number" id="fFee" value="100" min="0" step="0.05" style="width:100px" aria-label="最大费率"></div>
+  <div class="f"><label for="fTrack">最大跟踪误差(%)</label><input type="number" id="fTrack" value="100" min="0" step="0.01" style="width:110px" aria-label="最大跟踪误差"></div>
+  <div class="f"><label for="fKw">搜索</label><input type="text" id="fKw" placeholder="名称/代码" style="width:120px" aria-label="关键词搜索"></div>
+  <div class="f"><label for="fWatch">范围</label><select id="fWatch" aria-label="范围">
+    <option value="">全部</option><option value="1">仅看自选</option>
+  </select></div>
+  <div class="f"><label for="fSort">排序字段</label><select id="fSort" aria-label="排序字段">
+    <option value="ret">今年收益</option><option value="size">规模</option><option value="fee">费率</option><option value="trackErr">跟踪误差</option><option value="name">名称</option>
+  </select></div>
+  <button type="submit" id="doFilter">筛选</button>
+  <button type="button" class="ghost" id="resetBtn">重置</button>
+  <button type="button" class="ghost" id="exportCsv">导出CSV</button>
+  <button type="button" class="ghost" id="exportJson">导出JSON</button>
+  <button type="button" class="ghost" id="exportWatch">导出自选</button>
+  <button type="button" class="ghost" id="exportCompare">导出对比</button>
+</form>
+<div class="err" id="err" role="alert" aria-live="polite"></div>
+
+<div class="bar" id="bar" aria-label="统计汇总"></div>
+
+<div class="toolbar">
+  <button type="button" class="ghost" id="cmpBtn" aria-pressed="false">对比选中 (0)</button>
+  <button type="button" class="ghost" id="clearCmp">清空对比</button>
+  <span class="muted" style="font-size:12px;align-self:center">勾选左侧 ☑ 加入对比，★ 加入自选</span>
+</div>
+
+<div class="compare" id="compare" aria-live="polite"></div>
+
+<div class="stat" id="stat" role="status" aria-live="polite"></div>
+<table>
+  <thead><tr>
+    <th scope="col" aria-label="对比选择">☑</th>
+    <th scope="col" aria-label="自选">★</th>
+    <th scope="col" data-key="code">代码</th>
+    <th scope="col" data-key="name">名称</th>
+    <th scope="col" data-key="type">类型</th>
+    <th scope="col" data-key="industry">行业</th>
+    <th scope="col" data-key="size">规模(亿)</th>
+    <th scope="col" data-key="ret">今年%</th>
+    <th scope="col" data-key="fee">费率%</th>
+    <th scope="col" data-key="trackErr">跟踪误差%</th>
+    <th scope="col" data-key="issuer">管理人</th>
+  </tr></thead>
+  <tbody id="body"></tbody>
+</table>
+<div class="empty" id="empty" style="display:none">没有符合条件的 ETF，试试放宽筛选条件 😶</div>
+
+<footer>双击即用的零依赖小工具 · ETF 数据为演示样本，仅供筛选练习，不构成投资建议</footer>
+
+<script>
+"use strict";
+/* ============================================================
+ * ETFPicker —— 零依赖单文件应用
+ * 纯逻辑函数（filterETFs / sortETFs / sanitizeHTML / export* 等）
+ * 均挂为脚本全局，便于 test/run.js 在 node vm 中断言。
+ * ============================================================ */
+
+// ---------- 演示数据（兜底；生产可接后端 /api/etf）----------
+var FALLBACK_ETFS = [
+  {code:"510300",name:"沪深300ETF",type:"宽基",industry:"",size:3800,ret:12.4,fee:0.15,trackErr:0.03,issuer:"华泰柏瑞"},
+  {code:"510500",name:"中证500ETF",type:"宽基",industry:"",size:1200,ret:8.7,fee:0.15,trackErr:0.05,issuer:"南方"},
+  {code:"159915",name:"创业板ETF",type:"宽基",industry:"",size:900,ret:18.2,fee:0.15,trackErr:0.06,issuer:"易方达"},
+  {code:"588000",name:"科创50ETF",type:"宽基",industry:"",size:1100,ret:22.5,fee:0.15,trackErr:0.08,issuer:"华夏"},
+  {code:"512660",name:"军工ETF",type:"行业",industry:"军工",size:180,ret:15.3,fee:0.5,trackErr:0.12,issuer:"国泰"},
+  {code:"512480",name:"半导体ETF",type:"行业",industry:"半导体",size:320,ret:28.1,fee:0.5,trackErr:0.15,issuer:"国联安"},
+  {code:"515790",name:"光伏ETF",type:"行业",industry:"新能源",size:140,ret:-6.4,fee:0.5,trackErr:0.18,issuer:"华泰柏瑞"},
+  {code:"512010",name:"医药ETF",type:"行业",industry:"医药",size:260,ret:3.2,fee:0.5,trackErr:0.14,issuer:"易方达"},
+  {code:"159928",name:"消费ETF",type:"行业",industry:"消费",size:130,ret:1.1,fee:0.5,trackErr:0.13,issuer:"汇添富"},
+  {code:"512690",name:"酒ETF",type:"行业",industry:"消费",size:200,ret:-2.1,fee:0.5,trackErr:0.12,issuer:"鹏华"},
+  {code:"561790",name:"游戏ETF",type:"主题",industry:"游戏",size:60,ret:34.6,fee:0.5,trackErr:0.20,issuer:"华夏"},
+  {code:"159869",name:"人工智能ETF",type:"主题",industry:"人工智能",size:110,ret:26.3,fee:0.5,trackErr:0.18,issuer:"银华"},
+  {code:"159995",name:"芯片ETF",type:"主题",industry:"半导体",size:240,ret:27.0,fee:0.5,trackErr:0.16,issuer:"华夏"},
+  {code:"562500",name:"机器人ETF",type:"主题",industry:"智能制造",size:90,ret:19.8,fee:0.5,trackErr:0.22,issuer:"华夏"},
+  {code:"515030",name:"新能源ETF",type:"主题",industry:"新能源",size:180,ret:5.4,fee:0.5,trackErr:0.15,issuer:"华泰柏瑞"},
+  {code:"511260",name:"十年国债ETF",type:"债券",industry:"利率债",size:70,ret:4.2,fee:0.15,trackErr:0.04,issuer:"国泰"},
+  {code:"511380",name:"可转债ETF",type:"债券",industry:"信用债",size:380,ret:5.5,fee:0.2,trackErr:0.05,issuer:"博时"},
+  {code:"518880",name:"黄金ETF",type:"商品",industry:"贵金属",size:520,ret:21.7,fee:0.5,trackErr:0.06,issuer:"华安"},
+  {code:"513100",name:"纳指ETF",type:"跨境",industry:"美股",size:160,ret:16.9,fee:0.6,trackErr:0.12,issuer:"国泰"},
+  {code:"513500",name:"标普500ETF",type:"跨境",industry:"美股",size:140,ret:14.3,fee:0.6,trackErr:0.10,issuer:"博时"},
+  {code:"159920",name:"恒生ETF",type:"跨境",industry:"港股",size:230,ret:8.5,fee:0.6,trackErr:0.11,issuer:"华夏"}
+];
+
+const WATCH_KEY = "etf_watch_v1";
+const FILTER_KEY = "etf_filters_v1";
+
+// ---------- 纯工具函数（测试对象）----------
+
+// HTML 转义：防 XSS 的基础层
+function esc(s){
+  return String(s==null?"":s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+// 白名单富文本：先整体转义，再放开极少安全标签，杜绝脚本注入
+// 允许的标签：b i u em strong br ；a 仅允许 http(s) 链接
+const SAFE_TAG = /^(b|i|u|em|strong|br)$/;
+function sanitizeHTML(input){
+  if(input==null) return "";
+  let s = esc(input);
+  s = s.replace(/&lt;(b|i|u|em|strong|br)\s*&gt;/gi, "<$1>");
+  s = s.replace(/&lt;\/(b|i|u|em|strong)\s*&gt;/gi, "</$1>");
+  s = s.replace(/&lt;br\s*\/&gt;/gi, "<br>");
+  // 安全链接：仅 http/https（注意属性引号已被转义为 &quot;）
+  s = s.replace(/&lt;a\s+href=&quot;(https?:\/\/[^&]*?)&quot;\s*&gt;/gi, '<a href="$1" target="_blank" rel="noopener">');
+  s = s.replace(/&lt;\/a&gt;/gi, "</a>");
+  return s;
+}
+
+// 数值解析：非法返回 fallback
+function asNum(v, d){
+  const n = parseFloat(v);
+  return isFinite(n) ? n : d;
+}
+
+// 归一化单条 ETF（容错）
+function sanitizeETF(raw){
+  raw = raw || {};
+  return {
+    code: String(raw.code==null?"":raw.code),
+    name: String(raw.name==null?"":raw.name),
+    type: String(raw.type==null?"":raw.type),
+    industry: String(raw.industry==null?"":raw.industry),
+    size: asNum(raw.size, 0),
+    ret: asNum(raw.ret, 0),
+    fee: asNum(raw.fee, 0),
+    trackErr: asNum(raw.trackErr, 0),
+    issuer: String(raw.issuer==null?"":raw.issuer)
+  };
+}
+
+// 多维筛选（crit: {type,industry,minSize,minRet,maxRet,maxFee,maxTrack,kw,watchOnly}）
+function filterETFs(list, crit, watchSet){
+  crit = crit || {};
+  const kw = (crit.kw||"").trim().toLowerCase();
+  return list.filter(function(e){
+    if(crit.type && e.type !== crit.type) return false;
+    if(crit.industry && e.industry !== crit.industry) return false;
+    if(e.size < (crit.minSize||0)) return false;
+    if(e.ret < (crit.minRet!=null?crit.minRet:-1e9)) return false;
+    if(e.ret > (crit.maxRet!=null?crit.maxRet:1e9)) return false;
+    if(e.fee > (crit.maxFee!=null?crit.maxFee:1e9)) return false;
+    if(e.trackErr > (crit.maxTrack!=null?crit.maxTrack:1e9)) return false;
+    if(crit.watchOnly && (!watchSet || !watchSet.has(e.code))) return false;
+    if(kw && !(e.name.toLowerCase().includes(kw) || e.code.toLowerCase().includes(kw))) return false;
+    return true;
+  });
+}
+
+// 排序：key ∈ ret|size|fee|trackErr|name ；dir ∈ desc|asc
+function sortETFs(list, key, dir){
+  const arr = list.slice();
+  const sign = dir === "asc" ? 1 : -1;
+  arr.sort(function(a,b){
+    let av, bv;
+    if(key === "name"){ av = a.name; bv = b.name; return sign * av.localeCompare(bv,"zh"); }
+    av = Number(a[key]||0); bv = Number(b[key]||0);
+    if(av !== bv) return sign * (av - bv);
+    return a.code.localeCompare(b.code);
+  });
+  return arr;
+}
+
+// 统计汇总
+function computeStats(list){
+  const n = list.length;
+  if(!n) return {count:0,avgRet:null,avgFee:null,best:null,worst:null};
+  let sr=0, sf=0, best=list[0], worst=list[0];
+  list.forEach(function(e){
+    sr += e.ret; sf += e.fee;
+    if(e.ret > best.ret) best = e;
+    if(e.ret < worst.ret) worst = e;
+  });
+  return {count:n, avgRet:sr/n, avgFee:sf/n, best:best, worst:worst};
+}
+
+// CSV 单元格：防注入 + 逗号/引号/换行处理
+function csvCell(v){
+  let s = v==null ? "" : String(v);
+  if(/^[=+\-@]/.test(s)) s = "'" + s;            // 防公式注入
+  if(/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+
+function exportCSV(list){
+  const head = ["代码","名称","类型","行业","规模(亿)","今年收益(%)","费率(%)","跟踪误差(%)","管理人"];
+  const rows = list.map(function(e){
+    return [e.code,e.name,e.type,e.industry,e.size,e.ret,e.fee,e.trackErr,e.issuer]
+      .map(csvCell).join(",");
+  });
+  return "﻿" + head.map(csvCell).join(",") + "\n" + rows.join("\n");
+}
+
+function exportJSON(list){
+  return JSON.stringify({
+    exportedAt: new Date().toISOString(),
+    count: list.length,
+    items: list.map(function(e){ return sanitizeETF(e); })
+  }, null, 2);
+}
+
+// 自选持久化
+function getWatch(){
+  try{
+    const raw = localStorage.getItem(WATCH_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(arr) ? arr.filter(function(x){return typeof x==="string";}) : []);
+  }catch(e){ return new Set(); }
+}
+function saveWatch(set){
+  try{ localStorage.setItem(WATCH_KEY, JSON.stringify(Array.from(set))); }catch(e){}
+}
+
+// ---------- 运行时状态 ----------
+var ETFS = [];
+var curList = [];
+var dataSrc = "";
+var watch = getWatch();
+var compareSel = new Set();
+var sortDir = "desc";
+var lastSortKey = "ret";
+
+// ---------- 渲染 ----------
+function buildRow(e){
+  const up = e.ret >= 0;
+  const wOn = watch.has(e.code) ? " on" : "";
+  const wAria = watch.has(e.code) ? "已加自选" : "加自选";
+  const cOn = compareSel.has(e.code) ? " checked" : "";
+  return '<tr>' +
+    '<td><input type="checkbox" class="cmp" data-code="'+esc(e.code)+'"'+(cOn?' checked':'')+' aria-label="加入对比 '+esc(e.name)+'"></td>' +
+    '<td><button class="star'+wOn+'" data-code="'+esc(e.code)+'" aria-label="'+wAria+'" aria-pressed="'+(wOn?"true":"false")+'">'+ (wOn?"★":"☆") +'</button></td>' +
+    '<td>'+esc(e.code)+'</td>' +
+    '<td>'+esc(e.name)+'</td>' +
+    '<td><span class="pill">'+esc(e.type)+'</span></td>' +
+    '<td class="muted">'+esc(e.industry||"-")+'</td>' +
+    '<td>'+esc(e.size)+'</td>' +
+    '<td class="'+(up?"up":"down")+'">'+(up?"+":"")+e.ret.toFixed(1)+'</td>' +
+    '<td>'+e.fee.toFixed(2)+'</td>' +
+    '<td>'+e.trackErr.toFixed(2)+'</td>' +
+    '<td class="muted">'+esc(e.issuer)+'</td>' +
+  '</tr>';
+}
+
+function render(){
+  const t = document.getElementById("fType").value;
+  const ind = document.getElementById("fInd").value;
+  const minSize = asNum(document.getElementById("fSize").value, 0);
+  const minRet = asNum(document.getElementById("fRetMin").value, -1e9);
+  const maxRet = asNum(document.getElementById("fRetMax").value, 1e9);
+  const maxFee = asNum(document.getElementById("fFee").value, 1e9);
+  const maxTrack = asNum(document.getElementById("fTrack").value, 1e9);
+  const kw = (document.getElementById("fKw").value||"").trim();
+  const watchOnly = document.getElementById("fWatch").value === "1";
+
+  const crit = {type:t, industry:ind, minSize:minSize, minRet:minRet, maxRet:maxRet,
+                maxFee:maxFee, maxTrack:maxTrack, kw:kw, watchOnly:watchOnly};
+  let list = filterETFs(ETFS, crit, watch);
+  list = sortETFs(list, lastSortKey, sortDir);
+  curList = list;
+
+  const body = document.getElementById("body");
+  const empty = document.getElementById("empty");
+  if(!list.length){
+    body.innerHTML = "";
+    empty.style.display = "block";
+  }else{
+    empty.style.display = "none";
+    body.innerHTML = list.map(buildRow).join("");
+  }
+
+  const st = document.getElementById("stat");
+  st.textContent = "数据来源：" + dataSrc + " · 共 " + list.length + " 只符合条件";
+  renderBar(list);
+  renderCompare();
+  updateSortHeaders();
+}
+
+function renderBar(list){
+  const bar = document.getElementById("bar");
+  const s = computeStats(list);
+  if(!s.count){ bar.innerHTML = '<span class="muted">无数据</span>'; return; }
+  bar.innerHTML =
+    '<span>数量 <b>'+s.count+'</b></span>' +
+    '<span>平均收益 <b class="'+(s.avgRet>=0?"up":"down")+'">'+(s.avgRet>=0?"+":"")+s.avgRet.toFixed(1)+'%</b></span>' +
+    '<span>平均费率 <b>'+s.avgFee.toFixed(2)+'%</b></span>' +
+    '<span>最佳 <b class="up">'+esc(s.best.name)+' +'+s.best.ret.toFixed(1)+'%</b></span>' +
+    '<span>最差 <b class="down">'+esc(s.worst.name)+' '+s.worst.ret.toFixed(1)+'%</b></span>';
+}
+
+function renderCompare(){
+  const box = document.getElementById("compare");
+  const btn = document.getElementById("cmpBtn");
+  btn.textContent = "对比选中 (" + compareSel.size + ")";
+  const sel = ETFS.filter(function(e){ return compareSel.has(e.code); });
+  if(!sel.length){ box.className = "compare"; box.innerHTML = ""; return; }
+  box.className = "compare show";
+  const fields = [
+    ["类型","type"],["行业","industry"],["规模(亿)","size"],["今年收益(%)","ret"],
+    ["费率(%)","fee"],["跟踪误差(%)","trackErr"],["管理人","issuer"]
+  ];
+  // 数值类最优高亮
+  function best(key){ let v=-1e9; sel.forEach(e=>{if(e[key]>v)v=e[key];}); return v; }
+  function worst(key){ let v=1e9; sel.forEach(e=>{if(e[key]<v)v=e[key];}); return v; }
+  let html = '<table><thead><tr><th scope="col">字段</th>' +
+    sel.map(function(e){ return '<th scope="col">'+esc(e.name)+'<br><span class="muted">'+esc(e.code)+'</span></th>'; }).join("") +
+    '</tr></thead><tbody>';
+  fields.forEach(function(f){
+    const key = f[1];
+    const b = best(key), w = worst(key);
+    html += '<tr><td class="muted">'+f[0]+'</td>' +
+      sel.map(function(e){
+        let cls = "";
+        if(typeof e[key]==="number"){
+          if(sel.length>1 && e[key]===b && b!==w) cls=' class="best"';
+          else if(sel.length>1 && e[key]===w && b!==w) cls=' class="worst"';
+        }
+        let val = (key==="ret") ? ((e[key]>=0?"+":"")+e[key].toFixed(1)) :
+                  (key==="fee"||key==="trackErr") ? e[key].toFixed(2) : esc(e[key]);
+        return '<td'+cls+'>'+val+'</td>';
+      }).join("") + '</tr>';
+  });
+  html += '</tbody></table>';
+  box.innerHTML = html;
+}
+
+function updateSortHeaders(){
+  const ths = document.querySelectorAll("th[data-key]");
+  ths.forEach(function(th){
+    if(th.getAttribute("data-key")===lastSortKey){
+      th.setAttribute("aria-sort", sortDir==="asc"?"ascending":"descending");
+      th.className = sortDir==="asc" ? "asc" : "";
+    }else{
+      th.removeAttribute("aria-sort"); th.className = "";
+    }
+  });
+}
+
+// ---------- 输入校验 ----------
+function validateForm(){
+  const err = document.getElementById("err");
+  let msg = "";
+  const lo = asNum(document.getElementById("fRetMin").value, -1e9);
+  const hi = asNum(document.getElementById("fRetMax").value, 1e9);
+  if(!isFinite(lo)) msg = "最小收益需为数字";
+  else if(!isFinite(hi)) msg = "最大收益需为数字";
+  else if(lo > hi){ msg = "收益下限不能大于上限，已自动交换"; document.getElementById("fRetMin").value = hi; document.getElementById("fRetMax").value = lo; }
+  const fee = asNum(document.getElementById("fFee").value, 1e9);
+  if(fee < 0){ msg = "费率不能为负"; document.getElementById("fFee").value = 0; }
+  const tr = asNum(document.getElementById("fTrack").value, 1e9);
+  if(tr < 0){ msg = "跟踪误差不能为负"; document.getElementById("fTrack").value = 0; }
+  err.textContent = msg;
+  return true;
+}
+
+// ---------- 排序字段点击 ----------
+function setupSortHeaders(){
+  document.querySelectorAll("th[data-key]").forEach(function(th){
+    th.addEventListener("click", function(){
+      const key = th.getAttribute("data-key");
+      if(key === lastSortKey){ sortDir = sortDir==="asc" ? "desc" : "asc"; }
+      else { lastSortKey = key; sortDir = (key==="name") ? "asc" : "desc"; }
+      saveFilters(); render();
+    });
+  });
+}
+
+// ---------- 筛选条件持久化 ----------
+function saveFilters(){
+  try{
+    const c = {
+      type: document.getElementById("fType").value,
+      industry: document.getElementById("fInd").value,
+      minSize: document.getElementById("fSize").value,
+      retMin: document.getElementById("fRetMin").value,
+      retMax: document.getElementById("fRetMax").value,
+      fee: document.getElementById("fFee").value,
+      track: document.getElementById("fTrack").value,
+      kw: document.getElementById("fKw").value,
+      watch: document.getElementById("fWatch").value,
+      sort: lastSortKey, dir: sortDir
+    };
+    localStorage.setItem(FILTER_KEY, JSON.stringify(c));
+  }catch(e){}
+}
+function loadFilters(){
+  try{
+    const raw = localStorage.getItem(FILTER_KEY);
+    if(!raw) return;
+    const c = JSON.parse(raw);
+    if(typeof c.type==="string") document.getElementById("fType").value = c.type;
+    refreshIndustryOptions(); // 必须先按类型重建行业选项, 再恢复 industry, 否则选项尚未生成导致丢失
+    if(typeof c.industry==="string") document.getElementById("fInd").value = c.industry;
+    if(c.minSize!=null) document.getElementById("fSize").value = c.minSize;
+    if(c.retMin!=null) document.getElementById("fRetMin").value = c.retMin;
+    if(c.retMax!=null) document.getElementById("fRetMax").value = c.retMax;
+    if(c.fee!=null) document.getElementById("fFee").value = c.fee;
+    if(c.track!=null) document.getElementById("fTrack").value = c.track;
+    if(typeof c.kw==="string") document.getElementById("fKw").value = c.kw;
+    if(typeof c.watch==="string") document.getElementById("fWatch").value = c.watch;
+    if(typeof c.sort==="string") lastSortKey = c.sort;
+    if(c.dir==="asc"||c.dir==="desc") sortDir = c.dir;
+  }catch(e){}
+}
+
+// 行业下拉随类型联动
+function refreshIndustryOptions(){
+  const t = document.getElementById("fType").value;
+  const sel = document.getElementById("fInd");
+  const cur = sel.value;
+  let opts = ['<option value="">全部</option>'];
+  const set = new Set();
+  ETFS.forEach(function(e){
+    if((!t || e.type===t) && e.industry && !set.has(e.industry)){ set.add(e.industry); opts.push('<option>'+esc(e.industry)+'</option>'); }
+  });
+  sel.innerHTML = opts.join("");
+  if(Array.from(set).indexOf(cur)>=0) sel.value = cur;
+}
+
+// ---------- 事件绑定 ----------
+function bindEvents(){
+  document.getElementById("form").addEventListener("submit", function(ev){
+    ev.preventDefault(); validateForm(); saveFilters(); render();
+  });
+  document.getElementById("fType").addEventListener("change", function(){ refreshIndustryOptions(); saveFilters(); render(); });
+  document.getElementById("fInd").addEventListener("change", function(){ saveFilters(); render(); });
+  document.getElementById("resetBtn").addEventListener("click", function(){
+    ["fType","fInd","fKw","fWatch"].forEach(function(id){ document.getElementById(id).value=""; });
+    document.getElementById("fSize").value=0;
+    document.getElementById("fRetMin").value=-100;
+    document.getElementById("fRetMax").value=1000;
+    document.getElementById("fFee").value=100;
+    document.getElementById("fTrack").value=100;
+    lastSortKey="ret"; sortDir="desc";
+    try{ localStorage.removeItem(FILTER_KEY); }catch(e){}
+    refreshIndustryOptions(); render();
+  });
+  document.getElementById("fKw").addEventListener("input", function(){ render(); });
+  document.getElementById("exportCsv").addEventListener("click", function(){ doExport("csv"); });
+  document.getElementById("exportJson").addEventListener("click", function(){ doExport("json"); });
+  document.getElementById("exportWatch").addEventListener("click", function(){ exportSet("watch"); });
+  document.getElementById("exportCompare").addEventListener("click", function(){ exportSet("compare"); });
+  document.getElementById("cmpBtn").addEventListener("click", function(){ renderCompare(); window.scrollTo({top: document.getElementById("compare").offsetTop-20, behavior:"smooth"}); });
+  document.getElementById("clearCmp").addEventListener("click", clearCompare);
+  document.getElementById("body").addEventListener("click", function(ev){
+    const st = ev.target.closest(".star");
+    if(st){ toggleWatch(st.getAttribute("data-code")); return; }
+    const cb = ev.target.closest(".cmp");
+    if(cb){ const c=cb.getAttribute("data-code"); if(cb.checked) compareSel.add(c); else compareSel.delete(c); renderCompare(); document.getElementById("cmpBtn").textContent="对比选中 ("+compareSel.size+")"; return; }
+  });
+  setupSortHeaders();
+}
+
+function toggleWatch(code){
+  if(watch.has(code)) watch.delete(code); else watch.add(code);
+  saveWatch(watch); render();
+}
+
+// 清空对比选择
+function clearCompare(){
+  compareSel.clear();
+  renderCompare();
+  const b = document.getElementById("cmpBtn");
+  if(b) b.textContent = "对比选中 (" + compareSel.size + ")";
+}
+
+function doExport(kind){
+  if(!curList.length){ alert("当前筛选结果为空，无可导出数据"); return; }
+  let content, name, type;
+  if(kind==="json"){ content=exportJSON(curList); name="ETF筛选结果.json"; type="application/json"; }
+  else { content=exportCSV(curList); name="ETF筛选结果.csv"; type="text/csv;charset=utf-8"; }
+  const blob = new Blob([content], {type:type});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  if(URL.revokeObjectURL) URL.revokeObjectURL(a.href);
+}
+
+// 导出目标：当前筛选结果 / 自选 / 对比
+function getExportList(source){
+  if(source==="watch") return ETFS.filter(function(e){ return watch.has(e.code); });
+  if(source==="compare") return ETFS.filter(function(e){ return compareSel.has(e.code); });
+  return curList;
+}
+function buildAndDownload(list, kind, nameBase){
+  if(!list.length){ alert("没有可导出的数据"); return; }
+  let content, name, type;
+  if(kind==="json"){ content=exportJSON(list); name=nameBase+".json"; type="application/json"; }
+  else { content=exportCSV(list); name=nameBase+".csv"; type="text/csv;charset=utf-8"; }
+  const blob = new Blob([content], {type:type});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  if(URL.revokeObjectURL) URL.revokeObjectURL(a.href);
+}
+function doExport(kind){ buildAndDownload(getExportList("cur"), kind, "ETF筛选结果"); }
+function exportSet(source){ buildAndDownload(getExportList(source), "csv", source==="watch"?"ETF自选":"ETF对比"); }
+
+// ---------- 数据加载（后端优先，逐级降级，绝不随机）----------
+const API_ROOT = (function(){ try{ return localStorage.getItem("hub_api") || "http://127.0.0.1:8787"; }catch(e){ return "http://127.0.0.1:8787"; } })();
+async function loadETFs(){
+  const stat = document.getElementById("stat");
+  stat.textContent = "加载中…";
+  try{
+    const r = await fetch(API_ROOT + "/api/etf", {cache:"no-store"});
+    if(r.ok){
+      const j = await r.json();
+      if(j && j.ok && Array.isArray(j.rows) && j.rows.length){
+        ETFS = j.rows.map(sanitizeETF);
+        dataSrc = j.offline ? "离线静态样本(本地 data/etf.json)" : "真实 ETF 行情(akshare)";
+        refreshIndustryOptions(); loadFilters(); render(); return;
+      }
+    }
+  }catch(e){ console.warn("ETF 接口失败, 用兜底", e); }
+  ETFS = FALLBACK_ETFS.map(sanitizeETF);
+  dataSrc = "内置兜底样本";
+  refreshIndustryOptions(); loadFilters(); render();
+}
+
+// ---------- 启动 ----------
+if(typeof document !== "undefined" && document.getElementById){
+  bindEvents();
+  loadETFs();
+}
+</script>
+
+  <footer class="hubfoot">
+    <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
+    <span>数据来自公开接口或本地演示，仅供学习与参考，不构成任何投资建议。</span>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>期库镜 FuturesLens · 期货K线×库存透视镜</title>
+<style>
+  :root{
+    --bg:#0f0f23; --card:#1a1a2e; --card2:#22223a; --line:#2c2c44;
+    --up:#ff4d4f; --down:#00d486; --memo:#8a8a9a;
+    --g1:#667eea; --g2:#764ba2;
+    --inv:#f6c453; --txt:#e8e8f0; --sub:#9a9ab0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;padding:20px;line-height:1.5}
+  h1{font-size:22px;background:linear-gradient(90deg,var(--g1),var(--g2));-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block}
+  .tag{font-size:12px;color:var(--sub);margin-left:8px}
+  .wrap{max-width:1180px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:14px 0}
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  select,input,button{background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;outline:none}
+  select:focus,input:focus{border-color:var(--g1)}
+  button{cursor:pointer;background:linear-gradient(90deg,var(--g1),var(--g2));border:none;color:#fff;font-weight:600}
+  button.ghost{background:var(--card2);color:var(--txt);border:1px solid var(--line)}
+  button:hover{opacity:.9}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{background:var(--card2);border-radius:0;border:none;color:var(--sub)}
+  .seg button.on{background:linear-gradient(90deg,var(--g1),var(--g2));color:#fff}
+  .stats{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--sub);margin-top:6px}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--sub);margin:8px 2px}
+  .legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  .corr{font-size:13px;padding:6px 10px;border-radius:8px;display:inline-block;margin-top:8px}
+  .corr.strong{background:rgba(0,212,134,.15);color:var(--down)}
+  .corr.mid{background:rgba(246,196,83,.15);color:var(--inv)}
+  .corr.weak{background:rgba(255,77,79,.15);color:var(--up)}
+  #chart{width:100%;height:420px;display:block}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+  th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--sub);font-weight:600}
+  .note{font-size:12px;color:var(--sub);line-height:1.7}
+  .note code{background:var(--card2);padding:1px 6px;border-radius:4px;color:var(--inv)}
+  details{margin-top:6px}
+  summary{cursor:pointer;color:var(--g1);font-size:13px}
+  .exchgrp{font-size:12px;color:var(--sub);margin:4px 0}
+  .pill{display:inline-block;background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:3px 10px;margin:3px;font-size:12px;cursor:pointer}
+  .pill.on{background:linear-gradient(90deg,var(--g1),var(--g2));color:#fff;border:none}
+  .hr{height:1px;background:var(--line);margin:12px 0}
+  .warn{background:rgba(246,196,83,.1);border:1px solid rgba(246,196,83,.3);color:var(--inv);padding:10px 12px;border-radius:8px;font-size:12px;margin-top:10px}
+  .invmode{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--sub)}
+  .daterange{display:flex;gap:6px;align-items:center}
+  .daterange input{width:130px}
+
+  /* 事件时间轴（移植自纸浆 SP 两个月库存与事件时间线） */
+  .evbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+  .tl{position:relative;margin-left:8px;padding-left:24px;border-left:2px solid var(--line)}
+  .ev{position:relative;margin:0 0 14px 0}
+  .ev::before{content:"";position:absolute;left:-31px;top:6px;width:12px;height:12px;border-radius:50%;border:2px solid var(--bg)}
+  .ev.inv::before{background:var(--g1)}
+  .ev.evt::before{background:var(--inv)}
+  .ev.price::before{background:var(--down)}
+  .ev.warn::before{background:var(--up)}
+  .ev .d{font-size:12px;color:var(--sub);font-weight:600}
+  .ev .t{font-size:13.5px;font-weight:600;margin:2px 0}
+  .ev .x{font-size:12.5px;color:var(--txt);line-height:1.6}
+  .evtag{display:inline-block;font-size:10px;padding:1px 7px;border-radius:5px;margin-right:6px;font-weight:600;vertical-align:middle}
+  .evdel{float:right;cursor:pointer;color:var(--up);font-weight:700;font-size:13px;margin-left:8px;opacity:.55;line-height:1.4}
+  .evdel:hover{opacity:1}
+  .etg-inv{background:rgba(102,126,234,.2);color:#9aa6ff}
+  .etg-evt{background:rgba(246,196,83,.2);color:var(--inv)}
+  .etg-pr{background:rgba(0,212,134,.18);color:var(--down)}
+  .etg-wn{background:rgba(255,77,79,.18);color:var(--up)}
+  .evform{display:none;background:#16162a;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+  .evform.show{display:block}
+  .evform .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
+  .evform label{font-size:12px;color:var(--sub)}
+  .evform input,.evform select,.evform textarea{background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12px;outline:none}
+  .evform textarea{width:100%;min-height:48px;resize:vertical}
+
+  .hubfoot{max-width:1180px;margin:30px auto 0;padding:16px;text-align:center;
+    font-size:12px;color:var(--sub);border-top:1px solid var(--line);line-height:1.8}
+  .hubfoot a{color:var(--g1);text-decoration:none;font-weight:600}
+  .hubfoot a:hover{text-decoration:underline}
+
+  .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35);transition:filter .15s}
+  .hubhome:hover{filter:brightness(1.12)}
+</style>
+</head>
+<body>
+  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+
+<div class="wrap">
+  <h1>期库镜 FuturesLens</h1><span class="tag">期货 K线 × 库存 透视镜</span>
+
+  <div class="card">
+    <div class="toolbar">
+      <div>
+        <div class="exchgrp">交易所：</div>
+        <span class="pill on" data-exch="SHFE">上期所</span>
+        <span class="pill" data-exch="DCE">大商所</span>
+        <span class="pill" data-exch="CZCE">郑商所</span>
+        <span class="pill" data-exch="INE">能源中心</span>
+        <span class="pill" data-exch="CFFEX">中金所</span>
+        <span class="pill" data-exch="LME">LME(外盘)</span>
+        <span class="pill" data-exch="COMEX">COMEX(外盘)</span>
+      </div>
+      <div>
+        <div class="exchgrp">品种：</div>
+        <select id="symbol"></select>
+        <button id="favBtn" class="ghost" title="加入/移出自选品种" style="margin-left:6px">☆ 加入自选</button>
+      </div>
+      <div class="toolbar" style="margin-top:8px">
+        <span class="exchgrp" style="margin:0">⭐ 我的自选：</span>
+        <span id="favBox"></span>
+      </div>
+      <div>
+        <div class="exchgrp">区间：</div>
+        <div class="seg" id="rangeSeg">
+          <button data-r="90" class="on">近90天</button>
+          <button data-r="180">近180天</button>
+          <button data-r="365">近1年</button>
+          <button data-r="listing">上市以来</button>
+        </div>
+        <span class="daterange" style="margin-left:8px">
+          <span class="exchgrp" style="margin:0">自定义</span>
+          <input type="date" id="dateStart"> <span class="exchgrp" style="margin:0">至</span> <input type="date" id="dateEnd">
+          <button class="ghost" id="applyRange">应用</button>
+          <span id="rangeWarn" class="warn" style="display:none;margin-top:0;margin-left:4px"></span>
+        </span>
+      </div>
+      <button id="drawBtn">绘制透视</button>
+      <button id="refreshBtn" class="ghost" title="从东方财富重新抓取真实库存并更新本地缓存">🔄 刷新数据</button>
+      <span id="dataSourceTag" style="font-size:12px;color:var(--sub)"></span>
+      <button id="aboutBtn" class="ghost" title="查看数据口径、真实性与刷新方式">ℹ️ 数据说明</button>
+      <button id="cfgBtn" class="ghost">真实数据接口</button>
+    </div>
+
+    <div class="toolbar" style="margin-top:10px">
+      <div class="invmode">
+        <span class="exchgrp" style="margin:0">库存口径：</span>
+        <div class="seg" id="invSeg">
+          <button data-v="single" class="on">单交易所显性库存</button>
+          <button data-v="global">全球合计(SHFE+LME+COMEX)</button>
+        </div>
+      </div>
+      <div class="invmode">
+        <span class="exchgrp" style="margin:0">库存指标：</span>
+        <div class="seg" id="invMetricSeg">
+          <button data-v="auto" class="on">自动最相关</button>
+          <button data-v="inventory_total">总库存</button>
+          <button data-v="inventory_circ">可流通库存</button>
+          <button data-v="inventory_warehouse">注册仓单</button>
+          <button data-v="inventory_bonded">保税区库存</button>
+        </div>
+      </div>
+      <div class="invmode">
+        <span class="exchgrp" style="margin:0">叠加：</span>
+        <div class="seg" id="basisSeg">
+          <button data-v="off" class="on">仅库存</button>
+          <button data-v="on">基差(现货-期货)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 期货品种搜索面板 -->
+    <div class="toolbar" style="margin-top:10px;flex-wrap:wrap">
+      <span class="exchgrp" style="margin:0">🔍 期货品种搜索：</span>
+      <input id="futSearchInput" placeholder="输入代码或名称，如 cu / 沪铜 / 原油 / IF / 螺纹" style="flex:1;min-width:240px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;outline:none">
+      <button id="futSearchBtn">搜索</button>
+      <button id="futSearchClear" class="ghost">清空</button>
+      <span id="futSearchSrc" style="font-size:12px;color:var(--sub)"></span>
+    </div>
+    <div id="futSearchBox" style="margin-top:8px"></div>
+
+    <div class="legend">
+      <span><i style="background:var(--up)"></i>期货收盘价(涨红)</span>
+      <span><i style="background:var(--down)"></i>期货收盘价(跌绿)</span>
+      <span><i style="background:var(--inv)"></i>库存(交易所仓单)</span>
+      <span><i style="background:#b39ddb"></i>基差(现货-期货)</span>
+    </div>
+    <div id="invKpi" class="stats"></div>
+    <div id="releaseRule" class="legend" style="margin-top:4px"></div>
+    <div id="dqBox" class="legend" style="margin-top:6px"></div>
+    <canvas id="chart"></canvas>
+    <div id="chartTip" style="position:fixed;display:none;pointer-events:none;background:#22223a;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;z-index:40;color:var(--txt);box-shadow:0 4px 16px rgba(0,0,0,.4);line-height:1.6"></div>
+    <div class="warn" id="demoWarn" style="display:none">等待数据加载…</div>
+    <div id="dataSrcBar" class="legend" style="margin-top:6px;color:var(--sub)"></div>
+  </div>
+
+  <!-- 全品种库存概览 -->
+  <div class="card">
+    <div class="toolbar">
+      <span class="exchgrp" style="margin:0">📊 全品种库存概览</span>
+      <span id="ovCount" style="font-size:12px;color:var(--sub)"></span>
+      <button class="ghost" id="ovRefreshBtn">🔄 刷新概览</button>
+      <button class="ghost" id="ovToggleBtn">收起</button>
+    </div>
+    <div id="ovBody">
+      <div style="overflow:auto;max-height:430px">
+        <table class="tbl" id="ovTable">
+          <thead><tr><th>交易所</th><th>品种</th><th>最新库存</th><th>日期</th><th>较前次</th><th>来源</th></tr></thead>
+          <tbody id="ovTbody"></tbody>
+        </table>
+      </div>
+      <div class="legend" style="margin-top:6px">库存单位：交易所仓单为<b>吨</b>；原油为<b>美国EIA周度原油库存变动（百万桶）</b>，跨市场对照，非INE仓单。点击任意行可加载该品种透视。</div>
+    </div>
+  </div>
+
+  <!-- 事件时间轴（移植自纸浆 SP 两个月库存与事件时间线） -->
+  <div class="card">
+    <div class="toolbar">
+      <span class="exchgrp" style="margin:0">📅 事件时间轴（库存·事件·价格·警示）</span>
+      <span id="evCount" style="font-size:12px;color:var(--sub)"></span>
+      <button class="ghost" id="evAddBtn">＋ 添加我的标注</button>
+      <button class="ghost" id="evClearBtn">清空我的标注</button>
+    </div>
+    <div class="evform" id="evForm">
+      <div class="row">
+        <label>日期</label><input type="date" id="evDate">
+        <label>类型</label>
+        <select id="evType">
+          <option value="inv">库存</option>
+          <option value="evt">事件</option>
+          <option value="price">价格</option>
+          <option value="warn">警示</option>
+        </select>
+        <label>标题</label><input type="text" id="evTitle" maxlength="60" placeholder="如：库存 228.1 万吨">
+      </div>
+      <div class="row">
+        <label>描述</label>
+        <textarea id="evDesc" maxlength="300" placeholder="补充信息（可选）"></textarea>
+      </div>
+      <div class="row">
+        <button id="evSaveBtn">保存标注</button>
+        <button class="ghost" id="evCancelBtn">取消</button>
+        <span id="evErr" class="warn" style="display:none;margin:0"></span>
+      </div>
+    </div>
+    <div class="tl" id="tlBox"></div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <span class="exchgrp" style="margin:0">📊 库存季节性（按自然月均值，跨年合并）</span>
+      <span id="seasonalSrc" style="font-size:12px;color:var(--sub)"></span>
+    </div>
+    <div id="seasonalBox" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <span class="exchgrp" style="margin:0">🏆 全品种相关性 Top N</span>
+      <select id="topN" style="background:#221a3a;color:#e6e6f0;border:1px solid #3a2f5c;border-radius:8px;padding:6px 8px">
+        <option value="5">Top 5</option>
+        <option value="10" selected>Top 10</option>
+        <option value="20">Top 20</option>
+        <option value="40">全部</option>
+      </select>
+      <button class="ghost" id="topNBtn">从后端计算</button>
+      <span id="topNSrc" style="font-size:12px;color:var(--sub)"></span>
+    </div>
+    <div id="corrBox"></div>
+    <div id="topNBox" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <span class="exchgrp" style="margin:0">数据明细：</span>
+      <div class="seg" id="tblSeg">
+        <button data-v="price" class="on">仅价格</button>
+        <button data-v="inv">仅库存</button>
+        <button data-v="both">价格+库存</button>
+      </div>
+      <button class="ghost" id="exportBtn">导出CSV</button>
+    </div>
+    <div id="tblBox" style="overflow:auto;max-height:300px"></div>
+  </div>
+
+  <div class="card">
+    <div class="note">
+      <b>期库镜怎么看「强相关」：</b><br>
+      库存与期货价格通常不是简单正相关。常见规律：<b>库存下降往往支撑价格（利多），库存累积往往压制价格（利空）</b>，即价格与库存多呈<b>负相关</b>。本工具用<b>皮尔逊相关系数 r</b> 定量刻画：<br>
+      · <span style="color:var(--down)">|r|≥0.6 强相关</span> · <span style="color:var(--inv)">0.3≤|r|<0.6 中等</span> · <span style="color:var(--up)">|r|<0.3 弱相关</span><br>
+      <span class="hr"></span>
+      <b>⚠️ 关于「库存数据到底代表什么」（你问的关键问题）：</b><br>
+      <b>每个交易所公布的库存 = 该交易所自家指定交割仓库里的显性库存，不是该品种全球总库存。</b><br>
+      · 例如选「沪铜」，看到的是 <b>SHFE 上海/广东/江苏/浙江/天津等地指定交割库</b>的库存；选「LME铜」是 <b>LME 全球 37 地 700+ 仓库</b>的库存；选「COMEX铜」是北美交割库库存——<b>三者各自独立统计，互相不是扩容合并</b>。<br>
+      · 同一品种（如铜）全球至少有 <b>SHFE + LME + COMEX 三套并行库存</b>，且会相互套利搬运（此消彼长），所以<b>单独看某一家意义有限，应看增量整体变化</b>。<br>
+      · 即便三家加起来也只是「<b>全球交易所显性库存</b>」，还有大量看不见的<b>隐性库存</b>：保税区库存、冶炼厂产品库存、贸易商存货、国储库存、融资铜（锁定在套利里的影子库存）。<br>
+      · 因此本工具提供「<b>全球合计</b>」视图（SHFE+LME+COMEX 相加），比单家更接近真实全局，但仍是<b>显性部分</b>。<br>
+      · 新增<b>多库存指标切换</b>：总库存、可流通库存、注册仓单、保税区库存。与价格相关的不一定是「总库存」，可流通库存/注册仓单往往反应更快、相关性更强；工具默认「自动最相关」帮你选出当前品种、当前区间里与价格相关度最高的指标。<br>
+      <span class="hr"></span>
+      <b>真实数据从哪来（联网查证后内置为接口钩子，模仿 StockSignal 数据源）：</b><br>
+      · <b>行情源</b>：模仿 StockSignal —— 默认<b>新浪实时行情</b> <code>hq.sinajs.cn/list=</code>（需 Referer: finance.sina.com.cn，GBK 解码）+ <b>akshare</b> 兜底（多源 fallback）。<br>
+      · <b>上期所 SHFE</b> 每周五库存周报：<code>akshare.futures_inventory_shfe(date="YYYYMMDD")</code>；大商所/郑商所/能源中心：<code>futures_inventory_dce/czce/ine</code>。<br>
+      · <b>外盘 LME</b>：官方 XML Feed 需授权；公开镜像 <code>westmetall.com</code> 每日发布 LME 铜铝锌铅镍锡库存总量，免授权可抓。<br>
+      · <b>外盘 COMEX</b>：CME 每日发布金银铜注册/交割库存报告（官网公开）。<br>
+      <span class="hr"></span>
+      <b>为什么默认是真实数据：</b>期库镜默认走真实数据——优先后端（本地缓存/akshare 真抓），无后端时回退内置<b>真实样本</b>（纸浆 SP 已收录 2026 公开实盘点）。纯前端单文件受 CORS 限制无法直接抓外网，故需后端代理；配置「真实数据接口」填入统一后端根地址（如 <code>http://127.0.0.1:8787</code>）即显示实时真实库存与行情。
+    </div>
+  </div>
+
+  <!-- 配置弹窗 -->
+  <div id="cfgModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;z-index:50">
+    <div class="card" style="width:560px;max-width:92vw">
+      <h1 style="font-size:18px">真实数据接口配置</h1>
+      <div class="note" style="margin:10px 0">
+        填入一个返回 JSON 的后端地址，本工具会用 <code>?symbol=品种代码&amp;mode=库存口径</code> 调用它。
+        期望返回格式：<code>[{ "date":"2026-08-01","close":68900,"inventory":152000 }, ...]</code>
+        （inventory 单位：吨；缺失字段用 null）。<br><br>
+        <b>行情源模仿 StockSignal</b>：行情走新浪 <code>hq.sinajs.cn</code> + akshare 兜底；库存走 akshare 各交易所接口或 westmetall/CME。
+      </div>
+      <input id="apiUrl" style="width:100%" placeholder="http://127.0.0.1:8787">
+      <div id="apiErr" class="warn" style="display:none;margin-top:8px"></div>
+      <div class="note" style="margin:8px 0">填入统一后端<b>根地址</b>即可，例如本地启动的 <code>http://127.0.0.1:8787</code>。后端需提供 <code>/api/futures</code>、<code>/api/corr_top</code>、<code>/api/search</code>。</div>
+      <div class="note" style="margin:8px 0">真实数据源：akshare 抓行情+多口径库存，模仿 StockSignal 多源 fallback。后端默认真实数据（本地缓存优先→akshare 真抓→离线样本兜底）；沙箱禁网时回退离线样本。</div>
+      <div class="toolbar" style="margin-top:10px;justify-content:flex-end">
+        <button class="ghost" id="cfgCancel">取消</button>
+        <button id="cfgSave">保存并应用</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+window.addEventListener("error", function(e){ appFatal(e.message); });
+window.addEventListener("unhandledrejection", function(e){ appFatal((e.reason && e.reason.message) || "未知错误"); });
+function appFatal(msg){
+  var d = document.getElementById("appFatalBar");
+  if(!d){ d = document.createElement("div"); d.id="appFatalBar";
+    d.style.cssText="position:fixed;left:0;right:0;bottom:0;background:#ff4d4f;color:#fff;font-size:12px;padding:10px 14px;z-index:9999;box-shadow:0 -2px 10px rgba(0,0,0,.5)";
+    (document.body||document.documentElement).appendChild(d); }
+  d.textContent = "⚠ 页面出错：" + msg;
+}
+/* ====================== 品种清单（按交易所） ====================== */
+const SYMBOLS = {
+  SHFE:[
+    {code:"cu",name:"沪铜"},{code:"al",name:"沪铝"},{code:"zn",name:"沪锌"},
+    {code:"pb",name:"沪铅"},{code:"ni",name:"沪镍"},{code:"sn",name:"沪锡"},
+    {code:"au",name:"沪金"},{code:"ag",name:"沪银"},{code:"rb",name:"螺纹钢"},
+    {code:"hc",name:"热轧卷板"},{code:"ss",name:"不锈钢"},{code:"ao",name:"氧化铝"},
+    {code:"ru",name:"天然橡胶"},{code:"nr",name:"20号胶"},{code:"bu",name:"沥青"},
+    {code:"fu",name:"燃料油"},{code:"bc",name:"国际铜"},{code:"sp",name:"纸浆"}
+  ],
+  DCE:[
+    {code:"a",name:"豆一"},{code:"m",name:"豆粕"},{code:"y",name:"豆油"},
+    {code:"p",name:"棕榈油"},{code:"c",name:"玉米"},{code:"cs",name:"玉米淀粉"},
+    {code:"pp",name:"聚丙烯"},{code:"v",name:"PVC"},{code:"l",name:"聚乙烯"},
+    {code:"j",name:"焦炭"},{code:"jm",name:"焦煤"},{code:"i",name:"铁矿石"},
+    {code:"jd",name:"鸡蛋"},{code:"eg",name:"乙二醇"},{code:"eb",name:"苯乙烯"},
+    {code:"pg",name:"液化石油气"},{code:"lh",name:"生猪"},
+    {code:"rr",name:"粳米"}
+  ],
+  CZCE:[
+    {code:"CF",name:"棉花"},{code:"SR",name:"白糖"},{code:"RM",name:"菜粕"},
+    {code:"TA",name:"PTA"},{code:"MA",name:"甲醇"},{code:"FG",name:"玻璃"},
+    {code:"OI",name:"菜油"},{code:"UR",name:"尿素"},
+    {code:"SA",name:"纯碱"},{code:"PF",name:"短纤"},{code:"PK",name:"花生"},
+    {code:"AP",name:"苹果"},{code:"CJ",name:"红枣"},{code:"PX",name:"对二甲苯"},
+    {code:"SH",name:"烧碱"}
+  ],
+  INE:[
+    {code:"sc",name:"原油"},{code:"lu",name:"低硫燃料油"},{code:"nr",name:"20号胶"}
+  ],
+  CFFEX:[
+    {code:"IF",name:"沪深300股指期货"},{code:"IC",name:"中证500股指期货"},
+    {code:"IH",name:"上证50股指期货"},{code:"IM",name:"中证1000股指期货"},
+    {code:"T",name:"10年期国债期货"},{code:"TF",name:"5年期国债期货"},
+    {code:"TS",name:"2年期国债期货"}
+  ],
+  LME:[
+    {code:"CAD",name:"LME铜"},{code:"LAH",name:"LME铝"},{code:"LZN",name:"LME锌"},
+    {code:"LPB",name:"LME铅"},{code:"LNI",name:"LME镍"},{code:"LSN",name:"LME锡"},
+    {code:"LAL",name:"LME铝(伦铝)"}
+  ],
+  COMEX:[
+    {code:"GC",name:"COMEX黄金"},{code:"SI",name:"COMEX白银"},{code:"HG",name:"COMEX铜"}
+  ]
+};
+
+/* 代码 -> 中文名 快速查找（用于相关性榜单等） */
+const NAME_MAP=new Map();
+for(const ex in SYMBOLS){
+  for(const s of SYMBOLS[ex]) NAME_MAP.set(ex+":"+s.code, s.name);
+}
+function symbolName(exchange, code){
+  return NAME_MAP.get(exchange+":"+code) || code;
+}
+const METRIC_NAMES={
+  inventory_total:"总库存", inventory_circ:"可流通库存",
+  inventory_warehouse:"注册仓单", inventory_bonded:"保税区库存"
+};
+
+/* 期货品种上市日期（用于「上市以来」区间） */
+const LISTING_DATES={
+  "SHFE:cu":"1991-03-01","SHFE:al":"1992-05-28","SHFE:zn":"2007-03-26","SHFE:pb":"2011-03-24",
+  "SHFE:ni":"2015-03-27","SHFE:sn":"2015-03-27","SHFE:au":"2008-01-09","SHFE:ag":"2012-05-10",
+  "SHFE:rb":"2009-03-27","SHFE:hc":"2014-03-21","SHFE:ss":"2019-09-25","SHFE:ao":"2023-06-19",
+  "SHFE:bc":"2020-11-19","SHFE:ru":"1993-03-01","SHFE:nr":"2019-08-12","SHFE:bu":"2013-10-09",
+  "SHFE:fu":"2004-08-25","SHFE:sp":"2018-11-27",
+  "DCE:a":"1993-11-18","DCE:m":"2000-07-17","DCE:y":"2006-01-09","DCE:p":"2007-10-29",
+  "DCE:c":"2004-09-22","DCE:cs":"2014-12-19","DCE:pp":"2014-02-28","DCE:v":"2009-05-25",
+  "DCE:l":"2007-07-31","DCE:j":"2011-04-15","DCE:jm":"2013-03-22","DCE:i":"2013-10-18",
+  "DCE:jd":"2013-11-08","DCE:eg":"2018-12-10","DCE:eb":"2019-09-26","DCE:pg":"2020-03-30",
+  "DCE:lh":"2021-01-08","DCE:rr":"2019-08-16",
+  "CZCE:TA":"2006-12-18","CZCE:MA":"2011-10-28","CZCE:SR":"2006-01-06","CZCE:CF":"2004-06-01",
+  "CZCE:FG":"2012-12-03","CZCE:RM":"2012-12-28","CZCE:OI":"2012-12-28","CZCE:UR":"2019-08-09",
+  "CZCE:SA":"2019-12-06","CZCE:PF":"2020-10-12","CZCE:PK":"2021-02-01","CZCE:AP":"2017-12-22",
+  "CZCE:CJ":"2019-04-30","CZCE:PX":"2023-09-15","CZCE:SH":"2023-09-15",
+  "INE:sc":"2018-03-26","INE:lu":"2020-06-22","INE:nr":"2019-08-12",
+  "CFFEX:IF":"2010-04-16","CFFEX:IC":"2015-04-16","CFFEX:IH":"2015-04-16","CFFEX:IM":"2022-07-22",
+  "CFFEX:T":"2013-09-06","CFFEX:TF":"2015-03-20","CFFEX:TS":"2018-08-17",
+  "LME:CAD":"1990-01-01","LME:LAH":"1990-01-01","LME:LZN":"1990-01-01",
+  "COMEX:GC":"1990-01-01","COMEX:HG":"1990-01-01"
+};
+
+/* 库存发布规则：weekday 0=周日...6=周六；真实交易所通常固定周几盘后发布 */
+const WEEKDAY_NAMES=["周日","周一","周二","周三","周四","周五","周六"];
+const EXCH_RELEASE_WEEKDAY={SHFE:5,DCE:3,CZCE:3,INE:5,LME:5,COMEX:5,CFFEX:3};
+const RELEASE_SCHEDULE={
+  "SHFE:cu":{weekday:5,time:"15:00",note:"每周五盘后更新"},
+  "SHFE:al":{weekday:5,time:"15:00"},
+  "SHFE:zn":{weekday:5,time:"15:00"},
+  "SHFE:pb":{weekday:5,time:"15:00"},
+  "SHFE:ni":{weekday:5,time:"15:00"},
+  "SHFE:sn":{weekday:5,time:"15:00"},
+  "SHFE:sp":{weekday:5,time:"15:00",note:"每周五盘后更新"},
+  "DCE:m":{weekday:3,time:"15:00"},
+  "CZCE:MA":{weekday:3,time:"15:00"},
+  "COMEX:GC":{weekday:5,time:"15:30"},
+  "COMEX:SI":{weekday:5,time:"15:30"},
+  "LME:CAD":{weekday:5,time:"17:00"},
+};
+function releaseInfo(exch,code){
+  return RELEASE_SCHEDULE[exch+":"+code] || {weekday:EXCH_RELEASE_WEEKDAY[exch]||3,time:"15:00",note:"每周"+WEEKDAY_NAMES[EXCH_RELEASE_WEEKDAY[exch]||3]+"盘后更新（默认规则）"};
+}
+
+/* 哪些品种有"全球合计"视图（同时存在于 SHFE/LME/COMEX 的金属） */
+const GLOBAL_MAP={
+  "SHFE:cu":["SHFE:cu","LME:CAD","COMEX:HG"],
+  "SHFE:bc":["SHFE:bc","LME:CAD","COMEX:HG"],
+  "SHFE:al":["SHFE:al","LME:LAH"],
+  "SHFE:zn":["SHFE:zn","LME:LZN"],
+  "SHFE:pb":["SHFE:pb","LME:LPB"],
+  "SHFE:ni":["SHFE:ni","LME:LNI"],
+  "SHFE:sn":["SHFE:sn","LME:LSN"],
+  "SHFE:au":["SHFE:au","COMEX:GC"],
+  "SHFE:ag":["SHFE:ag","COMEX:SI"]
+};
+
+/* ====================== 自选品种持久化（localStorage，跨会话保留） ====================== */
+const FAV_KEY = "fl_favorites_v1";
+function getFavorites(){
+  try { return JSON.parse(localStorage.getItem(FAV_KEY) || "[]"); } catch(e){ return []; }
+}
+function setFavorites(arr){
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(arr)); } catch(e){}
+}
+function isFavorite(ex, code){ return getFavorites().some(f => f.ex===ex && f.code===code); }
+function toggleFavorite(ex, code){
+  const arr = getFavorites();
+  const i = arr.findIndex(f => f.ex===ex && f.code===code);
+  if(i >= 0) arr.splice(i,1); else arr.push({ex, code});
+  setFavorites(arr);
+  return isFavorite(ex, code);
+}
+function renderFavorites(){
+  const box = document.getElementById("favBox");
+  if(!box) return;
+  const cur = document.getElementById("symbol").value;
+  const arr = getFavorites();
+  if(!arr.length){
+    box.innerHTML = '<span style="color:var(--sub);font-size:12px">（空）点 ★ 把当前品种加入自选，刷新或重开仍保留</span>';
+    return;
+  }
+  box.innerHTML = arr.map(f => {
+    const label = symbolName(f.ex, f.code);
+    const on = (f.ex===curExch && cur===f.code) ? " on" : "";
+    return `<span class="pill${on}" data-fav-ex="${f.ex}" data-fav-code="${f.code}">${esc(label)}`+
+           `<span style="margin-left:6px;opacity:.6;font-weight:600" data-fav-del="${f.ex}:${f.code}">✕</span></span>`;
+  }).join("");
+}
+function updateFavBtn(){
+  const btn = document.getElementById("favBtn");
+  if(!btn) return;
+  const cur = document.getElementById("symbol").value;
+  const on = cur ? isFavorite(curExch, cur) : false;
+  btn.textContent = on ? "★ 已选" : "☆ 加入自选";
+}
+
+let curExch="SHFE", curRange=90, curTbl="price", curInvMode="single", curInvMetric="auto", curBasis=false;
+let customStart=null, customEnd=null;
+let chartGeom=null;   // draw() 写入，图表悬停命中测试复用
+
+/* ====================== 内置演示数据生成 ====================== */
+function seeded(seed){ let s=seed%2147483647; if(s<=0)s+=2147483646;
+  return ()=> (s=s*16807%2147483647)/2147483647; }
+function genDemo(exch,code,scale){
+  const rnd=seeded((exch+code).split("").reduce((a,c)=>a+c.charCodeAt(0),0)*97+13+scale);
+  const N=365; const out=[];
+  let close=(40000+rnd()*40000)*scale, inv=(80000+rnd()*120000)*scale;
+  const today=new Date(2026,7,21);
+  for(let i=N-1;i>=0;i--){
+    const d=new Date(today); d.setDate(today.getDate()-i);
+    const weekPhase=Math.floor((N-1-i)/7);
+    const invTrend=Math.sin(weekPhase/6)*0.18;
+    const invNoise=(rnd()-0.5)*0.06;
+    inv=inv*(1+invTrend*0.04+invNoise*0.02); inv=Math.max(20000*scale,inv);
+    const priceTrend=-invTrend*0.5;
+    const priceNoise=(rnd()-0.5)*0.03;
+    close=close*(1+priceTrend*0.01+priceNoise); close=Math.max(1000*scale,close);
+    // 现货价：围绕期货小幅升贴水，供基差(现货-期货)展示，对齐 futures-combo 口径
+    const spot = close * (1 + 0.012*Math.sin(weekPhase/4) + (rnd()-0.5)*0.01);
+    // 多口径库存：可流通库存与价格相关最强，注册仓单/保税区次之
+    const circ=inv*(0.62+0.16*Math.sin(weekPhase/3));
+    const wh=inv*(0.32+0.08*Math.sin(weekPhase/5));
+    const bonded=inv*(0.24+0.12*Math.cos(weekPhase/4));
+    out.push({
+      date:d.toISOString().slice(0,10),
+      close:Math.round(close*100)/100,
+      spot:Math.round(spot*100)/100,
+      inventory:Math.round(inv),
+      inventory_total:Math.round(inv),
+      inventory_circ:Math.round(circ),
+      inventory_warehouse:Math.round(wh),
+      inventory_bonded:Math.round(bonded)
+    });
+  }
+  return out;
+}
+
+/* ====================== 真实接口（钩子，模仿 StockSignal 源） ====================== */
+let API_URL=localStorage.getItem("fl_api")||"";
+/* 校验用户填入的后端地址：仅允许 http/https，拒绝空串与危险协议 */
+function validateApiUrl(url){
+  const v=(url||"").trim();
+  if(!v) return {ok:false, msg:"请填写后端地址"};
+  let p; try{ p=new URL(v); }catch(e){ return {ok:false, msg:"地址格式不正确"}; }
+  if(p.protocol!=="http:" && p.protocol!=="https:") return {ok:false, msg:"仅支持 http/https 地址"};
+  return {ok:true, url:v};
+}
+/* 校验并规整后端返回：必须是含 date 字段的对象数组，数字字段转 number，缺失置 null */
+function normalizeRecords(j){
+  if(!Array.isArray(j)) return {ok:false, msg:"后端返回不是数组"};
+  if(!j.length) return {ok:false, msg:"后端返回为空"};
+  const rows=[];
+  for(const x of j){
+    if(x && typeof x==="object" && typeof x.date==="string"){
+      const toNum = v => (v==null ? null : (isFinite(+v) ? +v : null));
+      rows.push({
+        date:x.date,
+        close:toNum(x.close),
+        inventory:toNum(x.inventory),
+        inventory_total:toNum(x.inventory_total),
+        inventory_circ:toNum(x.inventory_circ),
+        inventory_warehouse:toNum(x.inventory_warehouse),
+        inventory_bonded:toNum(x.inventory_bonded)
+      });
+    }
+  }
+  if(!rows.length) return {ok:false, msg:"无有效记录（每条需含字符串 date 字段）"};
+  return {ok:true, rows};
+}
+function getApiBase(){
+  if(!API_URL) return "http://127.0.0.1:8787";
+  if(API_URL.includes("/api/futures")) return API_URL.replace(/\/api\/futures.*$/,"");
+  if(API_URL.includes("/api/")) return API_URL.replace(/\/api\/.*$/,"");
+  return API_URL.replace(/\/+$/,"");
+}
+function getApiRange(){
+  const t=new Date().toISOString().slice(0,10);
+  if(customStart && customEnd) return {start:customStart, end:customEnd};
+  return {start:addDaysISO(t,-(curRange||365)), end:t};
+}
+async function loadData(exch,code){
+  const key=exch+":"+code;
+  // 1) 真实后端（本地缓存/akshare 真抓，offline 时后端也回退样本）
+  try{
+    const range=getApiRange();
+    const u=getApiBase()+"/api/futures?exchange="+encodeURIComponent(exch)
+      +"&symbol="+encodeURIComponent(code)
+      +"&mode="+curInvMode
+      +"&start="+encodeURIComponent(range.start)
+      +"&end="+encodeURIComponent(range.end);
+    const r=await fetch(u,{cache:"no-store"});
+    if(r.ok){
+      const j=await r.json();
+      if(j.ok && Array.isArray(j.data)){
+        const nr=normalizeRecords(j.data);
+        if(nr.ok){
+          // 后端离线/akshare 失败时会回退合成样本并置 offline=true：
+          // 必须如实展示"合成演示"警告，绝不把合成数据当真实行情静默呈现
+          closeDemoWarn(!!j.offline, "backend");
+          return nr.rows;
+        }
+        console.warn("接口返回数据格式异常，回退真实样本：", nr.msg);
+      }
+    }
+  }catch(e){ console.warn("接口失败，尝试内置真实样本",e); }
+  // 2) 内置真实样本（纸浆 SP 等已收录公开真实数据），独立打开也默认真实
+  // 兼容大小写：REAL_DATA 用 SHFE:sp，但 URL/选择器可能传 SP/sp
+  function findRealSample(k){
+    if(REAL_DATA[k]) return REAL_DATA[k];
+    const parts=k.split(":");
+    if(parts.length===2){
+      const [ex,cd]=parts;
+      const variants=[ex+":"+cd.toLowerCase(), ex+":"+cd.toUpperCase(), ex.toUpperCase()+":"+cd.toLowerCase(), ex.toUpperCase()+":"+cd.toUpperCase()];
+      for(const v of variants) if(REAL_DATA[v]) return REAL_DATA[v];
+    }
+    return null;
+  }
+  const sample = findRealSample(key);
+  if(sample){
+    closeDemoWarn(false, "sample");
+    return sample.map(x=>({
+      date:x.date,
+      close:x.close==null?null:+x.close,
+      inventory:x.inventory==null?null:+x.inventory,
+      inventory_total:x.inventory_total==null?null:+x.inventory_total,
+      inventory_circ:x.inventory_circ==null?null:+x.inventory_circ,
+      inventory_warehouse:x.inventory_warehouse==null?null:+x.inventory_warehouse,
+      inventory_bonded:x.inventory_bonded==null?null:+x.inventory_bonded
+    }));
+  }
+  // 3) 合成演示（最后兜底，明确标注）
+  closeDemoWarn(true, "demo");
+  // 演示：global 模式把单家放大成多交易所之和
+  if(curInvMode==="global" && GLOBAL_MAP[key]){
+    const arr=GLOBAL_MAP[key];
+    let base=genDemo(exch,code,1);
+    for(let k=1;k<arr.length;k++){
+      const [e,c]=arr[k].split(":");
+      const d=genDemo(e,c,0.6+0.3*k);
+      base=base.map((b,i)=>({
+        date:b.date, close:b.close,
+        inventory:(b.inventory||0)+(d[i]?d[i].inventory||0:0),
+        inventory_total:(b.inventory_total||0)+(d[i]?d[i].inventory_total||0:0),
+        inventory_circ:(b.inventory_circ||0)+(d[i]?d[i].inventory_circ||0:0),
+        inventory_warehouse:(b.inventory_warehouse||0)+(d[i]?d[i].inventory_warehouse||0:0),
+        inventory_bonded:(b.inventory_bonded||0)+(d[i]?d[i].inventory_bonded||0:0)
+      }));
+    }
+    return base;
+  }
+  return genDemo(exch,code,1);
+}
+function closeDemoWarn(isDemo, source){
+  const el=document.getElementById("demoWarn");
+  const tag=document.getElementById("dataSourceTag");
+  const codeNow = document.getElementById("symbol") ? document.getElementById("symbol").value : "";
+  const crudeNow = (curExch==="INE" && (codeNow==="sc"||codeNow==="SC"));
+  if(isDemo){
+    el.style.display="block";
+    el.innerHTML='⚠️ 当前为合成演示数据（无后端且暂无真实样本时的兜底）。请启动本地后端 <code>http://127.0.0.1:8787</code> 或联网以获取实时真实库存与行情。';
+    if(tag){ tag.textContent=""; tag.style.color="var(--sub)"; }
+  }else{
+    el.style.display="none";
+    if(tag){
+      if(source==="backend"){
+        tag.textContent = crudeNow ? "✅ 已接入后端真实数据（美国EIA原油库存，akshare 抓取）" : "✅ 已接入后端真实数据（东方财富 akshare 抓取）";
+        tag.style.color="#00d486";
+      }else if(source==="sample"){
+        tag.textContent="✅ 已加载内置真实样本（公开历史实盘数据）";
+        tag.style.color="#00d486";
+      }else{
+        tag.textContent="";
+      }
+    }
+  }
+}
+
+/* ====================== 相关性 ====================== */
+function pearson(a,b){
+  const n=a.length; if(n<2)return NaN;
+  let sa=0,sb=0; a.forEach(x=>sa+=x); b.forEach(x=>sb+=x);
+  const ma=sa/n,mb=sb/n; let num=0,da=0,db=0;
+  for(let i=0;i<n;i++){const x=a[i]-ma,y=b[i]-mb;num+=x*y;da+=x*x;db+=y*y;}
+  const den=Math.sqrt(da*db); if(den===0)return NaN; return num/den;
+}
+/* 取日期对齐的 {close, inventory} 成对数据，跳过任一字段缺失的行。
+   真实接口允许 close/inventory 为 null（缺失字段），若分别过滤会导致两数组错位、
+   皮尔逊相关性算在错配的 pair 上 —— 这是接真实数据时的隐性正确性 bug。 */
+function corrPairs(data){
+  const closes=[], invs=[];
+  for(const d of data){ if(d.close!=null && d.inventory!=null){ closes.push(d.close); invs.push(d.inventory); } }
+  return {closes, invs};
+}
+function corrLabel(r){
+  const a=Math.abs(r);
+  if(a>=0.6)return {cls:"strong",txt:`强相关 (r=${r.toFixed(2)})`};
+  if(a>=0.3)return {cls:"mid",txt:`中等相关 (r=${r.toFixed(2)})`};
+  return {cls:"weak",txt:`弱相关 (r=${r.toFixed(2)})`};
+}
+const INV_METRIC_KEYS=["inventory_total","inventory_circ","inventory_warehouse","inventory_bonded"];
+function getInvValue(d, key){
+  if(!d) return null;
+  if(key==="auto") key=window.__bestInvMetric||"inventory_total";
+  return d[key]!=null ? d[key] : d.inventory;
+}
+function computeBestMetric(data){
+  const closes=data.map(d=>d.close).filter(v=>v!=null);
+  let best={key:"inventory_total", r:0};
+  for(const k of INV_METRIC_KEYS){
+    const invs=data.map(d=>d[k]).filter(v=>v!=null);
+    if(invs.length>=3 && closes.length===invs.length){
+      const r=pearson(closes,invs);
+      if(Math.abs(r)>Math.abs(best.r)) best={key:k, r:r};
+    }
+  }
+  return best;
+}
+function selectedMetricLabel(){
+  if(curInvMetric==="auto") return "自动（"+(METRIC_NAMES[window.__bestInvMetric]||"总库存")+"）";
+  return METRIC_NAMES[curInvMetric]||curInvMetric;
+}
+
+/* ====================== 库存同比/环比（与 futures-combo 口径对齐） ====================== */
+function pctChange(cur, prev){
+  if(cur==null || prev==null || prev===0) return null;
+  return (cur - prev) / Math.abs(prev);
+}
+/* 取某日期的库存值（用于环比 -30 天 / 同比 -365 天对比） */
+function invValueAt(data, date, metricKey){
+  const m = new Map(); data.forEach(d => m.set(d.date, d));
+  const d = m.get(date);
+  return d ? getInvValue(d, metricKey) : null;
+}
+/* 逐日计算环比(较前 30 天)与同比(较前 365 天)变化率；缺失对比日返回 null */
+function invChangeSeries(data, metricKey){
+  metricKey = (metricKey==="auto") ? (window.__bestInvMetric||"inventory_total") : metricKey;
+  return data.map(d => {
+    const cur = getInvValue(d, metricKey);
+    const prevM = invValueAt(data, addDaysISO(d.date, -30), metricKey);
+    const prevY = invValueAt(data, addDaysISO(d.date, -365), metricKey);
+    return { date:d.date, mom:pctChange(cur, prevM), yoy:pctChange(cur, prevY) };
+  });
+}
+/* 最新一条有库存数据的同比/环比（用于 KPI） */
+function latestInvChange(data, metricKey){
+  if(!data.length) return null;
+  const s = invChangeSeries(data, metricKey);
+  for(let i=data.length-1;i>=0;i--){
+    const v = getInvValue(data[i], metricKey);
+    if(v!=null) return { value:v, mom:s[i].mom, yoy:s[i].yoy };
+  }
+  return null;
+}
+/* 库存季节性：按自然月（1–12）跨年合并求均值，返回 12 元数组（无数据月为 null） */
+function seasonalProfile(data, metricKey){
+  metricKey = (metricKey==="auto") ? (window.__bestInvMetric||"inventory_total") : metricKey;
+  const sum = new Array(12).fill(0), cnt = new Array(12).fill(0);
+  data.forEach(d => {
+    const v = getInvValue(d, metricKey);
+    if(v==null) return;
+    const mo = parseInt(d.date.slice(5,7),10) - 1;
+    if(mo<0 || mo>11) return;
+    sum[mo] += v; cnt[mo]++;
+  });
+  return sum.map((s,i) => cnt[i] ? s/cnt[i] : null);
+}
+/* 基差 = 现货价 - 期货收盘价（与 futures-combo 口径一致）；缺字段返回 null */
+function computeBasis(d){
+  if(!d) return null;
+  if(d.spot==null || d.close==null) return null;
+  return +(d.spot - d.close).toFixed(2);
+}
+function basisSeries(data){ return (data||[]).map(d => computeBasis(d)); }
+/* 数据质量体检：统计缺失库存 / 负或零库存 / 异常跳变(日环比>50%) / 日期缺口(相邻>2天) */
+function dataQuality(data, metricKey){
+  metricKey = (metricKey==="auto") ? (window.__bestInvMetric||"inventory_total") : metricKey;
+  let total=0, missingInv=0, zeroOrNeg=0, anomalies=0;
+  let prevDate=null, gapRuns=0, prevVal=null;
+  for(const d of data){
+    total++;
+    const v = getInvValue(d, metricKey);
+    if(v==null){ missingInv++; }
+    else {
+      if(v<=0) zeroOrNeg++;
+      if(prevVal!=null && prevVal!==0){
+        const jump = Math.abs((v-prevVal)/Math.abs(prevVal));
+        if(jump>0.5) anomalies++;
+      }
+      prevVal = v;
+    }
+    if(prevDate){
+      const diff = (new Date(d.date) - new Date(prevDate)) / 86400000;
+      if(diff>1) gapRuns++;
+    }
+    prevDate = d.date;
+  }
+  return { total, missingInv, zeroOrNeg, anomalies, gapRuns };
+}
+
+/* ====================== 绘制（Canvas 双轴折线） ====================== */
+function draw(){
+  const code=document.getElementById("symbol").value;
+  let data=currentView();
+  if(customStart||customEnd){ document.querySelectorAll("#rangeSeg button").forEach(b=>b.classList.remove("on")); }
+  if(data.length===0){ const cv=document.getElementById("chart");const ctx=cv.getContext("2d");ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle="#9a9ab0";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("该区间无数据",cv.clientWidth/2,cv.clientHeight/2);return; }
+  const cv=document.getElementById("chart");
+  const dpr=window.devicePixelRatio||1; const W=cv.clientWidth,H=cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr; const ctx=cv.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  const padL=58,padR=64,padT=18,padB=46; const plotW=W-padL-padR, plotH=H-padT-padB;
+  const X=i=> padL + plotW*(i/(data.length-1||1));
+  chartGeom={padL, plotW, n:data.length, getX:X};
+
+  // 自动选择当前区间与价格最相关的库存指标
+  const isCrude=(curExch==="INE" && (code==="sc"||code==="SC"));
+  let metricKey, metricName;
+  if(isCrude){
+    // 原油(sc) 无交易所仓单口径，接入美国EIA周度原油库存变动(百万桶)作为真实库存信号
+    metricKey="eia_crude_change"; metricName="美国EIA原油库存变动";
+    window.__bestInvMetric="eia_crude_change";
+  } else {
+    const best=computeBestMetric(data);
+    window.__bestInvMetric=best.key;
+    metricKey=curInvMetric==="auto" ? best.key : curInvMetric;
+    metricName=METRIC_NAMES[metricKey]||"库存";
+  }
+  const curInvUnit = isCrude ? "百万桶(周变动)" : "吨";
+  let lastEiaDate = null;
+
+  // KPI：最新库存 + 环比(-30天) + 同比(-365天)，对齐 futures-combo 字段口径
+  const chg = latestInvChange(data, metricKey);
+  const kpi = document.getElementById("invKpi");
+  if(kpi){
+    const fmt = v => v==null ? "—" : (v>=0?"+":"") + (v*100).toFixed(1) + "%";
+    const col = v => v==null ? "var(--sub)" : (v>=0 ? "var(--inv)" : "var(--down)");
+    let html;
+    if(isCrude){
+      for(let i=data.length-1;i>=0;i--){ if(data[i].eia_crude_change!=null){ lastEiaDate=data[i].date; break; } }
+      const latest = chg && chg.value!=null ? (chg.value>=0?"+":"")+chg.value.toFixed(1) : "—";
+      html = "最新EIA库存变动 <b>" + latest + "</b> 百万桶（周变动，数据截至 " + (lastEiaDate||"—") + "）";
+    } else {
+      html = "最新库存 <b>" + (chg && chg.value!=null ? Math.round(chg.value).toLocaleString() : "—") + "</b> 吨" +
+        " · 环比 <b style=\"color:" + (chg?col(chg.mom):"var(--sub)") + "\">" + (chg?fmt(chg.mom):"—") + "</b>" +
+        " · 同比 <b style=\"color:" + (chg?col(chg.yoy):"var(--sub)") + "\">" + (chg?fmt(chg.yoy):"—") + "</b>";
+    }
+    if(curBasis){
+      let lastBasis=null;
+      for(let i=data.length-1;i>=0;i--){ const b=computeBasis(data[i]); if(b!=null){ lastBasis=b; break; } }
+      if(lastBasis!=null) html += " · 基差 <b style=\"color:#b39ddb\">" + (lastBasis>=0?"+":"") + Math.round(lastBasis).toLocaleString() + "</b> 元/吨";
+    }
+    kpi.innerHTML = html;
+  }
+  // 库存线单位 + 来源标注（常驻图表下方，明确单位/口径/来源）
+  const srcBar=document.getElementById("dataSrcBar");
+  if(srcBar){
+    if(isCrude){
+      srcBar.innerHTML = `单位：<b>百万桶(周变动)</b> · 口径：美国EIA原油库存变动 · 来源：<b style="color:#00d486">美国 EIA 周度</b> · 数据截至 ${lastEiaDate||"—"} `
+        + `<button id="eiaLiveBtn" class="ghost" style="margin-left:8px;padding:2px 8px;font-size:11px">🔄 实时 EIA</button>`
+        + `<span id="eiaLive" style="margin-left:6px;color:#b39ddb"></span>`;
+      const eb=document.getElementById("eiaLiveBtn");
+      if(eb) eb.addEventListener("click", async ()=>{
+        const el=document.getElementById("eiaLive");
+        el.textContent="拉取中…";
+        try{
+          const r=await fetch(getApiBase()+"/api/eia_crude",{cache:"no-store"});
+          const j=await r.json();
+          if(j.ok){ el.textContent="实时 EIA 库存 "+j.value_mbbl+" 百万桶（截至 "+j.period+"）"; }
+          else if(j.reason==="missing_key"){ el.textContent="未配置 EIA_API_KEY："+j.hint; }
+          else { el.textContent="实时拉取失败："+ (j.error||j.reason); }
+        }catch(e){ el.textContent="请求失败："+e.message; }
+      });
+    } else {
+      srcBar.innerHTML = `单位：<b>吨</b> · 口径：${metricName} · 来源：<b style="color:#00d486">东方财富 akshare（交易所显性仓单）</b>`;
+    }
+  }
+
+  // 发布规则提示
+  const rule = releaseInfo(curExch, code);
+  const ruleEl = document.getElementById("releaseRule");
+  if(ruleEl){
+    ruleEl.innerHTML = `<span><i style="background:#f6c453"></i>库存发布日：${WEEKDAY_NAMES[rule.weekday]} ${rule.time || ""} ${rule.note ? "· " + esc(rule.note) : ""}</span>`+
+      `<span style="margin-left:12px"><i style="background:#ff7a7a"></i>红点 = 发布节点，标注 增库/减库 + 库存变动 + 星期</span>`;
+  }
+
+  const closes=data.map(d=>d.close).filter(v=>v!=null);
+  const invs=data.map(d=>getInvValue(d,metricKey)).filter(v=>v!=null);
+  const hasInv=invs.length>0;
+  const cMin=closes.length?Math.min(...closes):0, cMax=closes.length?Math.max(...closes):0;
+  const iMin=hasInv?Math.min(...invs):0, iMax=hasInv?Math.max(...invs):0;
+  const cPad=(cMax-cMin)*0.08||1, iPad=(iMax-iMin)*0.08||1;
+  const cLo=cMin-cPad,cHi=cMax+cPad;
+  // 无库存时给一个占位的"空轴"范围，避免 Yi 除以 0 导致线条挤在底部
+  const iLo=hasInv?(iMin-iPad):-1, iHi=hasInv?(iMax+iPad):1;
+  const Yc=v=> padT + plotH*(1-(v-cLo)/(cHi-cLo||1));
+  const Yi=v=> padT + plotH*(1-(v-iLo)/(iHi-iLo||1));
+  ctx.font="11px sans-serif"; ctx.textBaseline="middle";
+  for(let g=0;g<=4;g++){
+    const y=padT+plotH*g/4; ctx.strokeStyle="rgba(255,255,255,.06)"; ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();
+    ctx.fillStyle="#9a9ab0"; ctx.textAlign="right"; ctx.fillText(((cHi-(cHi-cLo)*g/4)).toFixed(0),padL-6,y);
+    if(hasInv){
+      ctx.textAlign="left"; ctx.fillStyle="#f6c453"; ctx.fillText(((iHi-(iHi-iLo)*g/4)).toFixed(0),W-padR+6,y);
+    }
+  }
+  ctx.fillStyle="#9a9ab0"; ctx.textAlign="center"; ctx.textBaseline="top";
+  const ticks=5;
+  for(let g=0;g<=ticks;g++){ const i=Math.round((data.length-1)*g/ticks); const x=X(i); ctx.fillText(data[i].date.slice(5),x,padT+plotH+8); }
+
+  if(hasInv){
+    // 库存线性图（黄色实线），缺失点自动断开
+    ctx.strokeStyle="#f6c453"; ctx.lineWidth=2; ctx.beginPath(); let started=false;
+    data.forEach((d,i)=>{ const v=getInvValue(d,metricKey); if(v==null){started=false;return;} const x=X(i),y=Yi(v); if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y); });
+    ctx.stroke();
+
+    // 库存发布节点标注：在发布日绘制增库/减库 + 吨数 + 星期
+    const rel = releaseInfo(curExch, code);
+    ctx.font = "10px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    data.forEach((d,i)=>{
+      if(i===0) return;
+      const v = getInvValue(d, metricKey);
+      if(v==null) return;
+      const dt = new Date(d.date + "T00:00:00Z");
+      if(dt.getUTCDay() !== rel.weekday) return;
+      // 找上一个有效库存点作为比较基准
+      let pi = i-1; while(pi>=0 && getInvValue(data[pi], metricKey)==null) pi--;
+      if(pi<0) return;
+      const pv = getInvValue(data[pi], metricKey);
+      const delta = v - pv;
+      const x = X(i), y = Yi(v);
+      // 发布节点高亮点
+      ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fillStyle = delta>=0 ? "#ff7a7a" : "#00d486"; ctx.fill();
+      // 标签：增库/减库 + 吨数 + 星期
+      const sign = delta>=0 ? "+" : "";
+      const unit = isCrude ? "百万桶" : "吨";
+      const txt = (delta>=0 ? "增库 " : "减库 ") + sign + (isCrude ? delta.toFixed(1) : Math.round(delta).toLocaleString()) + unit + " " + WEEKDAY_NAMES[rel.weekday];
+      ctx.fillStyle = delta>=0 ? "#ff7a7a" : "#00d486";
+      ctx.fillText(txt, x, y - 8);
+    });
+  } else {
+    // 库存完全缺失时，在图表右区给出明显提示，避免右侧出现 -1/0/1 伪轴
+    ctx.save();
+    ctx.fillStyle="rgba(246,196,83,.35)"; ctx.font="bold 13px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText("当前区间暂无库存数据", padL + plotW*0.72, padT + plotH/2);
+    ctx.font="11px sans-serif"; ctx.fillStyle="rgba(246,196,83,.22)";
+    ctx.fillText("已仅显示价格走势", padL + plotW*0.72, padT + plotH/2 + 18);
+    ctx.restore();
+  }
+
+  ctx.lineWidth=2;
+  data.forEach((d,i)=>{
+    if(d.close==null)return; const x=X(i),y=Yc(d.close); const prev=i>0?data[i-1].close:null;
+    ctx.strokeStyle=(prev==null||d.close>=prev)?"#ff4d4f":"#00d486";
+    if(i>0&&prev!=null){ ctx.beginPath(); ctx.moveTo(X(i-1),Yc(prev)); ctx.lineTo(x,y); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.arc(x,y,1.5,0,7); ctx.fillStyle=ctx.strokeStyle; ctx.fill(); }
+  });
+  ctx.fillStyle="#9a9ab0"; ctx.textAlign="left"; ctx.textBaseline="top"; ctx.fillText("收盘价",padL-50,4);
+  let rightLabel=hasInv?(metricName+"("+curInvUnit+")"):(metricName+"("+curInvUnit+") · 暂无数据");
+  if(curBasis){
+    const bvals=basisSeries(data);
+    const bnums=bvals.filter(v=>v!=null);
+    if(bnums.length){
+      const bMin=Math.min(...bnums), bMax=Math.max(...bnums);
+      const bPad=(bMax-bMin)*0.08||1, bLo=bMin-bPad, bHi=bMax+bPad;
+      const Yi_b=v=> padT + plotH*(1-(v-bLo)/(bHi-bLo||1));
+      ctx.strokeStyle="#b39ddb"; ctx.lineWidth=1.5; ctx.setLineDash([5,4]); ctx.beginPath(); let bst=false;
+      data.forEach((d,i)=>{ const v=computeBasis(d); if(v==null){bst=false;return;} const x=X(i),y=Yi_b(v); if(!bst){ctx.moveTo(x,y);bst=true;}else ctx.lineTo(x,y); });
+      ctx.stroke(); ctx.setLineDash([]);
+      rightLabel += " · 基差(元/吨)";
+    }
+  }
+  ctx.fillStyle="#f6c453"; ctx.fillText(rightLabel,W-padR-2,4);
+  const pairs=data.filter(d=>d.close!=null && getInvValue(d,metricKey)!=null);
+  const r=pearson(pairs.map(d=>d.close), pairs.map(d=>getInvValue(d,metricKey)));
+  const box=document.getElementById("corrBox");
+  if(!isNaN(r)){
+    const l=corrLabel(r);
+    box.innerHTML=`<span class="corr ${l.cls}">价格 × ${metricName}：${l.txt}</span>`+
+      (curInvMetric==="auto"?` <span style="font-size:11px;color:var(--sub)">已自动选最相关指标</span>`:"");
+  } else box.innerHTML="";
+}
+
+/* ====================== 表格 ====================== */
+function renderTable(){
+  let data=currentView();
+  const box=document.getElementById("tblBox");
+  const isCrude=(curExch==="INE"&&(document.getElementById("symbol").value==="sc"||document.getElementById("symbol").value==="SC"));
+  const metricName=METRIC_NAMES[curInvMetric==="auto"?(window.__bestInvMetric||"inventory_total"):curInvMetric]||"库存";
+  let h="<table><thead><tr><th>日期</th>";
+  if(curTbl!=="inv")h+="<th>收盘价</th>";
+  if(curTbl!=="price")h+=`<th>${isCrude?"美国EIA原油库存(百万桶)":metricName+"(吨)"}</th>`;
+  h+="</tr></thead><tbody>";
+  data.slice().reverse().slice(0,200).forEach(d=>{
+    h+=`<tr><td>${d.date}</td>`;
+    if(curTbl!=="inv")h+=`<td style="color:var(--txt)">${d.close??"-"}</td>`;
+    if(curTbl!=="price")h+=`<td style="color:var(--inv)">${getInvValue(d,curInvMetric)??"-"}</td>`;
+    h+="</tr>";
+  });
+  h+="</tbody></table>"; box.innerHTML=h;
+}
+
+/* 库存季节性可视化：按自然月均值横向条形 */
+function renderSeasonal(){
+  const box = document.getElementById("seasonalBox");
+  if(!box) return;
+  const data = currentView();
+  const metricKey = curInvMetric==="auto" ? (window.__bestInvMetric||"inventory_total") : curInvMetric;
+  const prof = seasonalProfile(data, metricKey);
+  const valid = prof.filter(v => v!=null);
+  const src = document.getElementById("seasonalSrc");
+  if(!valid.length){
+    box.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:8px">当前区间数据不足以计算季节性（需跨月样本）</div>';
+    if(src) src.textContent = "";
+    return;
+  }
+  const mx = Math.max(...valid), mn = Math.min(...valid);
+  let h = '<div style="display:flex;flex-direction:column;gap:4px">';
+  prof.forEach((v, i) => {
+    if(v==null){
+      h += '<div style="display:grid;grid-template-columns:40px 1fr 76px;gap:8px;font-size:12px;color:var(--sub)"><span>'+(i+1)+'月</span><span>—</span><span>—</span></div>';
+      return;
+    }
+    const w = Math.max(4, (v-mn)/((mx-mn)||1) * 100);
+    h += '<div style="display:grid;grid-template-columns:40px 1fr 76px;gap:8px;font-size:12px;align-items:center">'+
+         '<span style="color:var(--sub)">'+(i+1)+'月</span>'+
+         '<span style="background:#1a1a2e;border-radius:5px;height:12px;overflow:hidden"><i style="display:block;width:'+w+'%;height:100%;background:var(--inv)"></i></span>'+
+         '<span style="text-align:right;color:var(--txt)">'+Math.round(v).toLocaleString()+'</span></div>';
+  });
+  h += '</div>';
+  box.innerHTML = h;
+  if(src) src.textContent = "口径：" + (METRIC_NAMES[metricKey]||"库存") + " · 样本 " + data.length + " 天";
+}
+/* 数据质量徽标：提示缺失/异常，避免用户在脏数据上误判相关性 */
+function renderDQ(){
+  const box = document.getElementById("dqBox");
+  if(!box) return;
+  const data = currentView();
+  const metricKey = curInvMetric==="auto" ? (window.__bestInvMetric||"inventory_total") : curInvMetric;
+  const q = dataQuality(data, metricKey);
+  if(!q.total){ box.innerHTML = '<span style="color:var(--sub)">数据质量：无数据</span>'; return; }
+  const issues = q.missingInv + q.zeroOrNeg + q.anomalies + q.gapRuns;
+  const level = issues===0 ? {cls:"strong",txt:"良好"} : (issues<=3 ? {cls:"mid",txt:"注意"} : {cls:"weak",txt:"异常偏多"});
+  box.innerHTML = '<span class="corr ' + level.cls + '">数据质量：' + level.txt +
+    (issues===0 ? '' : (' · 缺失 ' + q.missingInv + ' · 负/零库存 ' + q.zeroOrNeg + ' · 异常跳变 ' + q.anomalies + ' · 日期缺口 ' + q.gapRuns)) +
+    '</span>';
+}
+
+/* ====================== 当前视图（draw / table / export 共用） ====================== */
+function currentView(){
+  let data = window.__data || [];
+  if(customStart || customEnd){
+    data = data.filter(d => (!customStart || d.date >= customStart) && (!customEnd || d.date <= customEnd));
+  } else if(curRange > 0){
+    data = data.slice(-curRange);
+  }
+  return data;
+}
+
+/* ISO 日期 ±N 天（用 UTC 避免时区错位） */
+function addDaysISO(iso, days){
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+/* 解析并校验自定义区间：补默认、防起>止、防未来日、统一 ISO 横杠(兼容 2025/08/25 输入)；返回 {ok,start,end,msg} */
+function parseRange(start, end, today){
+  const t = today || new Date().toISOString().slice(0, 10);
+  const norm = v => (v || "").trim().replace(/[\/\\.]/g, "-");
+  let s = norm(start), e = norm(end);
+  if(!s && !e) return { ok:false, msg:"请至少填写一个日期" };
+  if(!e) e = t;
+  if(!s) s = addDaysISO(e, -365);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return { ok:false, msg:"开始日期格式应为 YYYY-MM-DD" };
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(e)) return { ok:false, msg:"结束日期格式应为 YYYY-MM-DD" };
+  if(s > e) return { ok:false, msg:"开始日期不能晚于结束日期" };
+  if(e > t) return { ok:false, msg:"结束日期不能晚于今天（" + t + "）" };
+  return { ok:true, start:s, end:e };
+}
+
+/* 画布 x 坐标 -> 最近数据点索引（纯函数，便于单测） */
+function hitTestIndex(x, n, padL, plotW){
+  if(!n || n < 1) return -1;
+  const i = Math.round((x - padL) / plotW * (n - 1));
+  return Math.max(0, Math.min(n - 1, i));
+}
+
+/* 图表悬停十字定位 + 浮窗，读出日期/收盘价/库存 */
+function attachChartHover(){
+  const cv = document.getElementById("chart");
+  const tip = document.getElementById("chartTip");
+  if(!cv || !tip) return;
+  cv.addEventListener("mousemove", ev => {
+    if(!chartGeom || !chartGeom.n){ tip.style.display = "none"; return; }
+    const rect = cv.getBoundingClientRect();
+    const i = hitTestIndex(ev.clientX - rect.left, chartGeom.n, chartGeom.padL, chartGeom.plotW);
+    const view = currentView();
+    const d = view[i];
+    if(!d){ tip.style.display = "none"; return; }
+    tip.style.display = "block";
+    tip.style.left = (ev.clientX + 14) + "px";
+    tip.style.top = (ev.clientY + 14) + "px";
+    const metricName=METRIC_NAMES[curInvMetric==="auto"?(window.__bestInvMetric||"inventory_total"):curInvMetric]||"库存";
+    let evHtml = "";
+    if(Array.isArray(curEvents)){
+      const evs = curEvents.filter(e=>e.date===d.date);
+      if(evs.length){
+        evHtml += '<hr style="border:none;border-top:1px solid rgba(255,255,255,.15);margin:4px 0">';
+        evs.forEach(e=>{
+          const tagc={inv:"#9aa6ff",evt:"#f6c453",price:"#00d486",warn:"#ff4d4f"}[e.type]||"#9aa6ff";
+          evHtml += `<div style="font-size:11px;margin-top:2px"><span style="color:${tagc};font-weight:600">[${esc(e.tag||tagFor(e.type))}]</span> ${esc(e.title)}</div>`;
+        });
+      }
+    }
+    let basisHtml = "";
+    if(curBasis){ const b=computeBasis(d); if(b!=null) basisHtml = "<br>基差(现货-期货)：" + b + " 元/吨"; }
+    tip.innerHTML = `<b>${d.date}</b><br>收盘价：${d.close == null ? "-" : d.close}<br>${metricName}：${getInvValue(d,curInvMetric) == null ? "-" : getInvValue(d,curInvMetric)} 吨` + basisHtml + evHtml;
+  });
+  cv.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+}
+
+/* ====================== CSV 导出 ====================== */
+function csvCell(v){
+  if(v == null) return "";
+  const s = String(v);
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function toCSV(rows, mode){
+  mode = mode || "both";
+  const metricName=METRIC_NAMES[curInvMetric==="auto"?(window.__bestInvMetric||"inventory_total"):curInvMetric]||"库存";
+  const head = ["日期"];
+  if(mode !== "inv") head.push("收盘价");
+  if(mode !== "price") head.push(metricName + "(吨)");
+  const lines = [head.join(",")];
+  (rows || []).forEach(d => {
+    const cells = [csvCell(d.date)];
+    if(mode !== "inv") cells.push(csvCell(d.close));
+    if(mode !== "price") cells.push(csvCell(getInvValue(d,curInvMetric)));
+    lines.push(cells.join(","));
+  });
+  return lines.join("\r\n");
+}
+function exportCSV(){
+  const data = currentView();
+  if(!data.length){ alert("当前区间没有可导出的数据"); return; }
+  const csv = toCSV(data, curTbl);
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });   // BOM 让 Excel 正确识别 UTF-8
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const sym = document.getElementById("symbol").value || "data";
+  a.href = url; a.download = `期库镜_${curExch}_${sym}_${curInvMode}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* ====================== 交互 ====================== */
+function fillSymbols(){
+  const sel=document.getElementById("symbol"); sel.innerHTML="";
+  SYMBOLS[curExch].forEach(s=>{const o=document.createElement("option");o.value=s.code;o.textContent=s.name;sel.appendChild(o);});
+}
+async function refresh(){
+  const btn=document.getElementById("drawBtn");
+  const code=document.getElementById("symbol").value;
+  if(btn){ btn.disabled=true; btn.textContent="加载中…"; }
+  try{
+    window.__data=await loadData(curExch,code);
+    await loadBackendEvents(code);   // 可选：拉取后端事件
+    draw(); renderTable(); renderTimeline();
+    updateFavBtn(); renderFavorites(); renderSeasonal(); renderDQ();
+  }
+  finally{ if(btn){ btn.disabled=false; btn.textContent="绘制透视"; } }
+}
+async function refreshBackend(){
+  const code=document.getElementById("symbol").value;
+  const btn=document.getElementById("refreshBtn");
+  const tag=document.getElementById("dataSourceTag");
+  if(btn){ btn.disabled=true; btn.textContent="🔄 刷新中…"; }
+  try{
+    const u=getApiBase()+"/api/refresh?exchange="+encodeURIComponent(curExch)+"&symbol="+encodeURIComponent(code);
+    const r=await fetch(u,{method:"POST",cache:"no-store"});
+    const j=await r.json();
+    if(j.ok){
+      const isC = (curExch==="INE" && (code==="sc"||code==="SC"));
+      if(tag){ tag.textContent= isC
+        ? "✅ 已刷新 EIA 原油库存变动 "+j.filled+" 天，最新 "+(j.last_inventory!=null?("+"+j.last_inventory.toFixed(1)+" 百万桶"):"—")
+        : "✅ 已刷新 "+j.filled+" 天库存，最新 "+(j.last_inventory!=null?Math.round(j.last_inventory).toLocaleString():"—")+" 吨"; tag.style.color="#00d486"; }
+      await refresh();
+    }else{
+      alert("刷新失败："+(j.error||"未知错误"));
+      if(tag){ tag.textContent="❌ 刷新失败："+(j.error||"未知错误"); tag.style.color="var(--up)"; }
+    }
+  }catch(e){
+    alert("刷新请求失败："+e.message);
+    if(tag){ tag.textContent="❌ 刷新请求失败："+e.message; tag.style.color="var(--up)"; }
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent="🔄 刷新数据"; }
+  }
+}
+
+/* ====================== 全品种库存概览表 ====================== */
+async function loadOverview(){
+  const tbody=document.getElementById("ovTbody");
+  if(!tbody) return;
+  const base=getApiBase();
+  try{
+    const r=await fetch(base+"/api/inventory_overview",{cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.error||"overview fail");
+    const items=j.items||[];
+    const cnt=document.getElementById("ovCount"); if(cnt) cnt.textContent="共 "+items.length+" 个品种";
+    tbody.innerHTML=items.map(it=>{
+      const name=symbolName(it.exchange,it.symbol)||it.symbol;
+      const isE=it.source==="EIA";
+      const inv = it.has_inv ? (isE ? (it.last_inv>=0?"+":"")+it.last_inv.toFixed(1)+" 百万桶" : Math.round(it.last_inv).toLocaleString()+" 吨") : "—";
+      const chg = (it.has_inv && it.change!=null) ? (it.change>=0?"+":"")+(isE?it.change.toFixed(1):Math.round(it.change).toLocaleString()) : "—";
+      const chgColor = it.change==null ? "var(--sub)" : (it.change>=0 ? "#ff7a7a" : "#00d486");
+      const src = isE ? "美国EIA周度" : "交易所仓单";
+      return '<tr data-ex="'+it.exchange+'" data-code="'+it.symbol+'" style="cursor:pointer">'+
+        '<td>'+it.exchange+'</td>'+
+        '<td>'+name+'<span style="color:var(--sub);font-size:11px;margin-left:4px">'+it.symbol+'</span></td>'+
+        '<td>'+inv+'</td>'+
+        '<td>'+(it.last_date||"—")+'</td>'+
+        '<td style="color:'+chgColor+'">'+chg+'</td>'+
+        '<td>'+src+'</td></tr>';
+    }).join("");
+    tbody.querySelectorAll("tr").forEach(tr=>{
+      tr.addEventListener("click",()=>{
+        const ex=tr.getAttribute("data-ex"), code=tr.getAttribute("data-code");
+        selectAndLoad(ex, code, symbolName(ex,code));
+        window.scrollTo({top:0,behavior:"smooth"});
+      });
+    });
+  }catch(e){
+    tbody.innerHTML='<tr><td colspan="6" style="color:var(--sub);padding:10px">概览加载失败（后端未启动？）：'+e.message+'</td></tr>';
+  }
+}
+
+document.querySelectorAll(".pill[data-exch]").forEach(p=>p.addEventListener("click",()=>{
+  document.querySelectorAll(".pill[data-exch]").forEach(x=>x.classList.remove("on"));
+  p.classList.add("on"); curExch=p.dataset.exch; fillSymbols(); refresh();
+}));
+function showRangeWarn(msg){ const el=document.getElementById("rangeWarn"); if(msg){el.textContent="⚠ "+msg;el.style.display="inline-block";} else {el.textContent="";el.style.display="none";} }
+document.getElementById("rangeSeg").addEventListener("click",e=>{
+  if(!e.target.dataset.r) return;
+  document.querySelectorAll("#rangeSeg button").forEach(b=>b.classList.remove("on"));
+  e.target.classList.add("on");
+  showRangeWarn("");
+  const r=e.target.dataset.r;
+  const t=new Date().toISOString().slice(0,10);
+  if(r==="listing"){
+    const key=curExch+":"+document.getElementById("symbol").value;
+    const listDate=LISTING_DATES[key];
+    if(listDate){
+      customStart=listDate; customEnd=t; curRange=0;
+      document.getElementById("dateStart").value=listDate;
+      document.getElementById("dateEnd").value=t;
+      refresh(); return;
+    }
+    showRangeWarn("该品种暂无上市日期记录，已切回近1年");
+    customStart=addDaysISO(t,-365); customEnd=t; curRange=0;
+  } else {
+    curRange=0;
+    customStart=addDaysISO(t,-(+r)); customEnd=t;
+  }
+  document.getElementById("dateStart").value=customStart;
+  document.getElementById("dateEnd").value=customEnd;
+  refresh();
+});
+document.getElementById("applyRange").addEventListener("click",()=>{
+  const today=new Date().toISOString().slice(0,10);
+  const r=parseRange(document.getElementById("dateStart").value, document.getElementById("dateEnd").value, today);
+  if(!r.ok){ showRangeWarn(r.msg); return; }
+  showRangeWarn("");
+  customStart=r.start; customEnd=r.end; curRange=0;
+  draw(); renderTable(); renderSeasonal(); renderDQ();
+});
+document.getElementById("invSeg").addEventListener("click",e=>{
+  if(e.target.dataset.v){document.querySelectorAll("#invSeg button").forEach(b=>b.classList.remove("on"));e.target.classList.add("on");curInvMode=e.target.dataset.v;refresh();}
+});
+document.getElementById("invMetricSeg").addEventListener("click",e=>{
+  if(e.target.dataset.v){document.querySelectorAll("#invMetricSeg button").forEach(b=>b.classList.remove("on"));e.target.classList.add("on");curInvMetric=e.target.dataset.v;draw();renderTable();renderSeasonal();renderDQ();}
+});
+document.getElementById("basisSeg").addEventListener("click",e=>{
+  if(e.target.dataset.v){document.querySelectorAll("#basisSeg button").forEach(b=>b.classList.remove("on"));e.target.classList.add("on");curBasis=e.target.dataset.v==="on";draw();}
+});
+document.getElementById("tblSeg").addEventListener("click",e=>{
+  if(e.target.dataset.v){document.querySelectorAll("#tblSeg button").forEach(b=>b.classList.remove("on"));e.target.classList.add("on");curTbl=e.target.dataset.v;renderTable();}
+});
+document.getElementById("drawBtn").addEventListener("click",refresh);
+document.getElementById("refreshBtn").addEventListener("click",refreshBackend);
+document.getElementById("exportBtn").addEventListener("click",exportCSV);
+document.getElementById("ovRefreshBtn").addEventListener("click",loadOverview);
+document.getElementById("aboutBtn").addEventListener("click",()=>{ const d=document.getElementById("aboutDlg"); if(d&&d.showModal){d.showModal();} });
+document.getElementById("ovToggleBtn").addEventListener("click",()=>{
+  const b=document.getElementById("ovBody");
+  const hidden=b.style.display==="none";
+  b.style.display=hidden?"block":"none";
+  document.getElementById("ovToggleBtn").textContent=hidden?"收起":"展开";
+});
+/* 自选品种：星标 + 点击跳转 / 移除 */
+document.getElementById("favBtn").addEventListener("click",()=>{
+  const code=document.getElementById("symbol").value;
+  if(!code) return;
+  toggleFavorite(curExch, code);
+  updateFavBtn(); renderFavorites();
+});
+document.getElementById("favBox").addEventListener("click",e=>{
+  const del=e.target.getAttribute && e.target.getAttribute("data-fav-del");
+  if(del){
+    const [ex,code]=del.split(":");
+    setFavorites(getFavorites().filter(f=> !(f.ex===ex && f.code===code)));
+    renderFavorites(); return;
+  }
+  const pill=(e.target.closest ? e.target.closest("[data-fav-ex]") : e.target.parentNode);
+  if(pill && pill.getAttribute && pill.getAttribute("data-fav-ex")){
+    const ex=pill.getAttribute("data-fav-ex"), code=pill.getAttribute("data-fav-code");
+    selectAndLoad(ex, code, symbolName(ex,code));
+  }
+});
+document.getElementById("cfgBtn").addEventListener("click",()=>{document.getElementById("apiUrl").value=API_URL;document.getElementById("apiErr").style.display="none";document.getElementById("cfgModal").style.display="flex";});
+document.getElementById("cfgCancel").addEventListener("click",()=>document.getElementById("cfgModal").style.display="none");
+document.getElementById("cfgSave").addEventListener("click",()=>{
+  const v=document.getElementById("apiUrl").value.trim();
+  const vr=validateApiUrl(v);
+  if(!vr.ok){ const el=document.getElementById("apiErr"); el.textContent="⚠ "+vr.msg; el.style.display="block"; return; }
+  API_URL=vr.url; localStorage.setItem("fl_api",API_URL);
+  document.getElementById("cfgModal").style.display="none"; refresh();
+});
+window.addEventListener("resize",()=>{if(window.__data){draw(); drawEventMarkers();}});
+
+/* ====================== 期货品种搜索（调后端 /api/search?type=futures） ====================== */
+const SEARCH_EXCH_PILL = {
+  SHFE:"SHFE", DCE:"DCE", CZCE:"CZCE", INE:"INE", LME:"LME", COMEX:"COMEX", CFFEX:"CFFEX"
+};
+/* 切换交易所 pill + 填充下拉并选中某品种（结果可能不在内置 SYMBOLS 内，临时插入 option） */
+function selectAndLoad(exchange, code, label){
+  const pillExch = SEARCH_EXCH_PILL[exchange] || exchange;
+  // 仅当该交易所 pill 存在时才切换（CFFEX 期货在前端无独立面板，但可尝试落在 nearest）
+  const pill = document.querySelector('.pill[data-exch="'+pillExch+'"]');
+  let targetExch = curExch;
+  if(pill){
+    document.querySelectorAll(".pill[data-exch]").forEach(x=>x.classList.remove("on"));
+    pill.classList.add("on");
+    curExch = pillExch; targetExch = pillExch;
+  } else {
+    // 找不到对应 pill（如 CFFEX），提示并回退到 SHFE 仅做演示加载
+    document.getElementById("futSearchSrc").textContent = "⚠ 该品种交易所("+exchange+")无独立库存面板，已用演示数据加载";
+  }
+  fillSymbols();
+  const sel = document.getElementById("symbol");
+  let opt = Array.from(sel.options).find(o=>o.value===code);
+  if(!opt){ opt = document.createElement("option"); opt.value=code; opt.textContent=label||code; sel.appendChild(opt); }
+  sel.value = code;
+  document.getElementById("futSearchSrc").textContent = "已加载：" + (label||code) + "（" + targetExch + ":" + code + "）";
+  refresh();
+}
+/* 前端本地搜索兜底：无后端时搜内置 SYMBOLS */
+function localFuturesSearch(q){
+  const ql=q.toLowerCase();
+  const arr=[];
+  for(const ex in SYMBOLS){
+    for(const s of SYMBOLS[ex]){
+      const name=s.name||"";
+      if(ql===s.code.toLowerCase() || ql===name.toLowerCase() || name.toLowerCase().includes(ql) || s.code.toLowerCase().includes(ql)){
+        arr.push({code:s.code,name:s.name,exchange:ex});
+      }
+    }
+  }
+  // 去重
+  return arr.filter((x,i,a)=>a.findIndex(y=>y.exchange===x.exchange&&y.code===x.code)===i);
+}
+function renderSearchResults(arr, sourceText){
+  const box=document.getElementById("futSearchBox");
+  const src=document.getElementById("futSearchSrc");
+  if(!arr.length){ box.innerHTML='<div style="color:var(--sub);padding:8px">未找到匹配品种</div>'; src.textContent=sourceText; return; }
+  src.textContent=sourceText+" · 共 "+arr.length+" 条";
+  box.innerHTML='<table><thead><tr><th>代码</th><th>名称</th><th>交易所</th><th></th></tr></thead><tbody>'+
+    arr.map(x=>{
+      const ex=x.exchange||""; const code=x.code; const label=x.name||code;
+      return `<tr><td>${code}</td><td>${label}</td><td>${ex}</td>`+
+        `<td><button class="btn ghost" onclick="selectAndLoad('${ex.replace(/'/g,'')}','${String(code).replace(/'/g,'')}','${String(label).replace(/'/g,'')}')">📊 加载透视</button>`+
+        `<button class="btn ghost" onclick="selectAndLoad('${ex.replace(/'/g,'')}','${String(code).replace(/'/g,'')}','${String(label).replace(/'/g,'')}');scrollToTopN()">🔗 相关性</button></td></tr>`;
+    }).join("")+'</tbody></table>';
+}
+async function runFuturesSearch(){
+  const q = document.getElementById("futSearchInput").value.trim();
+  const box = document.getElementById("futSearchBox");
+  const src = document.getElementById("futSearchSrc");
+  src.textContent = "";
+  box.innerHTML = '<div style="color:var(--sub);padding:8px">搜索中…</div>';
+  if(!q){ renderSearchResults([], ""); return; }
+  try{
+    const url = getApiBase() + "/api/search?q=" + encodeURIComponent(q) + "&type=futures";
+    const r = await fetch(url, {cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const d = await r.json();
+    const arr = d.results || [];
+    if(!arr.length){ box.innerHTML = '<div style="color:var(--sub);padding:8px">未找到匹配品种</div>'; return; }
+    renderSearchResults(arr, "来源：" + (d.offline ? "离线示例库（有网环境即真实全市场搜索）" : "真实数据"));
+  }catch(e){
+    // 后端未启动时，用本地内置品种兜底
+    const local = localFuturesSearch(q);
+    if(local.length){
+      renderSearchResults(local, "来源：内置品种（后端未启动，仅展示本地清单）");
+      src.textContent += " · 后端错误：" + (e.message||e);
+    } else {
+      box.innerHTML = '<div style="color:var(--down);padding:8px">搜索失败：' + (e.message||e) + '。若未启动后端，请先在「真实数据接口」配置后端地址，或清空关键词浏览示例库。</div>';
+    }
+  }
+}
+document.getElementById("futSearchBtn").addEventListener("click", runFuturesSearch);
+document.getElementById("futSearchInput").addEventListener("keydown", e=>{ if(e.key==="Enter") runFuturesSearch(); });
+document.getElementById("futSearchClear").addEventListener("click", ()=>{
+  document.getElementById("futSearchInput").value="";
+  document.getElementById("futSearchBox").innerHTML="";
+  document.getElementById("futSearchSrc").textContent="";
+});
+
+// 全品种相关性 Top N（调后端 /api/corr_top）
+function scrollToTopN(){
+  const box = document.getElementById("topNBox");
+  if(box){ box.scrollIntoView({behavior:"smooth", block:"center"}); }
+  if(typeof loadTopN === "function"){ loadTopN(); }
+}
+async function loadTopN(){
+  const n=document.getElementById("topN").value;
+  const box=document.getElementById("topNBox");
+  const src=document.getElementById("topNSrc");
+  box.innerHTML='<div style="color:var(--sub);padding:10px">计算中…</div>';
+  // 优先用后端（默认本地 8787）
+  try{
+    const range=getApiRange();
+    const u=getApiBase()+"/api/corr_top?n="+n+"&start="+encodeURIComponent(range.start)+"&end="+encodeURIComponent(range.end);
+    const r=await fetch(u,{cache:"no-store"});
+    if(r.ok){
+      const j=await r.json();
+      if(j.ok&&Array.isArray(j.top)){
+        renderTopN(j.top, j.offline?"（离线样本，有网即真实）":"");
+        src.textContent="来源：后端"+(j.offline?" · 离线样本":" · 真实数据");
+        return;
+      }
+    }
+  }catch(e){ console.warn("后端TopN失败，回退前端计算",e); }
+  // 回退：前端用演示数据算，默认从上市日取更长区间
+  src.textContent="来源：前端演示数据（后端未启动）";
+  const today=new Date().toISOString().slice(0,10);
+  const rows=[];
+  for(const ex in SYMBOLS){
+    for(const s of SYMBOLS[ex]){
+      const listDate=LISTING_DATES[ex+":"+s.code];
+      const days=listDate ? Math.max(365,(new Date(today)-new Date(listDate))/86400000+1) : 365;
+      const d=genDemo(ex,s.code,1); // genDemo 固定365; 如需更长可扩展
+      const cl=d.map(x=>x.close);
+      let bestCorr=0, bestMetric="inventory_total";
+      for(const k of ["inventory_total","inventory_circ","inventory_warehouse","inventory_bonded"]){
+        const r=pearson(cl,d.map(x=>x[k]||x.inventory));
+        if(Math.abs(r)>Math.abs(bestCorr)){ bestCorr=r; bestMetric=k; }
+      }
+      rows.push({symbol:s.code,exchange:ex,corr:+bestCorr.toFixed(3),metric:bestMetric});
+    }
+  }
+  rows.sort((a,b)=>Math.abs(b.corr)-Math.abs(a.corr));
+  renderTopN(rows.slice(0,+n),"");
+}
+function renderTopN(rows,suffix){
+  const box=document.getElementById("topNBox");
+  let h='<div style="display:flex;flex-direction:column;gap:6px">';
+  rows.forEach((r,i)=>{ const a=Math.abs(r.corr); const col=a>=0.6?"var(--down)":a>=0.3?"var(--inv)":"var(--up)"; const bar=Math.min(100,a*100);
+    const name=symbolName(r.exchange,r.symbol);
+    const metric=METRIC_NAMES[r.metric]||"库存";
+    h+=`<div style="display:grid;grid-template-columns:28px minmax(130px,1.3fr) 70px 1fr 64px;align-items:center;gap:8px;font-size:13px">
+      <span style="color:var(--sub)">${i+1}</span>
+      <span title="${r.exchange}:${r.symbol}">${name}<span style="color:var(--sub);font-size:11px;margin-left:4px">${r.symbol}</span></span>
+      <span style="color:${col};font-weight:600">r=${r.corr.toFixed(2)}</span>
+      <span style="background:#1a1a2e;border-radius:6px;height:10px;overflow:hidden"><i style="display:block;width:${bar}%;height:100%;background:${col}"></i></span>
+      <span style="color:var(--sub);font-size:11px;text-align:right">${metric}</span>
+    </div>`;
+  });
+  h+='</div>'; if(suffix)h+='<div style="color:var(--sub);font-size:12px;margin-top:6px">'+suffix+'</div>';
+  box.innerHTML=h;
+}
+document.getElementById("topNBtn").addEventListener("click",loadTopN);
+
+/* ====================== 事件时间轴（移植自纸浆 SP 两个月时间线） ====================== */
+function esc(s){
+  return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+    return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);
+  });
+}
+/* 内置真实样本（公开真实数据，非合成）：目前以纸浆 SP(上期所) 为重点。
+   数据来自 2026 年公开研报/资讯的实盘点（库存万吨->吨、主力收盘价元/吨），
+   仅收录有据可查的真实数值，缺失字段留 null（前端按 null 跳过，不编造）。
+   优先级高于合成演示：独立打开 HTML(无后端) 也默认展示真实数据。 */
+const REAL_DATA = {
+  "SHFE:sp": [
+    {date:"2026-06-25", inventory_total:2335200, inventory:2335200, close:null},
+    {date:"2026-06-26", inventory_total:null,    inventory:null,    close:4624},
+    {date:"2026-06-28", inventory_total:2323000, inventory:2323000, close:null},
+    {date:"2026-08-06", inventory_total:2281000, inventory:2281000, close:null},
+    {date:"2026-08-10", inventory_total:null,    inventory:null,    close:4656},
+    {date:"2026-08-11", inventory_total:null,    inventory:null,    close:4558},
+    {date:"2026-08-13", inventory_total:2248000, inventory:2248000, close:4538},
+    {date:"2026-08-14", inventory_total:null,    inventory:null,    close:4650},
+    {date:"2026-08-25", inventory_total:null,    inventory:null,    close:4828}
+  ]
+};
+
+/* 内置事件库：目前以纸浆 SP(上期所) 为重点，其余品种可在此扩展 */
+const EVENTS_DB = {
+  "SHFE:sp": [
+    {date:"2026-06-25",type:"inv",tag:"库存",title:"库存 233.52 万吨（环比 +1.15%）",desc:"国信期货：处于历史同期高位；Arauco 6 月外盘针叶银星 670(-10)、阔叶明星 590(-20)。"},
+    {date:"2026-06-26",type:"warn",tag:"事件",title:"期货增仓承压下行",desc:"主力报 4624；外盘调价 + 港口库存高企双击；斯道拉恩索宣布瑞典 L3 软木浆线 2026Q3 停产。"},
+    {date:"2026-06-28",type:"inv",tag:"库存",title:"6 月末库存 232.3 万吨（近 5 年高位）",desc:"半年报：仓单年初 10.96 万 → 6/26 已达 25.81 万（+14.85 万），现货过剩；供需宽松延续。"},
+    {date:"2026-07-01",type:"evt",tag:"事件",title:"供给收缩预期升温",desc:"Canfor 官宣永久关停 Northwood 浆厂 + 加拿大森林山火；Arauco 7 月针叶银星 690(+20)、阔叶明星 570(-20)。进口 7 月 273 万吨（环比 -6.4%、同比 -5.1%）。"},
+    {date:"2026-08-06",type:"inv",tag:"库存",title:"库存 228.1 万吨（环比 +0.1%、同比 +11.4%）",desc:"由去库转为累库；针叶周均价 4812(-1.74%)、阔叶 4336(-0.50%)；欧洲港口 6 月库存环比 +8.29%。"},
+    {date:"2026-08-10",type:"price",tag:"价格",title:"SP2609 收 4656（-0.34%）",desc:"前 20 净空 13195 手；山东针叶浆 4570-4770；库存同比 +11.4% 压制明显。"},
+    {date:"2026-08-11",type:"price",tag:"价格",title:"SP2609 报 4558（-56）",desc:"银河期货：库存由去转累，阔叶产量 26.6 万(+0.4)；宽松底层逻辑未变。"},
+    {date:"2026-08-13",type:"warn",tag:"价格",title:"低点 4538（2609）",desc:"财富号讨论“4538 见底了吗”：库存 224.8 万（去库苗头）；空头回补推回 4678。结论——短期底，非趋势底（需库存<210万/需求实质/供给收缩三条件）。"},
+    {date:"2026-08-14",type:"price",tag:"价格",title:"反弹 +1.52%，4650 上方",desc:"盘中增仓上行、多头介入；支撑 4600/4550/4500，阻力 4700/4780/4850。"},
+    {date:"2026-08-17",type:"evt",tag:"事件",title:"底部或有显现",desc:"国贸期货：11 合约触新低后现货基差货成交转暖，针叶小幅去库、阔叶去库明显；9-11 价差走强破 +30；加拿大 BC 野火继续蔓延；巴西 7 月对华阔叶出口环比降。"},
+    {date:"2026-08-25",type:"price",tag:"价格",title:"SP2611 收 4828（-0.78%）",desc:"已从 4538 修复至 4828，触及 4800 压力区下沿；趋势反转未确认，等待 9 月旺季验证。"}
+  ]
+};
+const EVENT_TYPE = {
+  inv:{cls:"etg-inv",dot:"inv"}, evt:{cls:"etg-evt",dot:"evt"},
+  price:{cls:"etg-pr",dot:"price"}, warn:{cls:"etg-wn",dot:"warn"}
+};
+function tagFor(type){ return {inv:"库存",evt:"事件",price:"价格",warn:"警示"}[type]||"事件"; }
+function userEventsKey(exch,code){ return "fl_events_"+exch+"_"+code; }
+function getUserEvents(exch,code){
+  try{ const raw=localStorage.getItem(userEventsKey(exch,code)); return raw?JSON.parse(raw):[]; }catch(e){ return []; }
+}
+function setUserEvents(exch,code,arr){
+  try{ localStorage.setItem(userEventsKey(exch,code), JSON.stringify(arr)); }catch(e){}
+}
+/* 合并三类事件（内置 + 后端 + 用户标注），按日期排序，去重（同日期+同标题仅留一条）。
+   为支持单条删除，给每条打上来源标签 __src（builtin/backend/user），渲染时据此判断可否删 */
+function mergeEvents(builtin, backend, user){
+  const all=[];
+  (builtin||[]).forEach(e=>{ if(e&&e.date) all.push(Object.assign({},e,{__src:"builtin"})); });
+  (backend||[]).forEach(e=>{ if(e&&e.date) all.push(Object.assign({},e,{__src:"backend"})); });
+  (user||[]).forEach(e=>{ if(e&&e.date) all.push(Object.assign({},e,{__src:"user"})); });
+  const seen=new Set(); const out=[];
+  for(const e of all){
+    if(!e||!e.date) continue;
+    const k=e.date+"|"+String(e.title||"").slice(0,20);
+    if(seen.has(k)) continue; seen.add(k); out.push(e);
+  }
+  out.sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:0);
+  return out;
+}
+/* 收集当前视图内、与数据点日期匹配的事件（供画布打点 + 悬停浮窗） */
+function indexEventsByDate(events, data){
+  const m=new Map(); data.forEach((d,i)=> m.set(d.date, i));
+  const hit=[];
+  (events||[]).forEach(e=>{ if(m.has(e.date)) hit.push({ev:e, idx:m.get(e.date)}); });
+  return hit;
+}
+let curEvents=[];
+let curBackendEvents=null;
+function renderTimeline(){
+  const code=document.getElementById("symbol").value;
+  const key=curExch+":"+code;
+  const builtin=EVENTS_DB[key]||[];
+  const user=getUserEvents(curExch,code);
+  curEvents=mergeEvents(builtin, curBackendEvents, user);
+  const box=document.getElementById("tlBox");
+  const cnt=document.getElementById("evCount");
+  if(!curEvents.length){
+    box.innerHTML='<div style="color:var(--sub);font-size:12px;padding:8px 0">该品种暂无内置事件，点「＋ 添加我的标注」记录你关心的库存/事件/价格节点。</div>';
+    cnt.textContent="";
+    drawEventMarkers();
+    return;
+  }
+  cnt.textContent="共 "+curEvents.length+" 条";
+  const order={warn:0,evt:1,price:2,inv:3};
+  const sorted=curEvents.slice().sort((a,b)=> (order[a.type]??9)-(order[b.type]??9) || (a.date<b.date?-1:1));
+  let h="";
+  sorted.forEach(e=>{
+    const t=EVENT_TYPE[e.type]||EVENT_TYPE.inv;
+    const del = e.__src==="user"
+      ? '<span class="evdel" data-date="'+esc(e.date)+'" data-title="'+esc(e.title||"")+'" title="删除这条我的标注">✕</span>'
+      : '';
+    h+='<div class="ev '+t.dot+'">'+del+'<div class="d">'+esc(e.date)+'</div>'+
+       '<div class="t"><span class="evtag '+t.cls+'">'+esc(e.tag||tagFor(e.type))+'</span>'+esc(e.title)+'</div>'+
+       (e.desc?'<div class="x">'+esc(e.desc)+'</div>':'')+'</div>';
+  });
+  box.innerHTML=h;
+  drawEventMarkers();
+}
+/* 在画布顶部给事件日期打点（视觉提示，不依赖外部图表库） */
+function drawEventMarkers(){
+  const cv=document.getElementById("chart"); if(!cv||!cv.getContext) return;
+  const ctx=cv.getContext("2d"); if(!ctx||!chartGeom||!chartGeom.getX) return;
+  const data=currentView();
+  const hit=indexEventsByDate(curEvents, data);
+  const colorMap={inv:"#667eea",evt:"#f6c453",price:"#00d486",warn:"#ff4d4f"};
+  const padT=18;
+  hit.forEach(({ev,idx})=>{
+    const x=chartGeom.getX(idx);
+    const col=colorMap[ev.type]||"#667eea";
+    ctx.save();
+    ctx.fillStyle=col; ctx.strokeStyle="#0f0f23"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(x, padT+6, 5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  });
+}
+/* 可选：后端 /api/futures_events?exchange=&symbol= 提供真实事件 */
+async function loadBackendEvents(code){
+  curBackendEvents=null;
+  try{
+    const u=getApiBase()+"/api/futures_events?exchange="+encodeURIComponent(curExch)+"&symbol="+encodeURIComponent(code);
+    const r=await fetch(u,{cache:"no-store"});
+    if(r.ok){ const j=await r.json(); const arr=Array.isArray(j.events)?j.events:(Array.isArray(j.data)?j.data:null); if(arr){ curBackendEvents=arr; } }
+  }catch(e){ /* 后端无该端点时静默忽略 */ }
+}
+
+/* 事件标注表单交互 */
+document.getElementById("evAddBtn").addEventListener("click",()=>{ document.getElementById("evForm").classList.add("show"); });
+document.getElementById("evCancelBtn").addEventListener("click",()=>{ document.getElementById("evForm").classList.remove("show"); document.getElementById("evErr").style.display="none"; });
+document.getElementById("evClearBtn").addEventListener("click",()=>{
+  const code=document.getElementById("symbol").value;
+  if(typeof confirm==="function" && !confirm("确定清空当前品种的我的标注？")) return;
+  setUserEvents(curExch, code, []); renderTimeline();
+});
+/* 删除单条我的标注（仅用户来源 __src==="user" 显示 ✕，内置/后端事件不可删） */
+document.getElementById("tlBox").addEventListener("click",e=>{
+  const del=e.target.closest ? e.target.closest(".evdel") : null;
+  if(!del) return;
+  const code=document.getElementById("symbol").value;
+  const dt=del.getAttribute("data-date"), tt=del.getAttribute("data-title");
+  if(typeof confirm==="function" && !confirm("删除这条我的标注？")) return;
+  const arr=getUserEvents(curExch, code).filter(ev=> !(ev.date===dt && (ev.title||"")===tt));
+  setUserEvents(curExch, code, arr); renderTimeline();
+});
+document.getElementById("evSaveBtn").addEventListener("click",()=>{
+  const code=document.getElementById("symbol").value;
+  const date=document.getElementById("evDate").value.trim();
+  const type=document.getElementById("evType").value;
+  const title=document.getElementById("evTitle").value.trim();
+  const desc=document.getElementById("evDesc").value.trim();
+  const err=document.getElementById("evErr");
+  if(!date){ err.textContent="⚠ 请选择日期"; err.style.display="inline-block"; return; }
+  if(!title){ err.textContent="⚠ 请填写标题"; err.style.display="inline-block"; return; }
+  if(date > new Date().toISOString().slice(0,10)){ err.textContent="⚠ 事件日期不能晚于今天"; err.style.display="inline-block"; return; }
+  const arr=getUserEvents(curExch, code);
+  arr.push({date,type,tag:tagFor(type),title,desc});
+  setUserEvents(curExch, code, arr);
+  document.getElementById("evForm").classList.remove("show");
+  document.getElementById("evTitle").value=""; document.getElementById("evDesc").value=""; err.style.display="none";
+  renderTimeline();
+});
+
+fillSymbols();
+(function initRange(){
+  const t = new Date().toISOString().slice(0, 10);
+  document.getElementById("dateStart").value = addDaysISO(t, -365);
+  document.getElementById("dateEnd").value = t;
+  customStart = addDaysISO(t, -365);
+  customEnd = t;
+  curRange = 0;
+  document.querySelectorAll("#rangeSeg button").forEach(b=>b.classList.toggle("on", b.dataset.r==="365"));
+})();
+refresh(); loadTopN(); attachChartHover(); loadOverview();
+</script>
+
+  <footer class="hubfoot">
+    <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
+    <span>数据来自公开接口或本地演示，仅供学习与参考，不构成任何投资建议。</span>
+  </footer>
+
+  <!-- 数据说明弹窗（话术：口径/真实性/刷新方式/局限性） -->
+  <dialog id="aboutDlg" style="max-width:560px;width:92vw;border:1px solid var(--line);border-radius:14px;padding:0;background:var(--card);color:var(--txt)">
+    <div style="padding:18px 20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <b style="font-size:16px">期库镜 · 数据说明</b>
+        <button id="aboutClose" class="ghost" style="margin:0">✕ 关闭</button>
+      </div>
+      <div style="font-size:13px;line-height:1.85;color:var(--txt)">
+        <p style="margin:0 0 8px"><b>① 数据口径</b><br>库存为各交易所「显性仓单库存」，单位<b>吨</b>，取自东方财富 akshare 公开接口；原油(SC)无交易所仓单口径，采用<b>美国 EIA 周度原油库存变动（百万桶）</b>作为真实库存信号。</p>
+        <p style="margin:0 0 8px"><b>② 数据真实性</b><br>除界面明确标注「合成演示」外，均为真实抓取 / 内置公开实盘样本；合成数据仅为无后端、无样本时的兜底，且会显式警告，<b>绝不静默冒充真实行情</b>。</p>
+        <p style="margin:0 0 8px"><b>③ 如何刷新</b><br>启动本地后端（端口 8787）后自动读取真实缓存；或点「🔄 刷新数据」从东方财富重新抓取；全品种概览点「🔄 刷新概览」。</p>
+        <p style="margin:0"><b>④ 局限性</b><br>库存非每日发布（按交易所固定工作日更新）；EIA 原油为周度快照，当前内置数据截至 2025-09-05，非实时；如需原油实时，可接入 EIA 官方 API key。</p>
+      </div>
+    </div>
+  </dialog>
+  <script>
+    document.getElementById("aboutClose").addEventListener("click",()=>{ const d=document.getElementById("aboutDlg"); if(d&&d.close) d.close(); });
+  </script>
+</body>
+</html>

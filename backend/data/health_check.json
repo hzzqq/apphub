@@ -1,0 +1,28 @@
+{
+  "rules": [
+    {
+      "key": "concentration",
+      "name": "单一持仓集中度",
+      "desc": "单票市值/总市值 > 30% 预警",
+      "warn": 0.3
+    },
+    {
+      "key": "cash_ratio",
+      "name": "现金比例",
+      "desc": "现金/总资产 < 5% 预警",
+      "warn": 0.05
+    },
+    {
+      "key": "loss_holding",
+      "name": "浮亏持仓",
+      "desc": "浮亏 > 15% 标记",
+      "warn": -0.15
+    },
+    {
+      "key": "sector_overlap",
+      "name": "行业重叠",
+      "desc": "同行业 > 50% 预警",
+      "warn": 0.5
+    }
+  ]
+}

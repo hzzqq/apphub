@@ -1,0 +1,24 @@
+{
+  "strategies": [
+    {
+      "id": "twap",
+      "name": "TWAP 时间加权",
+      "desc": "按时间均匀拆单，降低冲击"
+    },
+    {
+      "id": "vwap",
+      "name": "VWAP 量加权",
+      "desc": "跟随成交量分布拆单"
+    },
+    {
+      "id": "iceberg",
+      "name": "冰山单",
+      "desc": "隐藏真实委托量"
+    }
+  ],
+  "default": {
+    "strategy": "twap",
+    "slices": 10,
+    "side": "buy"
+  }
+}

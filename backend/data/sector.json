@@ -1,0 +1,102 @@
+[
+  {
+    "name": "半导体",
+    "chg": 3.8,
+    "strength5": 0.92
+  },
+  {
+    "name": "消费电子",
+    "chg": 2.6,
+    "strength5": 0.78
+  },
+  {
+    "name": "电力设备",
+    "chg": 2.1,
+    "strength5": 0.71
+  },
+  {
+    "name": "国防军工",
+    "chg": 1.9,
+    "strength5": 0.65
+  },
+  {
+    "name": "汽车",
+    "chg": 2.3,
+    "strength5": 0.73
+  },
+  {
+    "name": "计算机",
+    "chg": 1.4,
+    "strength5": 0.55
+  },
+  {
+    "name": "通信",
+    "chg": 1.7,
+    "strength5": 0.62
+  },
+  {
+    "name": "有色金属",
+    "chg": 1.1,
+    "strength5": 0.48
+  },
+  {
+    "name": "机械设备",
+    "chg": 1.2,
+    "strength5": 0.5
+  },
+  {
+    "name": "农林牧渔",
+    "chg": 0.9,
+    "strength5": 0.41
+  },
+  {
+    "name": "化工",
+    "chg": 0.3,
+    "strength5": 0.25
+  },
+  {
+    "name": "医药生物",
+    "chg": 0.6,
+    "strength5": 0.32
+  },
+  {
+    "name": "食品饮料",
+    "chg": -0.2,
+    "strength5": 0.18
+  },
+  {
+    "name": "非银金融",
+    "chg": -0.3,
+    "strength5": 0.08
+  },
+  {
+    "name": "建筑装饰",
+    "chg": -0.6,
+    "strength5": -0.05
+  },
+  {
+    "name": "传媒",
+    "chg": -0.8,
+    "strength5": -0.15
+  },
+  {
+    "name": "银行",
+    "chg": -0.5,
+    "strength5": 0.12
+  },
+  {
+    "name": "房地产",
+    "chg": -1.1,
+    "strength5": -0.28
+  },
+  {
+    "name": "煤炭",
+    "chg": -1.6,
+    "strength5": -0.45
+  },
+  {
+    "name": "钢铁",
+    "chg": -1.9,
+    "strength5": -0.55
+  }
+]
