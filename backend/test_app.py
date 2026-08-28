@@ -466,3 +466,39 @@ def test_futures_spread_sanitizes_input():
     j = r.get_json()
     assert j["ok"] is True
     assert "<" not in j["variety"] and "/" not in j["monthA"]
+
+
+def test_data_status_reports_freshness_per_symbol():
+    # 数据新鲜度总览: 每个缓存应报出最新数据日期与距今天数
+    r = _client().get("/api/data_status")
+    assert r.status_code == 200
+    j = r.get_json()
+    assert j["ok"] is True
+    assert j["count"] > 0, "应扫描到期货缓存文件"
+    assert isinstance(j["items"], list)
+    sp = [i for i in j["items"] if i["exchange"] == "SHFE" and i["symbol"].upper() == "SP"]
+    assert sp, "SHFE SP 缓存应存在"
+    item = sp[0]
+    assert item["records"] > 0
+    assert item["latest_date"], "应能取到最新数据日期"
+    assert item["age_days"] is not None and item["age_days"] >= 0
+    assert j["stale_count"] >= 0
+    if j["with_data"]:
+        assert j["newest_age_days"] <= j["oldest_age_days"]
+
+
+def test_data_status_endpoint_registered():
+    r = _client().get("/api/info")
+    assert r.status_code == 200
+    assert "/api/data_status" in r.get_json()["endpoints"]
+
+
+def test_health_reports_refresh_diagnostics():
+    # 刷新调度器应暴露可诊断字段(失败明细/下次刷新/轮次), 便于部署后排查
+    j = _client().get("/api/health").get_json()
+    ar = j["auto_refresh"]
+    for k in ("running", "last_run", "last_ok", "last_fail", "cycle_sec",
+              "runs", "consecutive_fails", "next_run", "last_errors", "degraded"):
+        assert k in ar, "缺少刷新诊断字段: " + k
+    assert isinstance(ar["last_errors"], list)
+    assert isinstance(ar["degraded"], list)

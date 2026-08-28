@@ -1298,7 +1298,7 @@ ENDPOINTS = [
     "/api/health", "/api/futures", "/api/refresh", "/api/inventory_overview", "/api/eia_crude", "/api/corr_top", "/api/quote", "/api/shepherd",
     "/api/blackswan", "/api/earnings", "/api/search", "/api/etf", "/api/sector",
     "/api/data", "/api/futures_events", "/api/futures_spread", "/api/trading_agents",
-    "/api/llm", "/api/code_teacher", "/api/theme",
+    "/api/llm", "/api/code_teacher", "/api/theme", "/api/data_status",
 ]
 
 
@@ -1316,6 +1316,52 @@ def api_health():
         "endpoints": len(ENDPOINTS),
         "data_files": data_files,
         "auto_refresh": REFRESH_STATE,
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    })
+
+
+@app.route("/api/data_status", methods=["GET"])
+def api_data_status():
+    """数据新鲜度总览: 每个期货缓存的最新数据日期 / 距今天数 / 记录数 + 整体滞后统计。
+       回答「数据到底更新到哪天了」——部署后一眼可判断自动刷新是否真的生效,
+       而不必逐个品种点开看。stale_count 用于快速识别超过 2 个发布周期的滞后品种。"""
+    items = []
+    for fp in sorted(glob.glob(os.path.join(DATA_DIR, "futures_*.json"))):
+        base = os.path.basename(fp)
+        m = re.match(r"futures_(SHFE|DCE|CZCE|INE)_(.+)\.json", base)
+        if not m:
+            continue
+        ex, sy = m.group(1), m.group(2)
+        latest, count = None, 0
+        try:
+            with open(fp, "r", encoding="utf-8") as f:
+                rows = json.load(f)
+            if isinstance(rows, list):
+                count = len(rows)
+                dates = [r.get("date") for r in rows if isinstance(r, dict) and r.get("date")]
+                if dates:
+                    latest = max(dates)
+        except Exception:
+            pass
+        age = None
+        if latest:
+            try:
+                age = (datetime.now().date() - datetime.strptime(latest, "%Y-%m-%d").date()).days
+            except Exception:
+                age = None
+        items.append({"exchange": ex, "symbol": sy, "file": base,
+                      "latest_date": latest, "age_days": age, "records": count})
+    ages = [i["age_days"] for i in items if i["age_days"] is not None]
+    return jsonify({
+        "ok": True,
+        "count": len(items),
+        "with_data": len(ages),
+        "newest_age_days": min(ages) if ages else None,
+        "oldest_age_days": max(ages) if ages else None,
+        "avg_age_days": round(sum(ages) / len(ages), 1) if ages else None,
+        "stale_count": sum(1 for a in ages if a > 14),   # >2 个发布周期(库存按周发布)视为滞后
+        "auto_refresh": REFRESH_STATE,
+        "items": items,
         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     })
 
@@ -1997,8 +2043,17 @@ def api_search():
 # ───────── 自动刷新调度器: 部署后后台周期重抓真实库存, 缓存永不过期 ─────────
 # 解决「凭一个网站能否拿到最新数据」: 服务器自己定时刷新, 访客无需任何操作。
 # 即使刷新失败(数据源限流/服务器IP被挡), 也保留上一次真实缓存, 绝不回退合成样本。
-REFRESH_STATE = {"running": False, "last_run": None, "last_ok": 0, "last_fail": 0, "cycle_sec": None}
+REFRESH_STATE = {
+    "running": False, "last_run": None, "last_ok": 0, "last_fail": 0, "cycle_sec": None,
+    "runs": 0,                 # 已完成刷新轮次
+    "consecutive_fails": 0,    # 连续出现失败品种的轮次数(0 表示上一轮全成功)
+    "next_run": None,          # 下次刷新时间(便于监控判断调度器是否卡死)
+    "last_duration_sec": None, # 上一轮耗时
+    "last_errors": [],         # 最近失败品种明细(最多 10 条), 用于诊断数据源/网络故障
+    "degraded": [],            # 因连续失败被降频、本轮跳过的品种("EXCH:SYM")
+}
 _AUTO_REFRESH_STARTED = False
+_SYMBOL_FAILS = {}             # {(exchange, symbol): 连续失败次数}
 
 
 def _tracked_futures_symbols():
@@ -2027,6 +2082,7 @@ def _auto_refresh_loop():
     interval = max(0.1, hours) * 3600.0
     REFRESH_STATE["cycle_sec"] = interval
     while True:
+        started = _t.time()
         try:
             if OFFLINE_MODE:
                 # 沙箱禁网: 不发起真实抓取, 仅维持调度器存活(部署时设 OFFLINE_MODE=False 即生效)
@@ -2034,23 +2090,46 @@ def _auto_refresh_loop():
             else:
                 symbols = _tracked_futures_symbols()
                 ok = fail = 0
+                errors, skipped = [], []
+                runs = REFRESH_STATE.get("runs", 0)
                 for ex, sy in symbols:
+                    key = (ex, sy.upper())
+                    # 降频: 连续失败 >=3 次的品种(长期无数据源/已退市等)每 3 轮才重试一次,
+                    # 避免每轮把时间耗在注定失败的品种上, 也减少对数据源的无谓请求。
+                    if _SYMBOL_FAILS.get(key, 0) >= 3 and (runs % 3 != 0):
+                        skipped.append(ex + ":" + sy)
+                        continue
                     try:
                         r = _bake_inv_em.refresh_one(ex, sy, verbose=False)
                         if r and r.get("ok"):
                             ok += 1
+                            _SYMBOL_FAILS[key] = 0
                         else:
                             fail += 1
-                    except Exception:
+                            _SYMBOL_FAILS[key] = _SYMBOL_FAILS.get(key, 0) + 1
+                            if len(errors) < 10:
+                                errors.append({"exchange": ex, "symbol": sy,
+                                               "error": str((r or {}).get("error") or "refresh returned not-ok")[:200]})
+                    except Exception as e:
                         fail += 1
+                        _SYMBOL_FAILS[key] = _SYMBOL_FAILS.get(key, 0) + 1
+                        if len(errors) < 10:
+                            errors.append({"exchange": ex, "symbol": sy, "error": str(e)[:200]})
                     _t.sleep(2)  # 礼貌间隔, 避免触发数据源限流
                 REFRESH_STATE["last_run"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 REFRESH_STATE["last_ok"] = ok
                 REFRESH_STATE["last_fail"] = fail
+                REFRESH_STATE["last_errors"] = errors
+                REFRESH_STATE["degraded"] = skipped
+                REFRESH_STATE["last_duration_sec"] = round(_t.time() - started, 1)
+                REFRESH_STATE["runs"] = runs + 1
+                REFRESH_STATE["consecutive_fails"] = (REFRESH_STATE.get("consecutive_fails", 0) + 1) if fail else 0
                 REFRESH_STATE["running"] = True
         except Exception:
             REFRESH_STATE["running"] = False
             traceback.print_exc()
+        # 无论本轮成败都排定下次刷新时间, 便于外部监控判断调度器是否卡死
+        REFRESH_STATE["next_run"] = (datetime.now() + timedelta(seconds=interval)).strftime("%Y-%m-%d %H:%M:%S")
         _t.sleep(interval)
 
 
