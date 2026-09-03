@@ -1054,6 +1054,27 @@ function draw(){
       ctx.textAlign="left"; ctx.fillStyle="#f6c453"; ctx.fillText(((iHi-(iHi-iLo)*g/4)).toFixed(0),W-padR+6,y);
     }
   }
+
+  // 关键价位带阴影（价格轴有效且当前品种已设区带时绘制，压在网格线之上、价格线之下）
+  {
+    const _store = (typeof fcLoadStore==="function") ? fcLoadStore() : {};
+    const _zk = (typeof fcKey==="function") ? _store[fcKey()] : null;
+    const _zL = (_zk && _zk.keyLow!=null && _zk.keyLow!=="") ? +_zk.keyLow : null;
+    const _zH = (_zk && _zk.keyHigh!=null && _zk.keyHigh!=="") ? +_zk.keyHigh : null;
+    if(_zL!=null && _zH!=null && _zL<_zH && closes.length){
+      const yTop = Yc(_zH), yBot = Yc(_zL);
+      ctx.save();
+      ctx.fillStyle = "rgba(255,169,77,.12)";
+      ctx.fillRect(padL, yTop, plotW, yBot - yTop);
+      ctx.strokeStyle = "rgba(255,169,77,.55)"; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+      ctx.beginPath(); ctx.moveTo(padL, yTop); ctx.lineTo(W-padR, yTop); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(padL, yBot); ctx.lineTo(W-padR, yBot); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#ffa94d"; ctx.font = "10px sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+      ctx.fillText("关键价位带 " + Math.round(_zL) + "–" + Math.round(_zH), padL + 4, yTop - 2);
+      ctx.restore();
+    }
+  }
   ctx.fillStyle="#9a9ab0"; ctx.textAlign="center"; ctx.textBaseline="top";
   const ticks=5;
   for(let g=0;g<=ticks;g++){ const i=Math.round((data.length-1)*g/ticks); const x=X(i); ctx.fillText(data[i].date.slice(5),x,padT+plotH+8); }
@@ -4518,6 +4539,7 @@ function initForecast(){
     d.keyHigh = (_kh && _kh.value!=="") ? (+_kh.value) : null;
     fcSet(k, d);
     renderForecast();
+    if(typeof draw==="function") draw(); // 主图关键价位带即时刷新
   }
   const _klIn = document.getElementById("fcKeyLow"), _khIn = document.getElementById("fcKeyHigh");
   if(_klIn) _klIn.addEventListener("change", fcSaveZone);
