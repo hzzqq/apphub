@@ -267,12 +267,13 @@
   <!-- 库存轨迹推演表（按品种持久化·人工编辑·情景复活预警） -->
   <div class="card">
     <div class="toolbar">
-      <span class="exchgrp" style="margin:0">📦 库存轨迹推演表（万吨 · 隆众口径）</span>
+      <span class="exchgrp" style="margin:0">📦 库存轨迹推演表（万吨 · 真实库存序列 · 全品种）</span>
       <span style="flex:1"></span>
       <button class="ghost" id="fcToggleBtn">▼ 展开</button>
+      <button class="ghost" id="fcSeedBtn" style="display:none">🌱 播种真实序列</button>
       <button class="ghost" id="fcAddRowBtn" style="display:none">＋ 新增行</button>
       <button class="ghost" id="fcEditBtn" style="display:none">✎ 编辑推演</button>
-      <button class="ghost" id="fcResetBtn" style="display:none">↺ 恢复示例</button>
+      <button class="ghost" id="fcResetBtn" style="display:none">↺ 清空</button>
     </div>
     <div id="fcWrap" style="display:none">
       <div class="fcrow">
@@ -305,7 +306,7 @@
         <tbody id="fcBody"></tbody>
       </table>
       <div class="fcnote">
-        <div><span class="lbl">说明</span>*为区间累计值，非单周。推演值由人工设定/编辑；与实际公布库存以隆众官方数据为准。</div>
+        <div><span class="lbl">说明</span>*为区间累计值，非单周。历史行（方向标「基准/实际」）直接来自 window.__data 真实库存序列，与实际公布一致；未来行由人工设定/编辑，非公布值。</div>
         <div style="margin-top:6px"><span class="lbl">推演假设</span><span id="fcAssumptionsView">—</span><input type="text" id="fcAssumptionsInput" style="display:none;width:100%;margin-top:4px"></div>
         <div style="margin-top:6px"><span class="lbl">情景触发规则</span><span id="fcRuleView">—</span><input type="text" id="fcRuleInput" style="display:none;width:100%;margin-top:4px"></div>
       </div>
@@ -1791,27 +1792,65 @@ fillSymbols();
 })();
 // ───────────────────── 库存轨迹推演表 ─────────────────────
 const FC_KEY_PREFIX = "fl_inventory_forecast_v1";
-const FORECAST_DEFAULT = {
-  "SHFE:sp": {
-    title: "③ 周度推演（从这周 9/3 起）",
-    assumptions: "海外停机按计划落地、无新增大产能投产、下游节前备货正常",
-    triggerRule: '若库存重新周度累库≥8/27 水平（228.7 万吨），则"破 4700"情景复活（见下方价格映射）',
-    baseline_inventory: 228.7,
-    source: "隆众",
-    rows: [
-      { report:"8/27(已发)", stat:"8/27",      inv:228.7, change:null, dir:"基准",   driver:"高位，前周微累 +6.1", baseline:true },
-      { report:"9/3",        stat:"9/3",       inv:230.7, change: 2.0, dir:"微累",   driver:"旺季补库未放量，到港正常" },
-      { report:"9/10",       stat:"9/10",      inv:227.7, change:-3.0, dir:"去库",   driver:"教材招标 + 备货启动，提货加快" },
-      { report:"9/17",       stat:"9/17",      inv:226.7, change:-1.0, dir:"弱去",   driver:"到港脉冲间，去库放缓" },
-      { report:"9/24",       stat:"9/24",      inv:220.7, change:-6.0, dir:"明显去", driver:"国庆前集中采购冲量，提货峰值" },
-      { report:"10/8(节后)", stat:"~10/8",     inv:230.7, change:10.0, dir:"跳升累", driver:"国庆假期累积到港 + 工厂停工" },
-      { report:"10/15",      stat:"10/15",     inv:226.7, change:-4.0, dir:"去库",   driver:"双 11 包装 + 教辅印刷备货" },
-      { report:"10/22",      stat:"10/22",     inv:222.7, change:-4.0, dir:"去库",   driver:"旺季刚需持续" },
-      { report:"11/19",      stat:"11/19",     inv:193.7, change:-29,  dir:"加速去", driver:"海外减量到港兑现 + 年末刚需", cum:true },
-      { report:"12/31",      stat:"12/31",     inv:178.7, change:-15,  dir:"年内低", driver:"Q4 季度末升，库存加速去化",   cum:true }
-    ]
-  }
-};
+// 不再写死单一品种模板。推演表历史行一律种自 window.__data 的【真实库存序列】，
+// 全品种通用；仅当数据为真实（非合成演示）时才自动播种，合成演示绝不种假数。
+const FORECAST_DEFAULT = {};
+
+// —— 真实库存序列播种（全品种通用）——
+function fcIsDemo(){
+  const el = document.getElementById("demoWarn");
+  return !!(el && el.style.display && el.style.display !== "none");
+}
+// 当前用户所选库存指标下的真实取值（与图表口径一致）
+function fcMetricVal(row){
+  const key = (curInvMetric==="auto") ? (window.__bestInvMetric||"inventory_total") : curInvMetric;
+  return getInvValue(row, key);
+}
+function fcMetricName(){
+  const key = (curInvMetric==="auto") ? (window.__bestInvMetric||"inventory_total") : curInvMetric;
+  return METRIC_NAMES[key] || "库存";
+}
+// 吨 → 万吨（商品库存均≥万吨级，统一以万吨展示/存储）
+function fcToWan(tons){ return (tons==null) ? null : +(tons/10000).toFixed(2); }
+// 真实序列是否可用于播种（≥2 个有效库存点且非演示）
+function fcRealUsable(){
+  if(fcIsDemo()) return false;
+  const d = window.__data;
+  if(!d || !d.length) return false;
+  return d.filter(r=>fcMetricVal(r)!=null).length >= 2;
+}
+// 从真实序列播种：取最近 n 个公布点作「实际」行，首行作基准
+function fcSeedFromReal(n){
+  n = n || 8;
+  const d = (window.__data||[]).filter(r=>fcMetricVal(r)!=null)
+            .map(r=>({date:r.date, wan:fcToWan(fcMetricVal(r))}))
+            .sort((a,b)=> (a.date<b.date?-1:(a.date>b.date?1:0)));
+  if(d.length < 2) return null;
+  const pick = d.slice(-n);
+  const metric = fcMetricName();
+  const symEl = document.getElementById("symbol");
+  const symVal = symEl ? symEl.value : "";
+  const source = (curExch==="INE" && /sc/i.test(symVal)) ? "EIA" : "交易所周报";
+  const last = pick[pick.length-1];
+  const base = pick[0];
+  const rows = pick.map((p,i)=>{
+    const prev = i>0 ? pick[i-1].wan : null;
+    const change = (prev!=null) ? +(p.wan - prev).toFixed(2) : null;
+    return {
+      report: p.date, stat: p.date, inv: p.wan, change,
+      dir: (change==null)?"基准":(change>0?"累库":"去库"),
+      driver: "真实库存（"+source+"·"+metric+"）" + (i===0?" 公布值":""),
+      baseline: i===0, real:true
+    };
+  });
+  return {
+    title: "③ 周度推演（真实库存序列 · 截至 "+last.date+"）",
+    assumptions: "基于"+source+"真实库存序列最近 "+rows.length+" 个公布点（截至 "+last.date+"）。历史行为实际公布值；未来行为人工推演，非公布值。",
+    triggerRule: "若后续预计库存重新周度累库至基准 "+base.wan+" 万吨以上，前期去库利多情景逆转（情景复活预警）。",
+    baseline_inventory: base.wan,
+    source: source, rows
+  };
+}
 const DIR_CLASS = {
   "基准":"dir-base",
   "微累":"dir-up",
@@ -1846,7 +1885,7 @@ function fcEsc(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&l
 
 function renderForecast(){
   const key = fcKey();
-  const data = fcGet(key);
+  let data = fcGet(key);
   const tbody = document.getElementById("fcBody");
   const triggerEl = document.getElementById("fcTrigger");
   const viewTitle = document.getElementById("fcTitleView");
@@ -1858,7 +1897,18 @@ function renderForecast(){
   const fcWrap = document.getElementById("fcWrap");
 
   if(!data || !data.rows || !data.rows.length){
-    tbody.innerHTML = '<tr><td colspan="6" class="fcempty">该品种暂无库存推演。点击右上「✎ 编辑推演」逐行创建，或「↺ 恢复示例」载入 SP 示例参考。</td></tr>';
+    // 尝试用真实库存序列自动播种（仅真实数据，全品种通用）
+    if((!data || !data.cleared) && fcRealUsable()){
+      const seeded = fcSeedFromReal(8);
+      if(seeded){ fcSet(key, seeded); data = fcGet(key); }
+    }
+  }
+  if(!data || !data.rows || !data.rows.length){
+    const why = fcIsDemo()
+      ? "当前品种为<b>合成演示数据</b>（无后端且暂无真实样本），推演基准需用真实库存。"
+      : "该品种暂无可用的<b>真实库存序列</b>。";
+    tbody.innerHTML = '<tr><td colspan="6" class="fcempty">'+why
+      + ' 配置真实数据接口（<code>http://127.0.0.1:8787</code>）或联网后，点「🌱 播种真实序列」即用真实库存自动生成推演表；也可点「✎ 编辑推演」逐行手建。</td></tr>';
     triggerEl.className = "fctrigger";
     triggerEl.innerHTML = "";
     viewTitle.style.display = "none";
@@ -1940,6 +1990,8 @@ function initForecast(){
 
   editBtn.style.display = "";
   resetBtn.style.display = "";
+  const seedBtn = document.getElementById("fcSeedBtn");
+  if(seedBtn) seedBtn.style.display = "";
 
   function setEditable(on){
     if(on){
@@ -2023,9 +2075,21 @@ function initForecast(){
     renderForecast();
   });
 
-  // 恢复示例
+  // 播种真实序列（覆盖本品种推演表）
+  seedBtn.addEventListener("click", ()=>{
+    if(!fcRealUsable()){
+      if(typeof alert==="function") alert("当前品种为合成演示或无真实库存序列，无法播种。请配置真实数据接口（http://127.0.0.1:8787）或联网后重试。");
+      return;
+    }
+    const cur = fcGet(fcKey());
+    if(cur && cur.rows && cur.rows.length && typeof confirm==="function" && !confirm("用当前真实库存序列覆盖本品种推演表？")) return;
+    const s = fcSeedFromReal(8);
+    if(s){ fcSet(fcKey(), s); setEditable(false); renderForecast(); }
+  });
+
+  // 清空（保留为空态，不再自动播种）
   resetBtn.addEventListener("click", ()=>{
-    fcDel(fcKey());
+    fcSet(fcKey(), { rows:[], cleared:true, source: document.getElementById("fcSource").value });
     setEditable(false);
     renderForecast();
   });
