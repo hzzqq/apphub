@@ -1076,6 +1076,31 @@ function draw(){
       ctx.restore();
     }
   }
+
+  // 库存×价格联动信号竖线：共振/背离时在主图当前日画带色虚线 + 标签
+  {
+    const _s2 = (typeof fcLoadStore==="function") ? fcLoadStore() : {};
+    const _zk2 = (typeof fcKey==="function") ? _s2[fcKey()] : null;
+    const _zL2 = (_zk2 && _zk2.keyLow!=null && _zk2.keyLow!=="") ? +_zk2.keyLow : null;
+    const _zH2 = (_zk2 && _zk2.keyHigh!=null && _zk2.keyHigh!=="") ? +_zk2.keyHigh : null;
+    let _lp2=null; for(const r of (window.__data||[])){ if(r.close!=null) _lp2=r.close; }
+    const _ip2 = (typeof fcInvPercentile==="function") ? fcInvPercentile() : null;
+    const _invTag2 = _ip2 ? fcInvScenario(_ip2.pct).tag : null;
+    const _zz2 = (_zL2!=null && _zH2!=null) ? fcPriceZoneCls(_lp2, _zL2, _zH2) : null;
+    const _conf2 = fcConfluence(_invTag2, _zz2 ? _zz2.tag : null);
+    if(_conf2 && data.length){
+      const xi = X(data.length-1);
+      const isDiv = _conf2.tag.indexOf("背离")>=0;
+      const col = isDiv ? "#ffa94d" : (_conf2.cls==="price-below" ? "#00d486" : "#ff4d4f");
+      ctx.save();
+      ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.setLineDash([5,3]);
+      ctx.beginPath(); ctx.moveTo(xi, padT); ctx.lineTo(xi, padT+plotH); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = col; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.fillText(_conf2.tag, xi, padT+2);
+      ctx.restore();
+    }
+  }
   ctx.fillStyle="#9a9ab0"; ctx.textAlign="center"; ctx.textBaseline="top";
   const ticks=5;
   for(let g=0;g<=ticks;g++){ const i=Math.round((data.length-1)*g/ticks); const x=X(i); ctx.fillText(data[i].date.slice(5),x,padT+plotH+8); }
