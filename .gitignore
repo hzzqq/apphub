@@ -26,7 +26,7 @@ _jscheck*.js
 
 # 开发/调试临时产物（不随仓库分发，避免污染提交）
 OFFLINE
-temp/
+temp
 Artifacts/
 _fe_smoke.js
 _fe_test.js
