@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>倒数日</title>
+<style>
+:root{--bg:#0f0f23;--card:#1a1a2e;--card2:#221a3a;--txt:#e6e6f0;--sub:#8a8a9a;--line:#2a2a44;--accent:#667eea;--accent2:#764ba2;--up:#ff4d4f;--down:#00d486;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;min-height:100vh}
+a{color:var(--txt);text-decoration:none}
+.hubhome{position:fixed;top:14px;left:14px;z-index:50;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.wrap{max-width:760px;margin:0 auto;padding:70px 16px 40px}
+.head{text-align:center;margin-bottom:22px}
+.head h1{font-size:26px;margin:0;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;color:transparent}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.inputrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.inputrow input[type=text]{flex:1;min-width:160px;background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:10px;outline:none}
+.inputrow input[type=date]{background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px 12px;color-scheme:dark;outline:none}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:600}
+.btn.ghost{background:var(--card2);border:1px solid var(--line);color:var(--txt)}
+.btn.sm{padding:6px 10px;font-size:12px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
+.filters button{background:var(--card);border:1px solid var(--line);color:var(--sub);border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer;transition:all .15s}
+.filters button.on{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
+.ev{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--card2);border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+.ev .emoji{font-size:26px;flex-shrink:0}
+.ev .main{flex:1;min-width:0}
+.ev .name{font-weight:600;word-break:break-word}
+.ev .note{font-size:12px;color:var(--sub);margin-top:2px}
+.ev .cd{flex-shrink:0;text-align:right}
+.ev .cd .num{font-size:22px;font-weight:800}
+.ev .cd .lab{font-size:11px;color:var(--sub)}
+.ev .cd.future .num{color:var(--accent)}
+.ev .cd.past .num{color:var(--sub)}
+.ev .cd.today .num{color:var(--down)}
+.empty{color:var(--sub);text-align:center;padding:24px}
+.hubfoot{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;font-size:12px;color:var(--sub);flex-wrap:wrap;gap:8px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+</style>
+</head>
+<body>
+<a class="hubhome" aria-label="返回 App 大厅" href="../index.html">🏠 大厅</a>
+<div class="wrap">
+  <div class="head"><h1>⏳ 倒数日</h1></div>
+  <div class="card">
+    <div class="inputrow">
+      <input type="text" id="emoji" placeholder="图标（可选）如 🎂 🎓 ✈️" style="min-width:90px;max-width:130px">
+      <input type="text" id="name" placeholder="事件名称，如 考研 / 生日 / 放假" style="flex:2;min-width:160px">
+      <input type="date" id="date" title="目标日期">
+      <button class="btn" id="addBtn">添加</button>
+    </div>
+    <div class="inputrow">
+      <input type="text" id="cat" placeholder="分类（可选）：纪念日 / 目标 / 节日" style="min-width:160px">
+      <input type="text" id="note" placeholder="备注（可选）" style="flex:1;min-width:160px">
+    </div>
+    <div class="filters" id="filters"><button data-f="all" class="on">全部</button></div>
+    <div id="list"></div>
+  </div>
+  <div class="hubfoot">
+    <a href="../index.html">← 返回应用大厅</a>
+    <span>数据存 localStorage</span>
+  </div>
+</div>
+<script>
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);});}
+function safeUrl(u){u=String(u==null?"":u);if(/^\s*javascript:/i.test(u))return"#";return esc(u);}
+
+const KEY="countdown_events_v1";
+let events=load();
+let cats=[];
+let curF="all";
+
+function load(){ try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return [];} }
+function persist(){ localStorage.setItem(KEY,JSON.stringify(events)); }
+function uid(){ return Date.now()+"_"+Math.random().toString(36).slice(2,7); }
+
+function daysBetween(target){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const d=new Date(target+"T00:00:00");
+  return Math.round((d-today)/86400000);
+}
+function descOf(diff){
+  if(diff>0)  return {cls:"future", num:diff, lab:"天后"};
+  if(diff===0)return {cls:"today", num:0, lab:"就是今天"};
+  return {cls:"past", num:-diff, lab:"天前"};
+}
+
+function renderFilters(){
+  cats=[]; events.forEach(e=>{ if(e.cat && cats.indexOf(e.cat)<0) cats.push(e.cat); });
+  const box=document.getElementById("filters");
+  let html='<button data-f="all" class="'+(curF==="all"?"on":"")+'">全部</button>';
+  html+=cats.map(c=>'<button data-f="'+esc(c)+'" class="'+(curF===c?"on":"")+'">'+esc(c)+'</button>').join("");
+  box.innerHTML=html;
+}
+function render(){
+  renderFilters();
+  let view=events.slice();
+  if(curF!=="all") view=view.filter(e=>e.cat===curF);
+  view.sort((a,b)=>{
+    const da=daysBetween(a.date), db=daysBetween(b.date);
+    // 今天/未来按近到远，已过去的排最后且按远到近
+    const fa=da>=0, fb=db>=0;
+    if(fa!==fb) return fa?-1:1;
+    return da-db;
+  });
+  const box=document.getElementById("list");
+  if(!view.length){ box.innerHTML='<div class="empty">还没有倒数日，添加一个纪念日或目标吧 🗓️</div>'; return; }
+  box.innerHTML=view.map(e=>{
+    const diff=daysBetween(e.date);
+    const d=descOf(diff);
+    const extra=[];
+    if(d.cls==="future"&&diff>0){ extra.push("约 "+Math.ceil(diff/7)+" 周"); extra.push("约 "+(diff/30).toFixed(1)+" 个月"); }
+    return '<div class="ev" data-id="'+e.id+'">'+
+      '<div class="emoji">'+(e.emoji||"📅")+'</div>'+
+      '<div class="main"><div class="name">'+esc(e.name)+(e.cat?' <span style="font-size:12px;color:var(--accent)">· '+esc(e.cat)+'</span>':'')+'</div>'+
+      '<div class="note">'+esc(e.date)+(e.note?' · '+esc(e.note):'')+(extra.length?' · '+extra.join(" / "):'')+'</div></div>'+
+      '<div class="cd '+d.cls+'"><div class="num">'+d.num+'</div><div class="lab">'+(d.cls==="today"?"🎉 就是今天":d.lab)+'</div></div>'+
+      '<button class="btn ghost sm" data-act="del" data-id="'+e.id+'">删</button>'+
+    '</div>';
+  }).join("");
+  box.querySelectorAll("[data-act=del]").forEach(b=>b.addEventListener("click",()=>{
+    if(confirm("删除这个倒数日？")){ events=events.filter(x=>x.id!==b.dataset.id); persist(); render(); }
+  }));
+}
+document.getElementById("addBtn").addEventListener("click",()=>{
+  const name=document.getElementById("name").value.trim();
+  const date=document.getElementById("date").value;
+  if(!name||!date){ alert("请填写事件名称和目标日期"); return; }
+  events.push({id:uid(), emoji:document.getElementById("emoji").value.trim(), name, date,
+    cat:document.getElementById("cat").value.trim(), note:document.getElementById("note").value.trim()});
+  document.getElementById("name").value=""; document.getElementById("date").value="";
+  document.getElementById("cat").value=""; document.getElementById("note").value="";
+  document.getElementById("emoji").value=""; document.getElementById("name").focus();
+  persist(); render();
+});
+document.getElementById("filters").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  curF=b.dataset.f; render();
+});
+render();
+</script>
+</body>
+</html>

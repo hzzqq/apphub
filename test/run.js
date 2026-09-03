@@ -111,7 +111,7 @@ ok("ETF 精选器需后端", napi.needsBackend("etf-picker") === true);
 ok("桌面宠物不需后端", napi.needsBackend("desktop-pet") === false);
 ok("番茄钟不需后端", napi.needsBackend("focus-timer") === false);
 ok("未知目录返回 false", napi.needsBackend("no-such-app") === false);
-ok("依赖清单含 10 个 App", napi.NEEDS_BACKEND.length === 10);
+ok("依赖清单含 11 个 App", napi.NEEDS_BACKEND.length === 11);
 ok("依赖清单无重复", new Set(napi.NEEDS_BACKEND).size === napi.NEEDS_BACKEND.length);
 ok("已连后端 -> 真实数据徽标", napi.backendBadgeText(true) === "🔌 真实数据");
 ok("未连后端 -> 本地样本徽标", napi.backendBadgeText(false) === "⚠ 本地样本");

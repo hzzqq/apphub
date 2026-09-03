@@ -1,6 +1,9 @@
 @echo off
 setlocal
-cd /d "%~dp0"
+REM Use `pushd "%~dp0"` (NOT `cd /d "%~dp0"`): cd chokes on the trailing
+REM backslash in %~dp0 ("E:\project\app\" -> cmd sees an escaped quote ->
+REM "文件名、目录名或卷标语法不正确" -> cd fails, breaking the python calls).
+pushd "%~dp0"
 
 echo [*] Fetching or refreshing real futures data, e.g. pulp SP ...
 python backend/fetch_real_futures.py
@@ -18,4 +21,5 @@ if errorlevel 1 (
 ) else (
   echo [ok] Done. futures-spread now shows real snapshots even without the backend.
 )
+popd
 pause

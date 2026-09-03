@@ -50,13 +50,16 @@
   .hubfoot a:hover{text-decoration:underline}
   .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35)}
   .hubhome:hover{filter:brightness(1.12)}
+  .freshen{font-size:12px;color:var(--sub);margin:8px 0;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);display:none}
+  .freshen b{color:var(--text)}
 </style>
 </head>
 <body>
-  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+  <a class="hubhome" aria-label="返回 App 大厅" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
 
 <h1>💰 ETF筛选器</h1>
 <div class="sub">按类型 / 行业 / 规模 / 收益区间 / 费率 / 跟踪误差多维筛选与排序 · 自选与对比本地持久化 · 数据源模仿 StockSignal（演示样本）</div>
+<div id="freshness" class="freshen" style="display:none"></div>
 
 <form class="filters" id="form" aria-label="ETF 筛选条件">
   <div class="f"><label for="fType">类型</label><select id="fType" aria-label="类型">
@@ -562,6 +565,7 @@ function buildAndDownload(list, kind, nameBase){
 }
 function doExport(kind){ buildAndDownload(getExportList("cur"), kind, "ETF筛选结果"); }
 function exportSet(source){ buildAndDownload(getExportList(source), "csv", source==="watch"?"ETF自选":"ETF对比"); }
+function showFresh(ts,label){const el=document.getElementById("freshness");if(!el)return;el.style.display="block";el.innerHTML="📅 "+(label?label+" ":"")+"更新于 <b>"+ts+"</b>";}
 
 // ---------- 数据加载（后端优先，逐级降级，绝不随机）----------
 const API_ROOT = (function(){ try{ return localStorage.getItem("hub_api") || "http://127.0.0.1:8787"; }catch(e){ return "http://127.0.0.1:8787"; } })();
@@ -569,12 +573,14 @@ async function loadETFs(){
   const stat = document.getElementById("stat");
   stat.textContent = "加载中…";
   try{
-    const r = await fetch(API_ROOT + "/api/etf", {cache:"no-store"});
+    const ctrl=new AbortController(); setTimeout(()=>ctrl.abort(),8000);
+    const r = await fetch(API_ROOT + "/api/etf", {cache:"no-store",signal:ctrl.signal});
     if(r.ok){
       const j = await r.json();
       if(j && j.ok && Array.isArray(j.rows) && j.rows.length){
         ETFS = j.rows.map(sanitizeETF);
         dataSrc = j.offline ? "离线静态样本(本地 data/etf.json)" : "真实 ETF 行情(akshare)";
+        if(j.updated) showFresh(j.updated,"ETF行情");
         refreshIndustryOptions(); loadFilters(); render(); return;
       }
     }

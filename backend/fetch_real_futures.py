@@ -32,6 +32,11 @@ import sys
 import akshare as ak
 import pandas as pd
 
+import socket
+# 全局网络超时：避免 SHFE/CZCE 等接口在无响应时无限挂起（曾导致 start.bat 启动器假死）。
+# 任一网络调用超过 12s 即抛 socket.timeout，由上层 try/except 优雅降级为 [SKIP]。
+socket.setdefaulttimeout(12)
+
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 DEFAULT_SYMBOLS = [
     ("SHFE", "sp"), ("SHFE", "cu"), ("SHFE", "al"), ("SHFE", "rb"),
@@ -184,8 +189,10 @@ def fetch_one(exchange, symbol, days):
         return False
     os.makedirs(DATA_DIR, exist_ok=True)
     path = os.path.join(DATA_DIR, "futures_%s_%s.json" % (exchange, symbol))
-    with open(path, "w", encoding="utf-8") as f:
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(rows, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, path)  # 原子替换，避免后端读取途中文件半写
     print("  [ok] 写入 %s (%d 条, 库存点 %d)" % (path, len(rows), len(inv)))
     return True
 

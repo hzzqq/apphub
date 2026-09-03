@@ -41,13 +41,16 @@
 
   .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35);transition:filter .15s}
   .hubhome:hover{filter:brightness(1.12)}
+  .freshen{font-size:12px;color:var(--sub);margin:6px 0 14px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);display:none}
+  .freshen b{color:var(--text)}
 </style>
 </head>
 <body>
-  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+  <a class="hubhome" aria-label="返回 App 大厅" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
 
 <h1>🛡️ 持仓体检扫描</h1>
 <div class="sub">一键扫持仓风险短板：集中度 / 单一行业 / 亏损幅度 · 数据源模仿 StockSignal（I_体检扫描.py）</div>
+<div id="freshness" class="freshen" style="display:none"></div>
 
 <div class="row">
   <input type="text" id="code" placeholder="代码 如600519">
@@ -146,12 +149,14 @@ function diagnosis(total){
     <span style="width:200px">${it.label}</span>
     <span class="bar"><span style="width:${Math.min(100,it.v*100)}%"></span></span></div>`).join("");
 }
+function showFresh(ts,label){const el=document.getElementById("freshness");if(!el)return;el.style.display="block";el.innerHTML="📅 "+(label?label+" ":"")+"数据更新于 <b>"+ts+"</b>";}
 document.getElementById("addBtn").addEventListener("click",add);
 document.getElementById("expCsv").addEventListener("click",exportCsv);
 document.getElementById("demoBtn").addEventListener("click",async()=>{
   try{
     const API_ROOT = localStorage.getItem("hub_api")||"http://127.0.0.1:8787";
-    const r=await fetch(API_ROOT+"/api/data?file=holdings.json",{cache:"no-store"});
+    const ctrl=new AbortController(); setTimeout(()=>ctrl.abort(),8000);
+    const r=await fetch(API_ROOT+"/api/data?file=holdings.json",{cache:"no-store",signal:ctrl.signal});
     if(r.ok){ const j=await r.json(); if(j.ok&&Array.isArray(j.rows)){ HOLD=j.rows.map(x=>({code:x.code,name:x.name,sector:x.market||"",cost:x.cost,price:x.cost,qty:x.lots*100})); render(); return; } }
   }catch(e){ console.warn("持仓样本接口失败, 用内置兜底",e); }
     HOLD=[

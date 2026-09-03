@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>单位换算器</title>
+<style>
+:root{--bg:#0f0f23;--card:#1a1a2e;--card2:#221a3a;--txt:#e6e6f0;--sub:#8a8a9a;--line:#2a2a44;--accent:#667eea;--accent2:#764ba2;--up:#ff4d4f;--down:#00d486;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;min-height:100vh}
+a{color:var(--txt);text-decoration:none}
+.hubhome{position:fixed;top:14px;left:14px;z-index:50;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.wrap{max-width:720px;margin:0 auto;padding:70px 16px 40px}
+.head{text-align:center;margin-bottom:22px}
+.head h1{font-size:26px;margin:0;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;color:transparent}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tabs button{background:var(--card);border:1px solid var(--line);color:var(--sub);border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer;transition:all .15s}
+.tabs button.on{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.row label{font-size:12px;color:var(--sub);width:100%}
+.row input,.row select{background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px 12px;font-size:15px;outline:none}
+.row input[type=number]{flex:1;min-width:140px}
+.row select{flex:1;min-width:140px}
+.swap{background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px 14px;cursor:pointer;font-size:16px;flex-shrink:0}
+.swap:hover{border-color:var(--accent)}
+.result{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center}
+.result .out{font-size:30px;font-weight:800;color:var(--accent);word-break:break-all}
+.result .eq{font-size:13px;color:var(--sub);margin-top:6px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.hubfoot{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;font-size:12px;color:var(--sub);flex-wrap:wrap;gap:8px}
+</style>
+</head>
+<body>
+<a class="hubhome" aria-label="返回 App 大厅" href="../index.html">🏠 大厅</a>
+<div class="wrap">
+  <div class="head"><h1>🔁 单位换算器</h1></div>
+  <div class="card">
+    <div class="tabs" id="tabs"></div>
+    <div class="row">
+      <label>从</label>
+      <input type="number" id="val" value="1" step="any">
+      <select id="from"></select>
+      <button class="swap" id="swap" title="互换单位">⇄</button>
+    </div>
+    <div class="row">
+      <label>到</label>
+      <select id="to"></select>
+    </div>
+    <div class="result">
+      <div class="out" id="out">—</div>
+      <div class="eq" id="eq"></div>
+    </div>
+  </div>
+  <div class="hubfoot">
+    <a href="../index.html">← 返回应用大厅</a>
+    <span>纯本地计算，零依赖</span>
+  </div>
+</div>
+<script>
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);});}
+function safeUrl(u){u=String(u==null?"":u);if(/^\s*javascript:/i.test(u))return"#";return esc(u);}
+
+// 每个类别：units = { 单位名: 换算到基准单位的系数 }
+// 温度特殊处理（非线性），用 toBase / fromBase 函数
+const CATS={
+  length:{label:"长度", base:"米", units:{
+    "毫米":0.001,"厘米":0.01,"米":1,"千米":1000,
+    "英寸":0.0254,"英尺":0.3048,"码":0.9144,"英里":1609.344,
+    "海里":1852
+  }},
+  weight:{label:"重量", base:"千克", units:{
+    "毫克":0.000001,"克":0.001,"千克":1,"吨":1000,
+    "盎司":0.0283495,"磅":0.453592,"斤":0.5,"两":0.05
+  }},
+  temp:{label:"温度", base:"°C", special:true, units:{
+    "摄氏度":{}, "华氏度":{}, "开尔文":{}
+  }},
+  area:{label:"面积", base:"平方米", units:{
+    "平方厘米":0.0001,"平方米":1,"公顷":10000,"平方千米":1e6,
+    "亩":666.667,"英亩":4046.856,"平方英尺":0.092903
+  }},
+  volume:{label:"体积", base:"升", units:{
+    "毫升":0.001,"升":1,"立方米":1000,"立方厘米":0.001,
+    "加仑(美)":3.78541,"品脱(美)":0.473176
+  }},
+  time:{label:"时间", base:"秒", units:{
+    "毫秒":0.001,"秒":1,"分钟":60,"小时":3600,"天":86400,"周":604800
+  }},
+  speed:{label:"速度", base:"米/秒", units:{
+    "米/秒":1,"千米/时":0.277778,"英里/时":0.44704,"节":0.514444
+  }},
+  data:{label:"数据", base:"字节", units:{
+    "字节":1,"KB":1024,"MB":1048576,"GB":1073741824,"TB":1099511627776,
+    "比特":0.125
+  }}
+};
+const ORDER=Object.keys(CATS);
+
+let curCat="length";
+function cat(){ return CATS[curCat]; }
+
+function toBase(c, unit, v){
+  if(c.special){
+    if(unit==="摄氏度") return v;
+    if(unit==="华氏度") return (v-32)*5/9;
+    if(unit==="开尔文") return v-273.15;
+  }
+  return v*(c.units[unit]||1);
+}
+function fromBase(c, unit, base){
+  if(c.special){
+    if(unit==="摄氏度") return base;
+    if(unit==="华氏度") return base*9/5+32;
+    if(unit==="开尔文") return base+273.15;
+  }
+  return base/(c.units[unit]||1);
+}
+
+function buildTabs(){
+  document.getElementById("tabs").innerHTML=ORDER.map(k=>
+    '<button data-c="'+k+'" class="'+(k===curCat?"on":"")+'">'+CATS[k].label+'</button>'
+  ).join("");
+}
+function fillUnits(){
+  const u=cat().units;
+  const names=Object.keys(u);
+  const from=document.getElementById("from"), to=document.getElementById("to");
+  from.innerHTML=names.map(n=>'<option>'+n+'</option>').join("");
+  to.innerHTML=names.map(n=>'<option>'+n+'</option>').join("");
+  // 默认选前两个不同单位
+  from.value=names[0];
+  to.value=names[1]||names[0];
+}
+function calc(){
+  const c=cat();
+  const v=parseFloat(document.getElementById("val").value);
+  const f=document.getElementById("from").value, t=document.getElementById("to").value;
+  const out=document.getElementById("out"), eq=document.getElementById("eq");
+  if(isNaN(v)){ out.textContent="—"; eq.textContent=""; return; }
+  const base=toBase(c,f,v);
+  const res=fromBase(c,t,base);
+  let txt;
+  if(!isFinite(res)) txt="—";
+  else if(Math.abs(res)>=1e9 || (res!==0 && Math.abs(res)<1e-6)) txt=res.toExponential(4);
+  else txt=String(+res.toFixed(8));
+  out.textContent=txt;
+  eq.textContent=v+" "+f+"  =  "+txt+" "+t+"  （基准："+c.base+"）";
+}
+function setCat(k){
+  curCat=k; buildTabs(); fillUnits(); calc();
+}
+buildTabs();
+fillUnits();
+calc();
+
+document.getElementById("tabs").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return; setCat(b.dataset.c);
+});
+document.getElementById("val").addEventListener("input",calc);
+document.getElementById("from").addEventListener("change",calc);
+document.getElementById("to").addEventListener("change",calc);
+document.getElementById("swap").addEventListener("click",()=>{
+  const f=document.getElementById("from"), t=document.getElementById("to");
+  const tmp=f.value; f.value=t.value; t.value=tmp; calc();
+});
+</script>
+</body>
+</html>

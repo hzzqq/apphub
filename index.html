@@ -5,35 +5,112 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>微应用大厅 · App Hub</title>
 <style>
+  /* ============================================================
+     App Hub · Bento Grids（暗色版）
+     模板来源：ui-ux-pro-max #53 Bento Grids + #7 Dark Mode(OLED)
+     模块化 tile / 大圆角 20-24px / 柔和阴影 / hover 微缩放 / 4 列网格
+     沿用原有 CSS 变量名，兼容「主题工坊」applySharedTheme 覆盖
+     ============================================================ */
   :root{
-    --bg:#0f0f23; --card:#1a1a2e; --card2:#221a3a; --line:#2e2e4d;
-    --txt:#e6e6f0; --sub:#9a9ab0; --g1:#667eea; --g2:#764ba2;
+    --bg:#0B0B0F; --card:#14141B; --card2:#1B1B24; --line:rgba(255,255,255,.09);
+    --txt:#F5F5F7; --sub:#A1A1AA; --g1:#667eea; --g2:#764ba2;
     --up:#ff4d4f; --down:#00d486; --inv:#f6c453; --accent:#7c5cff;
+    /* Bento tokens */
+    --grid-gap:16px; --card-radius:20px; --tile-radius:22px;
+    --shadow:0 4px 14px rgba(0,0,0,.35);
+    --shadow-hover:0 14px 34px rgba(0,0,0,.5);
   }
   *{box-sizing:border-box}
-  body{margin:0;background:linear-gradient(160deg,#0f0f23,#15152e 60%,#1a1a2e);
-       color:var(--txt);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
-       min-height:100vh;padding:32px 20px 60px}
-  .head{max-width:1180px;margin:0 auto 26px;text-align:center}
-  .head h1{font-size:30px;margin:0 0 6px;
-    background:linear-gradient(90deg,var(--g1),var(--g2));-webkit-background-clip:text;background-clip:text;color:transparent;
-    letter-spacing:1px}
-  .head p{color:var(--sub);margin:0;font-size:14px}
-  .stat{display:inline-flex;gap:18px;margin-top:14px}
-  .stat .b{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 16px;font-size:13px;color:var(--sub)}
-  .stat .b b{color:var(--txt);font-size:18px;margin-right:4px}
-  .grid{max-width:1180px;margin:0 auto;display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
-    padding:18px;display:flex;flex-direction:column;gap:10px;position:relative;
-    transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
-  .card:hover{transform:translateY(-4px);border-color:var(--accent);
-    box-shadow:0 10px 30px rgba(124,92,255,.18)}
-  .ctop{display:flex;align-items:center;gap:10px}
-  .ico{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;
-    font-size:20px;background:linear-gradient(135deg,var(--g1),var(--g2));flex-shrink:0}
+  html{color-scheme:dark}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+       min-height:100vh;padding:28px 20px 56px;-webkit-font-smoothing:antialiased;line-height:1.5}
+  .wrap{max-width:1240px;margin:0 auto}
+
+  /* ---------- Bento 网格容器 ---------- */
+  .bento{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--grid-gap);margin-bottom:var(--grid-gap)}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:var(--tile-radius);
+        padding:18px;box-shadow:var(--shadow);display:flex;flex-direction:column;justify-content:center;
+        transition:border-color .2s ease,box-shadow .2s ease}
+  .tile:hover{border-color:rgba(124,92,255,.45)}
+  .s4{grid-column:span 4} .s3{grid-column:span 3} .s2{grid-column:span 2} .s1{grid-column:span 1}
+  .tilelabel{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--sub);
+             margin-bottom:10px;font-weight:600}
+
+  /* ---------- Hero tile ---------- */
+  .hero{background:
+      radial-gradient(120% 150% at 0% 0%, rgba(124,92,255,.30), transparent 58%),
+      radial-gradient(100% 130% at 100% 100%, rgba(102,126,234,.18), transparent 60%),
+      var(--card2);
+    align-items:center;text-align:center;gap:12px;padding:32px 24px}
+  .hero h1{font-size:34px;margin:0;letter-spacing:.5px;line-height:1.25;
+    background:linear-gradient(90deg,var(--g1),var(--g2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{color:var(--sub);margin:0;font-size:13.5px}
+  .stat{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .stat .b{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;
+    padding:8px 16px;font-size:12.5px;color:var(--sub)}
+  .stat .b b{color:var(--txt);font-size:19px;margin-right:4px}
+
+  /* ---------- 控件 ---------- */
+  .searchbar{display:flex;gap:10px;align-items:center}
+  .searchbar input{flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);border-radius:14px;
+    padding:13px 16px;color:var(--txt);font-size:14px;outline:none;transition:border-color .2s}
+  .searchbar input:focus{border-color:var(--accent)}
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap}
+  .randbtn{background:var(--card2);border:1px solid var(--line);color:var(--txt);
+    border-radius:14px;padding:11px 14px;font-size:13.5px;cursor:pointer;white-space:nowrap;transition:all .2s}
+  .randbtn:hover{border-color:var(--accent);filter:brightness(1.15)}
+  .hint{font-size:11.5px;color:var(--sub);margin-top:10px;line-height:1.6}
+  .hint code{background:rgba(255,255,255,.06);padding:1px 6px;border-radius:6px;color:var(--txt)}
+
+  .apipanel{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .apilbl{font-size:13px;color:var(--txt);white-space:nowrap}
+  .apipanel input{flex:1;min-width:220px;background:var(--card2);border:1px solid var(--line);border-radius:12px;
+    padding:10px 12px;color:var(--txt);font-size:13px;outline:none;transition:border-color .2s}
+  .apipanel input:focus{border-color:var(--accent)}
+  .apistate{font-size:12px;font-weight:600}
+  .apistate.ok{color:var(--down)} .apistate.bad{color:var(--up)}
+  .apihint{font-size:11.5px;color:var(--sub);margin-top:10px;line-height:1.6}
+  .apihint code{background:rgba(255,255,255,.06);padding:1px 5px;border-radius:5px;color:var(--txt)}
+
+  .filters{display:flex;gap:8px;flex-wrap:wrap}
+  .filters button{background:var(--card2);border:1px solid var(--line);color:var(--sub);
+    border-radius:20px;padding:7px 14px;font-size:13px;cursor:pointer;transition:all .2s}
+  .filters button:hover{border-color:var(--accent);color:var(--txt)}
+  .filters button.on{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;border-color:transparent}
+  .filters button .cnt{opacity:.75;font-size:11px;margin-left:3px}
+  .sortbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .sortlbl{font-size:12px;color:var(--sub);margin-right:2px}
+  .sortbar button{background:var(--card2);border:1px solid var(--line);color:var(--sub);
+    border-radius:20px;padding:7px 14px;font-size:12.5px;cursor:pointer;transition:all .2s}
+  .sortbar button:hover{border-color:var(--accent);color:var(--txt)}
+  .sortbar button.on{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;border-color:transparent}
+
+  /* ---------- 最近打开 ---------- */
+  .recent h3{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--sub);
+    margin:0 0 12px;font-weight:600}
+  .recent .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .recent .chip{background:var(--card2);border:1px solid var(--line);border-radius:20px;
+    padding:7px 13px;font-size:12.5px;color:var(--txt);text-decoration:none;display:inline-flex;
+    align-items:center;gap:6px;transition:border-color .2s}
+  .recent .chip:hover{border-color:var(--accent)}
+  .recent .chip .x{color:var(--sub);cursor:pointer;font-size:14px;line-height:1}
+
+  /* ---------- 应用卡片网格（Bento） ---------- */
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:minmax(158px,auto);gap:var(--grid-gap)}
+  .card{grid-column:span 1;background:var(--card);border:1px solid var(--line);border-radius:var(--card-radius);
+    padding:18px;display:flex;flex-direction:column;gap:10px;position:relative;box-shadow:var(--shadow);
+    transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+  .card.wide{grid-column:span 2}
+  .card:hover{transform:translateY(-3px) scale(1.02);border-color:var(--accent);box-shadow:var(--shadow-hover)}
+  .card.faved{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset,var(--shadow)}
+  .card.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),var(--shadow-hover);background:var(--card2)}
+  .ctop{display:flex;align-items:center;gap:12px;min-width:0}
+  .ico{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    font-size:21px;background:linear-gradient(135deg,var(--g1),var(--g2));flex-shrink:0}
   .cname{font-size:16px;font-weight:600;line-height:1.2}
-  .ctag{font-size:11px;color:var(--sub);margin-top:2px}
+  .ctag{font-size:11px;color:var(--sub);margin-top:2px;cursor:pointer;transition:color .2s}
+  .ctag:hover{color:var(--accent);text-decoration:underline}
   .cat{font-size:10px;padding:3px 8px;border-radius:20px;
     border:1px solid var(--line);color:var(--sub);background:var(--card2)}
   .cat.fin{color:var(--inv);border-color:#5a4a2a}
@@ -42,135 +119,164 @@
   .needapi{font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;white-space:nowrap;
     border:1px solid #2a5a4a;color:var(--down);background:var(--card2);cursor:help}
   .needapi.off{border-color:#5a4a2a;color:#ffb74d}
-  /* 键盘可达性(cycle 54): 此前只有输入框有焦点样式, 按钮/链接被键盘 Tab 聚焦时没有任何可见指示,
-     纯键盘用户无法判断焦点落在哪里。此处为所有可交互元素补上统一的键盘焦点轮廓。 */
-  button:focus-visible, a:focus-visible, .card:focus-visible, .chip:focus-visible{
-    outline:2px solid var(--accent); outline-offset:2px; border-radius:8px;
-  }
-  .desc{font-size:12.5px;color:var(--sub);line-height:1.55;flex:1;min-height:42px}
+  .desc{font-size:12.5px;color:var(--sub);line-height:1.6;flex:1;min-height:42px}
+  .cact{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .open{display:inline-flex;align-items:center;justify-content:center;gap:6px;
     background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;text-decoration:none;
-    border:none;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;
-    transition:filter .15s}
-  .open:hover{filter:brightness(1.12)}
-  .ft{text-align:center;color:var(--sub);font-size:12px;margin-top:34px}
-  .ft code{background:var(--card2);padding:2px 6px;border-radius:6px;color:var(--txt)}
-  /* 搜索 + 筛选 */
-  .controls{max-width:1180px;margin:0 auto 22px;display:flex;flex-direction:column;gap:12px}
-  .searchbar{display:flex;gap:10px;align-items:center}
-  .searchbar input{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;
-    padding:12px 16px;color:var(--txt);font-size:14px;outline:none;transition:border-color .15s}
-  .searchbar input:focus{border-color:var(--accent)}
-  .randbtn{background:var(--card2);border:1px solid var(--line);color:var(--txt);
-    border-radius:12px;padding:12px 16px;font-size:14px;cursor:pointer;white-space:nowrap;transition:all .15s}
-  .randbtn:hover{border-color:var(--accent);filter:brightness(1.15)}
-  .filters{display:flex;gap:8px;flex-wrap:wrap}
-  .filters button{background:var(--card);border:1px solid var(--line);color:var(--sub);
-    border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer;transition:all .15s}
-  .filters button:hover{border-color:var(--accent);color:var(--txt)}
-  .filters button.on{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;border-color:transparent}
-  .recent{max-width:1180px;margin:0 auto 26px}
-  .recent h3{font-size:14px;color:var(--sub);margin:0 0 10px;font-weight:600}
-  .recent .chips{display:flex;gap:8px;flex-wrap:wrap}
-  .recent .chip{background:var(--card2);border:1px solid var(--line);border-radius:20px;
-    padding:6px 12px;font-size:12.5px;color:var(--txt);text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:border-color .15s}
-  .recent .chip:hover{border-color:var(--accent)}
-  .recent .chip .x{color:var(--sub);cursor:pointer;font-size:14px;line-height:1}
-  .empty{color:var(--sub);font-size:13px;text-align:center;padding:30px;grid-column:1/-1}
-  .apipanel{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
-  .apilbl{font-size:13px;color:var(--txt);white-space:nowrap}
-  .apipanel input{flex:1;min-width:220px;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--txt);font-size:13px;outline:none}
-  .apipanel input:focus{border-color:var(--accent)}
-  .apistate{font-size:12px;font-weight:600}
-  .apistate.ok{color:var(--down)} .apistate.bad{color:var(--up)}
-  .apihint{font-size:11.5px;color:var(--sub)}
-  .apihint code{background:var(--card2);padding:1px 5px;border-radius:5px;color:var(--txt)}
-  /* ===== 迭代改进新增样式（全部使用 CSS 变量，无硬编码颜色） ===== */
-  .topright{position:absolute;top:12px;right:12px;display:flex;gap:6px;align-items:center}
-  .fav{background:transparent;border:1px solid var(--line);border-radius:20px;color:var(--sub);
-    font-size:13px;line-height:1;padding:3px 7px;cursor:pointer;transition:border-color .15s,color .15s}
-  .fav:hover{border-color:var(--accent);color:var(--txt)}
-  .card.faved{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset,0 10px 30px rgba(124,92,255,.15)}
-  .card.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),0 10px 30px rgba(124,92,255,.22);background:var(--card2)}
-  .ctag{cursor:pointer;transition:color .15s}
-  .ctag:hover{color:var(--accent);text-decoration:underline}
-  .cact{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .copybtn{background:var(--card2);border:1px solid var(--line);color:var(--sub);border-radius:10px;
-    padding:8px 10px;font-size:12px;cursor:pointer;transition:border-color .15s,color .15s}
+    border:none;border-radius:12px;padding:9px 15px;font-size:13px;font-weight:600;cursor:pointer;
+    transition:filter .2s}
+  .open:hover{filter:brightness(1.14)}
+  .copybtn{background:var(--card2);border:1px solid var(--line);color:var(--sub);border-radius:12px;
+    padding:9px 12px;font-size:12px;cursor:pointer;transition:border-color .2s,color .2s}
   .copybtn:hover{border-color:var(--accent);color:var(--txt)}
-  .filters button .cnt{opacity:.75;font-size:11px;margin-left:3px}
-  .sortbar{display:flex;gap:8px;align-items:center}
-  .sortlbl{font-size:12px;color:var(--sub);margin-right:2px}
-  .sortbar button{background:var(--card);border:1px solid var(--line);color:var(--sub);
-    border-radius:20px;padding:6px 12px;font-size:12.5px;cursor:pointer;transition:all .15s}
-  .sortbar button:hover{border-color:var(--accent);color:var(--txt)}
-  .sortbar button.on{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;border-color:transparent}
+  .topright{position:absolute;top:14px;right:14px;display:flex;gap:6px;align-items:center}
+  .fav{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:20px;color:var(--sub);
+    font-size:13px;line-height:1;padding:4px 8px;cursor:pointer;transition:border-color .2s,color .2s}
+  .fav:hover{border-color:var(--accent);color:var(--txt)}
+  .empty{color:var(--sub);font-size:13px;text-align:center;padding:34px;grid-column:1/-1}
   .clrbtn{margin-top:14px;background:var(--card2);border:1px solid var(--line);color:var(--txt);
-    border-radius:10px;padding:9px 18px;font-size:13px;cursor:pointer;transition:all .15s}
+    border-radius:12px;padding:9px 18px;font-size:13px;cursor:pointer;transition:all .2s}
   .clrbtn:hover{border-color:var(--accent);filter:brightness(1.15)}
-  .grid.list{grid-template-columns:1fr;gap:10px}
-  .card.list{flex-direction:row;align-items:center;gap:14px;padding:12px 16px}
+  .ft{text-align:center;color:var(--sub);font-size:12px;margin-top:30px;line-height:1.8}
+  .ft code{background:var(--card2);padding:2px 6px;border-radius:6px;color:var(--txt)}
+
+  /* 列表视图 */
+  .grid.list{grid-template-columns:1fr;gap:10px;grid-auto-rows:auto}
+  .grid.list .card{grid-column:span 1}
+  .card.list{flex-direction:row;align-items:center;gap:14px;padding:12px 16px;min-height:0}
+  .card.list:hover{transform:none}
   .card.list .desc{display:none}
   .card.list .ctop{flex:1;min-width:0}
   .card.list .cact{margin-left:auto}
   .card.list .topright{top:50%;transform:translateY(-50%)}
+
+  /* 键盘可达性：所有可交互元素统一焦点轮廓 */
+  button:focus-visible, a:focus-visible, .card:focus-visible, .chip:focus-visible, input:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px; border-radius:10px;
+  }
   @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
   .card.fade{animation:fadeUp .42s ease both}
+
+  /* ---------- 响应式 ---------- */
+  @media (max-width:1080px){
+    .bento,.grid{grid-template-columns:repeat(2,1fr)}
+    .s4{grid-column:span 2} .s3{grid-column:span 2} .s2{grid-column:span 1} .s1{grid-column:span 1}
+  }
+  @media (max-width:660px){
+    .bento,.grid{grid-template-columns:1fr}
+    .s4,.s3,.s2,.s1,.card.wide{grid-column:span 1}
+    body{padding:18px 14px 44px}
+    .hero{padding:24px 18px} .hero h1{font-size:26px}
+  }
+  /* 小屏（手机）进一步压缩 Bento 卡片密度与字号 */
+  @media (max-width:480px){
+    body{padding:14px 10px 40px}
+    .hero{padding:18px 14px} .hero h1{font-size:22px}
+    .bento,.grid{gap:12px}
+    .card{padding:14px} .card .cname{font-size:15px}
+    .card .desc{font-size:11.5px;min-height:0}
+    .searchbar input,.randbtn{padding:10px 12px;font-size:13px}
+    .filters button,.sortbar button{padding:5px 11px;font-size:12px}
+  }
+  /* 尊重系统「减少动效」偏好 */
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+    .card:hover{transform:none}
+  }
 </style>
 </head>
 <body>
-  <div class="head">
-    <h1>🛠️ 微应用大厅 App Hub</h1>
-    <p>零依赖单文件小工具集合 · 双击即开 · 数据本地存储</p>
-    <div class="stat">
-      <div class="b"><b id="cnt">0</b>个应用</div>
-      <div class="b"><b id="cntFin">0</b>金融</div>
-      <div class="b"><b id="cntLife">0</b>生活</div>
-      <div class="b"><b id="cntTool">0</b>效率</div>
-    </div>
+<div class="wrap">
+
+  <!-- ===== Hero：品牌 + 统计 ===== -->
+  <div class="bento">
+    <section class="tile hero s4">
+      <h1>🛠️ 微应用大厅 App Hub</h1>
+      <p>零依赖单文件小工具集合 · 双击即开 · 数据本地存储</p>
+      <div class="stat">
+        <div class="b"><b id="cnt">0</b>个应用</div>
+        <div class="b"><b id="cntFin">0</b>金融</div>
+        <div class="b"><b id="cntLife">0</b>生活</div>
+        <div class="b"><b id="cntTool">0</b>效率</div>
+      </div>
+    </section>
   </div>
 
-  <div class="controls">
-    <div class="searchbar">
-      <input id="search" placeholder="🔍 搜索应用名称 / 标签 / 分类，如 期货 / 预警 / 宠物 / ETF · 按 / 聚焦" autocomplete="off">
-      <button class="randbtn" id="randBtn" title="随机打开一个应用">🎲 随便逛逛</button>
-      <button class="randbtn" id="viewBtn" title="切换网格 / 列表视图">▦ 网格</button>
-    </div>
-    <div class="filters" id="filters"></div>
-    <div class="sortbar" id="sortbar">
-      <span class="sortlbl">排序</span>
-      <button data-sort="name" class="on">名称</button>
-      <button data-sort="recent">最近打开</button>
-      <button data-sort="cat">分类</button>
-    </div>
-    <div class="apipanel" id="apiPanel">
-      <span class="apilbl">🔌 真实数据接口（统一后端）：</span>
-      <input id="apiInput" placeholder="http://127.0.0.1:8787（留空则各 App 用本地静态样本/离线演示）">
-      <button class="randbtn" id="apiSave">保存</button>
-      <span id="apiState" class="apistate"></span>
-      <span id="dataStat" class="apistate"></span>
-      <span class="apihint">所有行情/数据类 App 共用此地址；起后端：<code>cd backend &amp;&amp; python app.py</code></span>
-    </div>
-    <div class="apipanel" id="bkPanel">
-      <span class="apilbl">💾 数据备份：</span>
-      <button class="randbtn" id="bkExport" title="把本机所有 App 的数据导出为一个 JSON 文件">导出备份</button>
-      <button class="randbtn" id="bkImportBtn" title="从之前导出的 JSON 备份恢复数据">导入恢复</button>
-      <input type="file" id="bkFile" accept="application/json,.json" style="display:none">
-      <span id="bkState" class="apistate"></span>
-      <span class="apihint">所有 App 的数据只存在这台设备的浏览器里，换设备 / 清缓存 / 重装前请先导出；导入会覆盖同名数据</span>
-    </div>
+  <!-- ===== 搜索 / 快捷操作 / 备份 ===== -->
+  <div class="bento">
+    <section class="tile s2">
+      <div class="tilelabel">🔍 搜索</div>
+      <div class="searchbar">
+        <input id="search" placeholder="应用名称 / 标签 / 分类，如 期货 / 预警 / 宠物 / ETF · 按 / 聚焦" autocomplete="off" aria-label="搜索应用">
+      </div>
+      <div class="hint">支持名称 / 标签 / 分类 / 描述模糊匹配，按 <code>Esc</code> 清空</div>
+    </section>
+
+    <section class="tile s1">
+      <div class="tilelabel">⚡ 快捷操作</div>
+      <div class="btnrow">
+        <button class="randbtn" id="randBtn" title="随机打开一个应用">🎲 随便逛逛</button>
+        <button class="randbtn" id="viewBtn" title="切换网格 / 列表视图">▦ 网格</button>
+      </div>
+    </section>
+
+    <section class="tile s1">
+      <div class="tilelabel">💾 数据备份</div>
+      <div class="btnrow">
+        <button class="randbtn" id="bkExport" title="把本机所有 App 的数据导出为一个 JSON 文件">导出备份</button>
+        <button class="randbtn" id="bkImportBtn" title="从之前导出的 JSON 备份恢复数据">导入恢复</button>
+        <input type="file" id="bkFile" accept="application/json,.json" style="display:none">
+      </div>
+      <div class="apistate" id="bkState"></div>
+      <div class="hint">数据只存在本设备浏览器，换设备 / 清缓存前请先导出</div>
+    </section>
   </div>
 
-  <div class="recent" id="recentWrap" style="display:none">
-    <h3>🕘 最近打开</h3>
-    <div class="chips" id="recentChips"></div>
+  <!-- ===== 后端接口 ===== -->
+  <div class="bento">
+    <section class="tile s4" id="apiPanel">
+      <div class="tilelabel">🔌 真实数据接口（统一后端）</div>
+      <div class="apipanel">
+        <input id="apiInput" placeholder="http://127.0.0.1:8787（留空则各 App 用本地静态样本/离线演示）" aria-label="统一后端接口地址">
+        <button class="randbtn" id="apiSave">保存</button>
+        <span id="apiState" class="apistate"></span>
+        <span id="dataStat" class="apistate"></span>
+      </div>
+      <div class="apihint">所有行情/数据类 App 共用此地址；起后端：<code>cd backend &amp;&amp; python app.py</code></div>
+    </section>
   </div>
 
+  <!-- ===== 筛选 / 排序 ===== -->
+  <div class="bento">
+    <section class="tile s2">
+      <div class="tilelabel">🗂 分类筛选</div>
+      <div class="filters" id="filters"></div>
+    </section>
+    <section class="tile s2">
+      <div class="tilelabel">↕ 排序方式</div>
+      <div class="sortbar" id="sortbar">
+        <button data-sort="name" class="on">名称</button>
+        <button data-sort="recent">最近打开</button>
+        <button data-sort="cat">分类</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===== 最近打开 ===== -->
+  <div class="bento">
+    <section class="tile s4 recent" id="recentWrap" style="display:none">
+      <h3>🕘 最近打开</h3>
+      <div class="chips" id="recentChips"></div>
+    </section>
+  </div>
+
+  <!-- ===== 应用卡片网格（Bento） ===== -->
   <div class="grid" id="grid"></div>
 
   <div class="ft">
     新增 App 后，在 <code>APPS</code> 数组里加一行即可自动出现在大厅。所有应用均为单文件 HTML，数据存于浏览器 localStorage。
   </div>
+</div>
 
 <script>
 window.addEventListener("error", function(e){ appFatal(e.message); });
@@ -192,6 +298,8 @@ const APPS = [
   {dir:"earnings-calendar", name:"财报跟踪器",    ico:"📑", cat:"fin",  tag:"财报日历",     desc:"财报披露日历，临近高亮提醒，可查往年财报 + 接口钩子。"},
   {dir:"futures-inventory", name:"期库镜",        ico:"🪞", cat:"fin",  tag:"期货×库存",    desc:"期货 K线×库存双轴透视，皮尔逊相关性 + 品种搜索 + 全球合计视图。"},
   {dir:"futures-spread",    name:"期货价差望远镜",ico:"🔭", cat:"fin",  tag:"跨期价差",     desc:"横轴=同品种跨月价差（可正可负），纵轴=价格/指数；股指自动映射大盘指数。"},
+  {dir:"futures-chain",     name:"产业链联动分析",ico:"⛓️", cat:"fin",  tag:"跨品种联动",   desc:"输入期货品种，自动产出跨品种相关性 + 产业链传导报告（原始相关 + 剔除大盘β偏相关）。"},
+  {dir:"sector-matrix",     name:"板块共振全景",  ico:"🔥", cat:"fin",  tag:"品种×板块",     desc:"品种 × 板块 共振强度热力图：一眼看全组合里谁在跟哪个板块共振（红正/橙负，可下钻到完整联动报告）。"},
   {dir:"market-brief",      name:"盘前收盘速读",  ico:"☀️", cat:"fin",  tag:"盘前/收盘",    desc:"A股盘前策略与收盘复盘要点卡，利好/利空/关注标签 + 导出。"},
   {dir:"shepherd-index",    name:"牧羊人指标",    ico:"🐑", cat:"fin",  tag:"情绪研判",     desc:"复刻 StockSignal 股海牧羊人 8 项情绪指标，温度计打分走势研判。"},
   {dir:"blackswan",         name:"黑天鹅预警",    ico:"🦢", cat:"fin",  tag:"风险扫描",     desc:"宏观黑天鹅时间轴 + 个股业绩雷/监管异动扫描 + 搜索预警。"},
@@ -201,7 +309,7 @@ const APPS = [
   {dir:"smart-order",       name:"智能条件单",    ico:"⚡", cat:"fin",  tag:"条件触发",     desc:"涨破/跌破触发规则，浏览器 Notification 弹窗，模拟测试。"},
   // —— 生活类 ——
   {dir:"desktop-pet",       name:"桌面宠物豆豆",  ico:"🐱", cat:"life", tag:"桌面陪伴",     desc:"心情/饱食/精力三态宠物，喂食玩耍，30s 自然衰减。"},
-  {dir:"trip-planner",      name:"行程规划卡",    ico:"🧳", cat:"life", tag:"出行模板",     desc:"按城市+天数+风格生成每日上/下/晚骨架，可编辑导出。"},
+  {dir:"itinerary",         name:"行程规划",      ico:"🧳", cat:"life", tag:"出行规划",     desc:"源自 map 项目的 AI 行程生成器，按城市+天数+风格+兴趣词生成可编辑行程，支持分享码/对比/多格式导出。"},
   {dir:"health-check",      name:"健康体检单",    ico:"🩺", cat:"life", tag:"自检评分",     desc:"个人/品牌 4 维自检清单，算分 + 短板诊断。"},
   // —— 新增 10 个 App ——
   {dir:"trading-agents",    name:"TradingAgents",  ico:"🤖", cat:"fin",  tag:"多智能体投研", desc:"模拟投行投研团队：基本面/技术/舆情/新闻/多空/风控协同出结论。"},
@@ -214,6 +322,10 @@ const APPS = [
   {dir:"bookmark-manager",  name:"书签收藏家",     ico:"🔖", cat:"tool", tag:"书签管理",     desc:"收藏网页/工具/论文，按标签检索，一键访问。"},
   {dir:"password-vault",    name:"密码保险库",     ico:"🔐", cat:"tool", tag:"密码生成",     desc:"本地生成强密码 + 保存账号，数据不上传。"},
   {dir:"expense-ledger",    name:"随手记账本",     ico:"🧾", cat:"life", tag:"收支记账",     desc:"记录收入支出，分类统计，月度结余一目了然。"},
+  // —— 本轮新增 3 个非金融 App ——
+  {dir:"todo-list",         name:"待办清单",       ico:"📋", cat:"tool", tag:"任务管理",     desc:"添加待办，设优先级/截止日/分类，筛选统计并导出 JSON。"},
+  {dir:"countdown",         name:"倒数日",         ico:"⏳", cat:"life", tag:"纪念日/目标",  desc:"记录纪念日与目标日，实时显示倒计时或已过天数，按临近排序。"},
+  {dir:"unit-converter",    name:"单位换算器",     ico:"🔁", cat:"tool", tag:"多类换算",     desc:"长度/重量/温度/面积/体积/时间/速度/数据等常用单位实时换算。"},
 ];
 
 /* ====================== 渲染 ====================== */
@@ -385,12 +497,13 @@ function render(){
     if(!(matchCat && matchQ)) return;
     shown++;
     const el = document.createElement("div");
-    el.className = "card" + (curView==="list" ? " list" : "") + (isFav(a.dir) ? " faved" : "") + (firstAnim ? " fade" : "");
+    // Bento 网格：收藏的应用渲染为 2x1 宽卡（列表视图下恢复单列全宽）
+    el.className = "card" + (curView==="list" ? " list" : (isFav(a.dir) ? " wide" : "")) + (isFav(a.dir) ? " faved" : "") + (firstAnim ? " fade" : "");
     el.dataset.dir = a.dir;
     const star = isFav(a.dir) ? "⭐" : "☆";
     el.innerHTML =
       '<div class="topright">' +
-        '<button class="fav" type="button" title="收藏" onclick="toggleFav(event,\'' + a.dir + '\')">' + star + '</button>' +
+        '<button class="fav" type="button" title="收藏" aria-label="收藏" onclick="toggleFav(event,\'' + a.dir + '\')">' + star + '</button>' +
         '<span class="cat ' + a.cat + '">' + CAT_LABEL[a.cat] + '</span>' +
       '</div>' +
       '<div class="ctop">' +
@@ -506,7 +619,7 @@ function formatDataStatus(j){
  * 列表由代码实证得出：这些 App 会读取 hub_api / 各自的 *_api 地址并发起请求;
  * 其余 App 纯本地运行，不联网也有完整功能。 */
 const NEEDS_BACKEND = ["code-teacher", "etf-picker", "futures-inventory", "futures-spread",
-  "holdings-check", "kpattern", "sector-rotation", "shepherd-index", "smart-order", "trading-agents"];
+  "futures-chain", "holdings-check", "kpattern", "sector-rotation", "shepherd-index", "smart-order", "trading-agents"];
 
 /* 该 App 是否需要后端才能看到真实数据（顶层导出以便单测） */
 function needsBackend(dir){ return NEEDS_BACKEND.indexOf(dir) >= 0; }

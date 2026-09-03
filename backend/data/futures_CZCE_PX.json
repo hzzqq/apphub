@@ -3854,37 +3854,37 @@
 {
 "date": "2026-05-19",
 "close": 9132.0,
-"inventory": 0.0,
-"inventory_total": 0.0,
+"inventory": null,
+"inventory_total": null,
 "inventory_circ": null,
-"inventory_warehouse": 0.0,
+"inventory_warehouse": null,
 "inventory_bonded": null
 },
 {
 "date": "2026-05-20",
 "close": 9086.0,
-"inventory": 0.0,
-"inventory_total": 0.0,
+"inventory": null,
+"inventory_total": null,
 "inventory_circ": null,
-"inventory_warehouse": 0.0,
+"inventory_warehouse": null,
 "inventory_bonded": null
 },
 {
 "date": "2026-05-21",
 "close": 9070.0,
-"inventory": 0.0,
-"inventory_total": 0.0,
+"inventory": null,
+"inventory_total": null,
 "inventory_circ": null,
-"inventory_warehouse": 0.0,
+"inventory_warehouse": null,
 "inventory_bonded": null
 },
 {
 "date": "2026-05-22",
 "close": 8706.0,
-"inventory": 0.0,
-"inventory_total": 0.0,
+"inventory": null,
+"inventory_total": null,
 "inventory_circ": null,
-"inventory_warehouse": 0.0,
+"inventory_warehouse": null,
 "inventory_bonded": null
 },
 {

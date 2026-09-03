@@ -44,13 +44,16 @@
 
   .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35);transition:filter .15s}
   .hubhome:hover{filter:brightness(1.12)}
+  .freshen{font-size:12px;color:var(--sub);margin:8px 0;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);display:none}
+  .freshen b{color:var(--text)}
 </style>
 </head>
 <body>
-  <a class="hubhome" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+  <a class="hubhome" aria-label="返回 App 大厅" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
 
 <h1>🔄 板块轮动仪</h1>
 <div class="sub">看钱往哪流：哪些板块在领涨、哪些在掉队 · 数据源模仿 StockSignal（演示数据为申万一级行业样本）</div>
+<div id="freshness" class="freshen" style="display:none"></div>
 
 <div class="bar">
   <input type="text" id="kw" placeholder="搜索板块名">
@@ -105,14 +108,17 @@ function statusOf(s){
   if(s.strength5<=-0.2) return {cls:"lag",txt:"掉队"};
   return {cls:"mid",txt:"中性"};
 }
+function showFresh(ts,label){const el=document.getElementById("freshness");if(!el)return;el.style.display="block";el.innerHTML="📅 "+(label?label+" ":"")+"更新于 <b>"+ts+"</b>";}
 async function loadSectors(){
+  const ctrl=new AbortController(); setTimeout(()=>ctrl.abort(),8000);
   try{
-    const r=await fetch(API_ROOT+"/api/sector",{cache:"no-store"});
+    const r=await fetch(API_ROOT+"/api/sector",{cache:"no-store",signal:ctrl.signal});
     if(r.ok){
       const j=await r.json();
       if(j.ok && Array.isArray(j.rows) && j.rows.length){
         SECTORS=j.rows.map(x=>({name:x.name,chg:x.chg!=null?x.chg:0,strength5:x.strength5!=null?x.strength5:0}));
         dataSrc=j.offline?"离线静态样本(本地 data/sector.json)":"真实板块行情(akshare)";
+        if(j.updated) showFresh(j.updated,"板块行情");
         render(); return;
       }
     }

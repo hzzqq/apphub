@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>待办清单</title>
+<style>
+:root{--bg:#0f0f23;--card:#1a1a2e;--card2:#221a3a;--txt:#e6e6f0;--sub:#8a8a9a;--line:#2a2a44;--accent:#667eea;--accent2:#764ba2;--up:#ff4d4f;--down:#00d486;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;min-height:100vh}
+a{color:var(--txt);text-decoration:none}
+.hubhome{position:fixed;top:14px;left:14px;z-index:50;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.wrap{max-width:760px;margin:0 auto;padding:70px 16px 40px}
+.head{text-align:center;margin-bottom:22px}
+.head h1{font-size:26px;margin:0;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;color:transparent}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.inputrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.inputrow input[type=text]{flex:1;min-width:200px;background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:10px;outline:none}
+.inputrow input[type=date]{background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px 12px;color-scheme:dark;outline:none}
+.inputrow select{background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px 12px;outline:none}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:600}
+.btn.ghost{background:var(--card2);border:1px solid var(--line);color:var(--txt)}
+.btn.sm{padding:6px 10px;font-size:12px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
+.filters button{background:var(--card);border:1px solid var(--line);color:var(--sub);border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer;transition:all .15s}
+.filters button.on{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.stat{background:var(--card2);border-radius:8px;padding:8px 14px;font-size:13px;color:var(--sub)}
+.stat b{color:var(--txt);font-size:18px}
+.item{display:flex;align-items:flex-start;gap:10px;padding:12px;background:var(--card2);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;transition:opacity .15s}
+.item .box{width:22px;height:22px;border-radius:6px;border:2px solid var(--line);cursor:pointer;flex-shrink:0;display:grid;place-items:center;margin-top:2px;font-size:14px}
+.item .box.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.item .main{flex:1;min-width:0}
+.item .name{font-weight:600;word-break:break-word}
+.item .name.done{text-decoration:line-through;color:var(--sub)}
+.item .meta{font-size:12px;color:var(--sub);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap}
+.tag-p{font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);white-space:nowrap}
+.tag-p.hi{color:var(--up);border-color:#5a3a3a;background:rgba(255,77,79,.1)}
+.tag-p.mid{color:var(--inv,#f6c453);border-color:#5a4a2a;background:rgba(246,196,83,.1)}
+.tag-p.lo{color:var(--sub);border-color:var(--line)}
+.tag-cat{font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--accent);background:rgba(102,126,234,.1)}
+.due.over{color:var(--up);font-weight:600}
+.due.soon{color:var(--inv,#f6c453);font-weight:600}
+.empty{color:var(--sub);text-align:center;padding:24px}
+.hubfoot{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;font-size:12px;color:var(--sub);flex-wrap:wrap;gap:8px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+</style>
+</head>
+<body>
+<a class="hubhome" aria-label="返回 App 大厅" href="../index.html">🏠 大厅</a>
+<div class="wrap">
+  <div class="head"><h1>📋 待办清单</h1></div>
+  <div class="card">
+    <div class="inputrow">
+      <input type="text" id="title" placeholder="要做点什么？如 写实训报告 / 买牛奶">
+      <select id="prio" title="优先级">
+        <option value="hi">高</option>
+        <option value="mid" selected>中</option>
+        <option value="lo">低</option>
+      </select>
+      <input type="date" id="due" title="截止日期（可选）">
+      <input type="text" id="cat" placeholder="分类（可选）" style="min-width:120px">
+      <button class="btn" id="addBtn">添加</button>
+    </div>
+    <div class="filters" id="filters">
+      <button data-f="all" class="on">全部</button>
+      <button data-f="active">进行中</button>
+      <button data-f="done">已完成</button>
+      <button data-f="hi">高优先级</button>
+    </div>
+    <div class="stats">
+      <div class="stat">总 <b id="sAll">0</b></div>
+      <div class="stat">进行中 <b id="sActive">0</b></div>
+      <div class="stat">已完成 <b id="sDone">0</b></div>
+    </div>
+    <div id="list"></div>
+  </div>
+  <div class="hubfoot">
+    <a href="../index.html">← 返回应用大厅</a>
+    <span>数据存 localStorage · <button class="btn ghost sm" id="exp">导出 JSON</button></span>
+  </div>
+</div>
+<script>
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);});}
+function safeUrl(u){u=String(u==null?"":u);if(/^\s*javascript:/i.test(u))return"#";return esc(u);}
+
+const KEY="todo_items_v1";
+const PRIO={hi:{t:"高",c:"hi"},mid:{t:"中",c:"mid"},lo:{t:"低",c:"lo"}};
+let items=load();
+let curF="all";
+
+function load(){ try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return [];} }
+function persist(){ localStorage.setItem(KEY,JSON.stringify(items)); }
+function uid(){ return Date.now()+"_"+Math.random().toString(36).slice(2,7); }
+function todayStr(){ const d=new Date(); const p=x=>String(x).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
+
+function dueInfo(due){
+  if(!due) return null;
+  const today=new Date(); today.setHours(0,0,0,0);
+  const d=new Date(due+"T00:00:00");
+  const diff=Math.round((d-today)/86400000);
+  if(diff>0)  return {txt:"还剩 "+diff+" 天", cls: diff<=2?"soon":"", over:false};
+  if(diff===0)return {txt:"今天到期", cls:"soon", over:false};
+  return {txt:"已逾期 "+(-diff)+" 天", cls:"over", over:true};
+}
+
+function render(){
+  const all=document.getElementById("sAll"), sa=document.getElementById("sActive"), sd=document.getElementById("sDone");
+  all.textContent=items.length;
+  sa.textContent=items.filter(i=>!i.done).length;
+  sd.textContent=items.filter(i=>i.done).length;
+
+  let view=items.slice();
+  if(curF==="active") view=view.filter(i=>!i.done);
+  else if(curF==="done") view=view.filter(i=>i.done);
+  else if(curF==="hi") view=view.filter(i=>i.prio==="hi"&&!i.done);
+  // 排序：未完成优先，其次高优先级，其次截止日近，已完成沉底
+  view.sort((a,b)=>{
+    if(a.done!==b.done) return a.done?1:-1;
+    const pa={hi:0,mid:1,lo:2}[a.prio], pb={hi:0,mid:1,lo:2}[b.prio];
+    if(pa!==pb) return pa-pb;
+    if(a.due&&b.due) return a.due<b.due?-1:1;
+    if(a.due!==b.due) return a.due?-1:1;
+    return 0;
+  });
+
+  const box=document.getElementById("list");
+  if(!view.length){ box.innerHTML='<div class="empty">这里空空如也，添加一项开始吧 ✍️</div>'; return; }
+  box.innerHTML=view.map(it=>{
+    const p=PRIO[it.prio]||PRIO.mid;
+    const di=dueInfo(it.due);
+    const meta=[];
+    meta.push('<span class="tag-p '+p.c+'">'+p.t+'优先</span>');
+    if(it.cat) meta.push('<span class="tag-cat">'+esc(it.cat)+'</span>');
+    if(di) meta.push('<span class="due '+(it.done?"":"")+di.cls+'">'+(it.done?"截止 "+esc(it.due):di.txt)+'</span>');
+    return '<div class="item" data-id="'+it.id+'">'+
+      '<div class="box '+(it.done?"on":"")+'" data-act="toggle" data-id="'+it.id+'">'+(it.done?"✓":"")+'</div>'+
+      '<div class="main"><div class="name '+(it.done?"done":"")+'">'+esc(it.title)+'</div>'+
+      '<div class="meta">'+meta.join("")+'</div></div>'+
+      '<button class="btn ghost sm" data-act="del" data-id="'+it.id+'">删</button>'+
+    '</div>';
+  }).join("");
+  box.querySelectorAll("[data-act]").forEach(el=>el.addEventListener("click",()=>{
+    const id=el.dataset.id, act=el.dataset.act;
+    if(act==="toggle"){ const it=items.find(x=>x.id===id); if(it){it.done=!it.done; persist(); render();} }
+    else if(act==="del"){ if(confirm("删除这条待办？")){ items=items.filter(x=>x.id!==id); persist(); render(); } }
+  }));
+}
+
+document.getElementById("addBtn").addEventListener("click",()=>{
+  const title=document.getElementById("title").value.trim();
+  if(!title) return;
+  items.push({
+    id:uid(), title, prio:document.getElementById("prio").value,
+    due:document.getElementById("due").value||"", cat:document.getElementById("cat").value.trim(), done:false
+  });
+  document.getElementById("title").value="";
+  document.getElementById("due").value="";
+  document.getElementById("cat").value="";
+  document.getElementById("title").focus();
+  persist(); render();
+});
+document.getElementById("title").addEventListener("keydown",e=>{ if(e.key==="Enter") document.getElementById("addBtn").click(); });
+document.getElementById("filters").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  curF=b.dataset.f;
+  document.querySelectorAll("#filters button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on"); render();
+});
+document.getElementById("exp").addEventListener("click",()=>{
+  const blob=new Blob([JSON.stringify(items,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="todo_items.json"; a.click();
+});
+render();
+</script>
+</body>
+</html>

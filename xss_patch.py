@@ -39,14 +39,6 @@ PATCHES = {
         ('${r.ing}', '${esc(r.ing)}'),
         ('<li>${s}</li>', '<li>${esc(s)}</li>'),
     ],
-    "trip-planner": [
-        ('${h1}', '${esc(h1)}'),
-        ('${h2}', '${esc(h2)}'),
-        ('${t.am}', '${esc(t.am)}'),
-        ('${t.pm}', '${esc(t.pm)}'),
-        ('${t.ev}', '${esc(t.ev)}'),
-        ('${city}', '${esc(city)}'),
-    ],
     "mood-meter": [
         ('${r.note||""}', '${esc(r.note||"")}'),
         ('${r.date}', '${esc(r.date)}'),

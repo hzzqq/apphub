@@ -23,3 +23,14 @@ Thumbs.db
 *.tmp
 *.tmp.js
 _jscheck*.js
+
+# 开发/调试临时产物（不随仓库分发，避免污染提交）
+OFFLINE
+temp/
+Artifacts/
+_fe_smoke.js
+_fe_test.js
+_gen_samples.py
+backend/_hub_run.pyw
+backend/_spawn.ps1
+backend/_sample_chain_*.html

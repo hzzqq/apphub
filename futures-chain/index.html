@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>期货产业链联动分析</title>
+<style>
+  :root{
+    --bg:#0f1419; --card:#1a2230; --card2:#141b26; --border:#2a3441;
+    --txt:#e6edf3; --sub:#9aa7b4; --accent:#e85d4e; --accent2:#4aa3ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+    line-height:1.6;padding:22px;max-width:1000px;margin:0 auto}
+  h1{font-size:22px;font-weight:700;margin-bottom:4px}
+  .sub{color:var(--sub);font-size:13px;margin-bottom:18px}
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  label{font-size:13px;color:var(--sub);margin-right:4px}
+  input,select{background:var(--card2);color:var(--txt);border:1px solid var(--border);
+    border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
+  input{flex:1;min-width:160px}
+  input:focus,select:focus{border-color:var(--accent2)}
+  button{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 20px;
+    font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+  button:hover{filter:brightness(1.08)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .hint{font-size:12.5px;color:var(--sub);margin-top:10px}
+  .status{font-size:12.5px;margin-top:10px;padding:8px 10px;border-radius:8px;display:none}
+  .status.show{display:block}
+  .status.err{background:#3a1d1d;color:#ff9b8a;border:1px solid #6b2b2b}
+  .status.info{background:#10202e;color:var(--sub);border:1px solid var(--border)}
+  .quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .chip{background:var(--card2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;
+    font-size:12px;color:var(--sub);cursor:pointer}
+  .chip:hover{border-color:var(--accent2);color:var(--txt)}
+  .backlink{display:inline-block;margin-bottom:12px;color:var(--accent);text-decoration:none;font-size:13px}
+  .backlink:hover{text-decoration:underline}
+  #report{margin-top:4px}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--sub);
+    border-top-color:var(--accent);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .legend{font-size:12px;color:var(--sub);margin-top:6px}
+  .legend b{color:var(--txt)}
+  /* 打印/导出 PDF：只保留报告主体，隐藏页面控件与工具条按钮 */
+  @media print{
+    body{padding:0;max-width:none;background:#fff;color:#111}
+    h1,.sub,.panel,.hint,.status,.quick,.legend{display:none !important}
+    #report{margin-top:0}
+    .fc-bar{display:none !important}
+    .fc-note{display:none !important}
+    .fc-fold{border-color:#ccc !important;page-break-inside:avoid}
+    .fc-fold>summary{background:#f2f2f2 !important;color:#111 !important;border-left-color:#e85d4e !important}
+    .fc-fold .fc-card>*{color:#111 !important}
+    .fc-kpi .v{color:#111 !important}
+  }
+</style>
+</head>
+<body>
+  <h1>期货产业链联动分析</h1>
+  <div class="sub">输入期货品种代码，自动产出「跨品种相关性 + 产业链传导」报告。方法学：跨品种日收益相关（原始 + 剔除大盘β偏相关）+ 产业链知识库。</div>
+
+  <div class="panel">
+    <a class="backlink" href="../sector-matrix/index.html" target="_blank" rel="noopener">← 板块共振全景（品种 × 板块 共振热力图）</a>
+    <div class="row">
+      <label>品种</label>
+      <input id="sym" list="symlist" placeholder="如 fg（玻璃）/ sp（纸浆）/ sa（纯碱）/ jd（鸡蛋）/ sr（白糖）/ eg（乙二醇）" value="sp" autocomplete="off">
+      <datalist id="symlist">
+        <option value="fg">玻璃</option><option value="sp">纸浆</option><option value="sa">纯碱</option>
+        <option value="jd">鸡蛋</option><option value="sr">白糖</option><option value="eg">乙二醇</option>
+        <option value="sp">纸浆</option><option value="rb">螺纹钢</option><option value="hc">热卷</option>
+        <option value="i">铁矿石</option><option value="j">焦炭</option><option value="jm">焦煤</option>
+        <option value="cu">铜</option><option value="al">铝</option><option value="au">黄金</option><option value="ag">白银</option>
+        <option value="ru">橡胶</option><option value="nr">20号胶</option><option value="m">豆粕</option>
+        <option value="y">豆油</option><option value="c">玉米</option><option value="ta">PTA</option>
+        <option value="ma">甲醇</option><option value="sa">纯碱</option><option value="cf">棉花</option>
+        <option value="sr">白糖</option><option value="fg">玻璃</option><option value="eg">乙二醇</option>
+        <option value="pp">聚丙烯</option><option value="l">塑料</option><option value="sc">原油</option>
+      </datalist>
+      <label>交易所</label>
+      <select id="exch">
+        <option value="SHFE">SHFE 上期所</option>
+        <option value="DCE">DCE 大商所</option>
+        <option value="CZCE">CZCE 郑商所</option>
+        <option value="INE">INE 能源中心</option>
+      </select>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label>从</label><input type="date" id="from" style="flex:0 0 150px;min-width:0">
+      <label>至</label><input type="date" id="to" style="flex:0 0 150px;min-width:0">
+      <button id="go">生成报告</button>
+      <button id="resetRange" style="background:var(--card2);color:var(--txt);border:1px solid var(--border)">全量</button>
+    </div>
+    <div class="quick">
+      <span class="chip" data-s="fg" data-e="CZCE">玻璃 FG</span>
+      <span class="chip" data-s="sp" data-e="SHFE">纸浆 SP</span>
+      <span class="chip" data-s="sa" data-e="CZCE">纯碱 SA</span>
+      <span class="chip" data-s="jd" data-e="DCE">鸡蛋 JD</span>
+      <span class="chip" data-s="sr" data-e="CZCE">白糖 SR</span>
+      <span class="chip" data-s="eg" data-e="DCE">乙二醇 EG</span>
+    </div>
+    <div class="quick" id="timeChips">
+      <span class="chip" data-days="30">近 30 天</span>
+      <span class="chip" data-days="90">近 90 天</span>
+      <span class="chip" data-days="180">近 180 天</span>
+      <span class="chip" data-days="365">近 1 年</span>
+      <span class="chip" data-days="all">全量</span>
+    </div>
+    <div class="hint">后端地址读取大厅统一的 <code>hub_api</code>（如 <code>http://127.0.0.1:8787</code>）。未连后端时将提示配置；连上后所有数据经 <code>/api/futures_chain</code> 实时计算。日期区间默认覆盖缓存全段，留空即"全量"。</div>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div id="report"></div>
+
+<script>
+function getApiBase(){
+  var u = (localStorage.getItem("hub_api")||"").trim();
+  if(!u) return "";
+  u = u.replace(/\/+$/,"");            // 去掉结尾斜杠
+  u = u.replace(/\/api\/?$/,"");       // 去掉 /api
+  return u;
+}
+function setStatus(msg, type){
+  var el = document.getElementById("status");
+  el.className = "status show " + (type||"info");
+  el.innerHTML = msg;
+}
+// 日期工具
+function _isoDate(d){ var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0"); return y+"-"+m+"-"+dd; }
+function applyDaysRange(days){
+  if(days === "all"){
+    document.getElementById("from").value = "";
+    document.getElementById("to").value = "";
+    return;
+  }
+  var n = parseInt(days, 10);
+  if(!n || n < 1) return;
+  var to = new Date();
+  var from = new Date(); from.setDate(to.getDate() - n + 1);
+  document.getElementById("from").value = _isoDate(from);
+  document.getElementById("to").value   = _isoDate(to);
+}
+// 折叠区块：恢复记忆状态 / 全部展开收起（报告 HTML 由后端生成，本页负责绑定事件）
+function _foldStore(key, k, v){
+  try{
+    var s = JSON.parse(localStorage.getItem(key) || "{}");
+    if(v === undefined) return s;
+    if(k === null) s = v; else s[k] = v;
+    localStorage.setItem(key, JSON.stringify(s));
+  }catch(e){}
+}
+function _foldKey(f){
+  var s = f.querySelector("summary");
+  return s ? s.textContent.trim().slice(0, 24) : "";
+}
+function initFolds(){
+  var bar = document.getElementById("fcBar");
+  if(!bar) return;
+  var key = "fc_fold_" + (bar.getAttribute("data-fold-key") || "default");
+  var folds = [].slice.call(document.querySelectorAll("#report .fc-fold"));
+  if(!folds.length) return;
+  var saved = _foldStore(key, "", undefined) || {};
+  folds.forEach(function(f){
+    var k = _foldKey(f);
+    if(Object.prototype.hasOwnProperty.call(saved, k)) f.open = !!saved[k];
+    f.addEventListener("toggle", function(){ _foldStore(key, k, f.open); });
+  });
+  bar.querySelectorAll(".fc-btn").forEach(function(b){
+    b.addEventListener("click", function(){
+      var act = b.getAttribute("data-act");
+      if(act === "print"){ _doPrint(folds, saved); return; }
+      var open = act === "open";
+      var all = {};
+      folds.forEach(function(f){ f.open = open; all[_foldKey(f)] = open; });
+      _foldStore(key, null, all);
+    });
+  });
+}
+// 打印前临时展开所有折叠块（保证内容完整入档），打印后恢复记忆状态
+function _doPrint(folds, saved){
+  folds.forEach(function(f){ f.open = true; });
+  var done = function(){
+    folds.forEach(function(f){ f.open = !!saved[_foldKey(f)]; });
+    window.removeEventListener("afterprint", done);
+  };
+  window.addEventListener("afterprint", done);
+  window.print();
+}
+function runAnalysis(){
+  var sym = (document.getElementById("sym").value||"").trim();
+  var exch = document.getElementById("exch").value;
+  var fromD = (document.getElementById("from").value||"").trim();
+  var toD   = (document.getElementById("to").value||"").trim();
+  if(!sym){ setStatus("请输入品种代码", "err"); return; }
+  var base = getApiBase();
+  if(!base){
+    setStatus('未检测到后端地址。请在大厅顶部「真实数据接口」填入后端根地址（如 <code>http://127.0.0.1:8787</code>）并保存。', "err");
+    return;
+  }
+  if(fromD && toD && fromD > toD){
+    setStatus("日期区间无效：起始 > 截止", "err");
+    return;
+  }
+  var btn = document.getElementById("go");
+  btn.disabled = true;
+  document.getElementById("report").innerHTML = '<div class="panel"><span class="spin"></span>正在计算 ' + esc(sym.toUpperCase()) + ' 的跨品种相关性、产业链传导与时间轴（首次约 1~3 秒）…</div>';
+  setStatus("请求 " + base + "/api/futures_chain …", "info");
+  var url = base + "/api/futures_chain?symbol=" + encodeURIComponent(sym)
+          + "&exchange=" + encodeURIComponent(exch);
+  if(fromD) url += "&from=" + encodeURIComponent(fromD);
+  if(toD)   url += "&to="   + encodeURIComponent(toD);
+  fetch(url, {cache:"no-store"}).then(function(r){
+    return r.json().then(function(j){ return {ok:r.ok, j:j}; });
+  }).then(function(o){
+    btn.disabled = false;
+    var j = o.j;
+    if(!o.ok || !j.ok){
+      setStatus("分析失败：" + (j.error||("HTTP "+o.status)), "err");
+      document.getElementById("report").innerHTML = "";
+      return;
+    }
+    var rangeNote = (fromD || toD) ? (" · 区间 " + (fromD||"起始") + " ~ " + (toD||"至今")) : " · 全量数据";
+    setStatus("分析完成 · " + (j.offline?"离线缓存模式（数据非实时）":"实时模式") + rangeNote + " · 报告已生成", "info");
+    document.getElementById("report").innerHTML = j.html || "";
+    initFolds();
+  }).catch(function(e){
+    btn.disabled = false;
+    setStatus("请求异常：" + e + "。请确认后端已启动且地址正确。", "err");
+    document.getElementById("report").innerHTML = "";
+  });
+}
+document.getElementById("go").addEventListener("click", runAnalysis);
+document.getElementById("sym").addEventListener("keydown", function(e){ if(e.key==="Enter") runAnalysis(); });
+document.getElementById("resetRange").addEventListener("click", function(){
+  document.getElementById("from").value = "";
+  document.getElementById("to").value = "";
+});
+// 品种 chip
+var chips = document.querySelectorAll(".quick > .chip[data-s]");
+chips.forEach(function(c){
+  c.addEventListener("click", function(){
+    document.getElementById("sym").value = c.getAttribute("data-s");
+    document.getElementById("exch").value = c.getAttribute("data-e");
+    runAnalysis();
+  });
+});
+// 时间段 chip
+var timeChips = document.querySelectorAll("#timeChips .chip");
+timeChips.forEach(function(c){
+  c.addEventListener("click", function(){
+    applyDaysRange(c.getAttribute("data-days"));
+    runAnalysis();
+  });
+});
+// 联动探索闭环：点击相关性图品种名 / 表格行 → 直接分析该品种（委托到 #report，innerHTML 刷新不影响）
+document.getElementById("report").addEventListener("click", function(e){
+  var t = e.target.closest("[data-jump-sym]");
+  if(!t) return;
+  var js = t.getAttribute("data-jump-sym");
+  var je = t.getAttribute("data-jump-ex");
+  if(js) document.getElementById("sym").value = js;
+  if(je) document.getElementById("exch").value = je;
+  runAnalysis();
+});
+// 动态填充下拉候选：从后端轻量端点 /api/futures_varieties 拉取全部已缓存品种，
+// 让全部已缓存品种都可被发现（静态列表仅 24 个）。后端不可达时静默沿用静态列表。
+// 同时维护 symbol -> [交易所] 映射，输入品种后自动校正交易所（否则跨所品种会 404）。
+var VARIETY_EX = {};   // { "fg": ["CZCE", "玻璃"] } —— 仅记录唯一交易所的品种
+var VARIETY_ALL = {};  // { "fg": ["CZCE","SHFE"] }  —— 记录全部候选交易所
+function loadVarieties(){
+  var base = getApiBase();
+  if(!base) return;
+  fetch(base + "/api/futures_varieties?_=" + Date.now(), {cache:"no-store"})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){
+      var av = j && j.ok && Array.isArray(j.available) ? j.available : null;
+      if(!av || !av.length) return;
+      var dl = document.getElementById("symlist");
+      if(dl){
+        dl.innerHTML = av.map(function(v){
+          return '<option value="' + String(v.symbol||"").toLowerCase() + '">'
+               + String(v.name||v.symbol||"") + '（' + String(v.exchange||"") + '）</option>';
+        }).join("");
+      }
+      VARIETY_EX = {}; VARIETY_ALL = {};
+      av.forEach(function(v){
+        var s = String(v.symbol||"").toLowerCase();
+        if(!s) return;
+        (VARIETY_ALL[s] = VARIETY_ALL[s] || []).push(String(v.exchange||""));
+      });
+      Object.keys(VARIETY_ALL).forEach(function(s){
+        var exs = VARIETY_ALL[s].filter(function(x){ return !!x; });
+        if(exs.length === 1) VARIETY_EX[s] = exs[0];
+      });
+    })
+    .catch(function(){ /* 后端不可达：保留静态候选，不打扰用户 */ });
+}
+// 输入品种后自动把交易所切到该品种所属的（唯一）交易所，避免跨所品种查询 404
+(function(){
+  var symEl = document.getElementById("sym"), exEl = document.getElementById("exch");
+  if(!symEl || !exEl) return;
+  function autoEx(){
+    var s = String(symEl.value||"").trim().toLowerCase();
+    if(!s) return;
+    var want = VARIETY_EX[s];
+    if(!want) return;                       // 未知品种 / 多交易所：不擅自改
+    var cur = String(exEl.value||"").trim().toUpperCase();
+    if(cur === want) return;
+    exEl.value = want;
+  }
+  symEl.addEventListener("input", autoEx);
+  symEl.addEventListener("change", autoEx);
+})();
+loadVarieties();
+// 支持从 URL 参数自动加载 (?sym=rb&ex=SHFE)，便于从「板块共振全景」等页面平滑下钻到该品种完整报告
+(function(){
+  try{
+    var q = new URLSearchParams(location.search);
+    var s = (q.get("sym")||"").trim();
+    if(s){
+      document.getElementById("sym").value = s;
+      var e = (q.get("ex")||"").trim();
+      if(e) document.getElementById("exch").value = e;
+      runAnalysis();
+    }
+  }catch(_){}
+})();
+</script>
+</body>
+</html>

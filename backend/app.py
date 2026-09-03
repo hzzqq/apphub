@@ -43,6 +43,18 @@ try:
     _HAS_BAKE_INV = True
 except Exception:  # noqa
     _HAS_BAKE_INV = False
+# 期货产业链联动分析引擎 (futures-chain 微应用后端)
+try:
+    import futures_chain
+    _HAS_FUTURES_CHAIN = True
+except Exception:  # noqa
+    _HAS_FUTURES_CHAIN = False
+# 行程规划模块 (itinerary 微应用后端；源自 map 项目，可代理其 /api/generate)
+try:
+    import itinerary
+    _HAS_ITINERARY = True
+except Exception:  # noqa
+    _HAS_ITINERARY = False
 from datetime import datetime, timedelta
 
 from flask import Flask, request, jsonify, Response, stream_with_context, send_from_directory, abort
@@ -55,11 +67,20 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 # 前端根目录 (app 项目根, 即 backend/ 的上一级): 部署时后端顺带托管前端单文件 App
 APP_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 静态托管安全边界: 禁止暴露后端源码 / 版本库 / 构建脚本 / 隐藏文件
-_DENY_PREFIXES = ("backend/", ".git/", ".workbuddy/", "node_modules/")
+# 根级「非应用目录」一律不托管: 它们没有 index.html, 却可能含内部脚本与部署配置
+#   test/      前端单测源码(含断言细节)
+#   deploy/    服务器部署脚本与 systemd 单元(含主机路径)
+#   Artifacts/ 开发过程文档
+_DENY_PREFIXES = ("backend/", ".git/", ".workbuddy/", "node_modules/",
+                  "test/", "deploy/", "Artifacts/")
 _DENY_FILES = {
     "verify_all.py", "_zip_release.py", "_build_release.py",
     "refresh_data.bat", "start.bat", "start.sh", "backend.log", ".gitignore",
+    "package_for_share.py", "xss_patch.py",
 }
+# 根级(不含子目录)的脚本/日志/临时文件一律拒绝: 以后新增根级 .py/.bat/.sh 自动不暴露,
+# 无需逐个补进 _DENY_FILES
+_DENY_ROOT_SUFFIXES = (".py", ".bat", ".sh", ".log", ".tmp.js", ".pyc")
 
 app = Flask(__name__, static_folder=None)
 # 允许跨域: 前端 HTML 可能从 file:// 或其他本地端口打开, 不放开 CORS 则浏览器会拦截真实数据请求
@@ -915,6 +936,163 @@ def api_corr_top():
                     "note": "离线样本计算; 有网环境 OFFLINE_MODE=False 即真实排名。"})
 
 
+@app.route("/api/futures_chain", methods=["GET"])
+def api_futures_chain():
+    """期货产业链联动分析：给定品种代码+交易所，返回跨品种相关性 + 产业链传导报告(HTML)。
+    参数: symbol(代码, 如 sp) exchange(SHFE/DCE/CZCE/INE) [from(YYYY-MM-DD)] [to(YYYY-MM-DD)]
+    exchange 缺省或非法时，自动按 backend/data 缓存的品种-交易所映射推断，推断不到才报错。"""
+    symbol = safe_code(request.args.get("symbol", "sp"))
+    req_ex = (request.args.get("exchange") or "").strip().upper()
+    from_d = (request.args.get("from") or "").strip() or None
+    to_d = (request.args.get("to") or "").strip() or None
+    # 交易所自动推断：优先用传入；否则查 data/ 下 futures_<EX>_<SYM>.json
+    exchange = req_ex
+    if exchange not in ("SHFE", "DCE", "CZCE", "INE"):
+        guessed = None
+        _datadir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+        for ex in ("SHFE", "DCE", "CZCE", "INE"):
+            if os.path.exists(os.path.join(_datadir, "futures_%s_%s.json" % (ex, symbol.upper()))):
+                guessed = ex
+                break
+        if guessed:
+            exchange = guessed
+        else:
+            return jsonify({"ok": False,
+                            "error": "无法识别品种 %s 的交易所（传入 exchange=%r 非法，且 data/ 缓存未找到对应 futures_*.json）。请显式传 exchange=SHFE/DCE/CZCE/INE" % (symbol, req_ex)}), 400
+    if not _HAS_FUTURES_CHAIN:
+        return jsonify({"ok": False, "error": "分析引擎 futures_chain 未加载"}), 500
+    try:
+        res = futures_chain.api_chain(symbol, exchange, from_date=from_d, to_date=to_d)
+        if not res.get("ok"):
+            err = res.get("data", {}).get("error") or res.get("error") or "分析失败"
+            return jsonify({"ok": False, "error": err}), 404
+        return jsonify(res)
+    except Exception as e:
+        logger.exception("futures_chain 处理异常")
+        return jsonify({"ok": False, "error": "分析异常: %s" % e}), 500
+
+
+# 板块共振全景矩阵的默认品种组合：老板 6 实盘打头 + 覆盖全部 11 板块的代表品种（共 24 个），
+# 让「列按板块分组色条」在首屏即展示板块聚类。用户仍可在品种多选面板自由增减。
+MATRIX_VARIETIES = [
+    # 老板 6 实盘
+    ("sp", "SHFE"), ("fg", "CZCE"), ("sa", "CZCE"), ("eg", "DCE"), ("jd", "DCE"), ("sr", "CZCE"),
+    # 黑色 / 建材 / 化工
+    ("rb", "SHFE"), ("hc", "SHFE"), ("i", "DCE"), ("ta", "CZCE"), ("ma", "CZCE"),
+    # 有色 / 贵金属
+    ("cu", "SHFE"), ("al", "SHFE"), ("zn", "SHFE"), ("ni", "SHFE"), ("au", "SHFE"), ("ag", "SHFE"),
+    # 能源 / 橡胶
+    ("sc", "INE"), ("bu", "SHFE"), ("ru", "SHFE"), ("nr", "DCE"),
+    # 油粕 / 养殖 / 软商品
+    ("m", "DCE"), ("y", "DCE"), ("lh", "DCE"), ("pk", "CZCE"), ("ap", "CZCE"),
+]
+
+
+def _guess_exchange(symbol):
+    """按 backend/data 缓存的 futures_<EX>_<SYM>.json 自动推断交易所（唯一匹配用）。"""
+    _datadir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+    for ex in ("SHFE", "DCE", "CZCE", "INE"):
+        if os.path.exists(os.path.join(_datadir, "futures_%s_%s.json" % (ex, symbol.upper()))):
+            return ex
+    return None
+
+
+def _list_available_varieties():
+    """返回 data/ 下所有已缓存品种 (symbol,exchange,name)，供前端矩阵做品种多选。"""
+    _datadir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+    out = []
+    try:
+        names = futures_chain.NAME_MAP if _HAS_FUTURES_CHAIN else {}
+    except Exception:
+        names = {}
+    import re as _re
+    pat = _re.compile(r"^futures_(SHFE|DCE|CZCE|INE)_([A-Z0-9]+)\.json$")
+    for fn in os.listdir(_datadir):
+        m = pat.match(fn)
+        if not m:
+            continue
+        ex, sym = m.group(1), m.group(2)
+        out.append({"symbol": sym, "exchange": ex, "name": names.get(sym, sym)})
+    out.sort(key=lambda x: (x["exchange"], x["symbol"]))
+    return out
+
+
+@app.route("/api/futures_varieties", methods=["GET"])
+def api_futures_varieties():
+    """轻量品种列表：返回 data/ 下所有已缓存品种 (symbol,exchange,name)。
+    供 futures-chain 等页面直接填充下拉候选，无需先算一遍共振矩阵（省掉全量相关计算）。"""
+    return jsonify({"ok": True, "available": _list_available_varieties()})
+
+
+@app.route("/api/futures_sector_matrix", methods=["GET"])
+def api_futures_sector_matrix():
+    """板块共振全景矩阵：给定一组品种（默认覆盖 15 个代表品种），返回 品种 × 板块 的共振强度矩阵。
+    参数 symbols 可选，格式 "rb:SHFE,cu:SHFE"（SYM:EX 显式）或 "rb,cu"（自动推断交易所）。
+    返回 {"ok", "rows":[{symbol,exchange,name,vol,beta,cells:{sector:{raw,partial}}}], "sectors":[...]}。
+    可选 from/to（YYYY-MM-DD）限定时间区间，看特定窗口的板块共振结构。"""
+    if not _HAS_FUTURES_CHAIN:
+        return jsonify({"ok": False, "error": "分析引擎 futures_chain 未加载"}), 500
+    syms = (request.args.get("symbols") or "").strip()
+    from_d = (request.args.get("from") or "").strip() or None
+    to_d = (request.args.get("to") or "").strip() or None
+    if syms:
+        varieties = []
+        for part in syms.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            if ":" in part:
+                s, e = part.split(":", 1)
+                varieties.append((s.strip().lower(), e.strip().upper()))
+            else:
+                ex = _guess_exchange(part.strip().lower())
+                if ex:
+                    varieties.append((part.strip().lower(), ex))
+                # 推断不到则跳过该品种
+    else:
+        varieties = MATRIX_VARIETIES
+    if not varieties:
+        return jsonify({"ok": False, "error": "无有效品种（symbols 解析为空或全部交易所推断失败）"}), 400
+    try:
+        res = futures_chain._sector_matrix(varieties, from_date=from_d, to_date=to_d)
+        if not res.get("ok"):
+            return jsonify({"ok": False, "error": res.get("error", "矩阵计算失败")}), 404
+        res["available"] = _list_available_varieties()
+        res["default"] = ["%s:%s" % (s, e) for s, e in MATRIX_VARIETIES]
+        res["from"] = from_d
+        res["to"] = to_d
+        return jsonify(res)
+    except Exception as e:
+        logger.exception("futures_sector_matrix 处理异常")
+        return jsonify({"ok": False, "error": "矩阵异常: %s" % e}), 500
+
+
+@app.route("/api/itinerary/generate", methods=["POST"])
+def api_itinerary_generate():
+    """行程规划：源自 map 项目。城市+天数+风格+兴趣词 -> 可编辑每日行程。
+    可选接 map 项目真实 AI：请求体带 map_backend_url（或环境变量 MAP_BACKEND_URL）即代理其 /api/generate。"""
+    if not _HAS_ITINERARY:
+        return jsonify({"ok": False, "error": "行程模块未加载"}), 500
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+    except Exception:  # noqa
+        data = {}
+    city = (data.get("city") or "").strip()
+    days = data.get("days", 3)
+    style = (data.get("style") or "classic").strip()
+    interests = (data.get("interests") or "").strip()
+    map_backend_url = (data.get("map_backend_url") or "").strip()
+    try:
+        res = itinerary.generate(city, days, style=style, interests=interests, map_backend_url=map_backend_url)
+    except Exception as e:
+        logger.exception("itinerary 生成异常")
+        return jsonify({"ok": False, "error": "生成异常: %s" % e}), 500
+    if not res.get("ok"):
+        return jsonify({"ok": False, "error": res.get("error", "生成失败")}), 400
+    return jsonify(res)
+
+
+
 @app.route("/api/quote", methods=["GET"])
 def api_quote():
     """股票实时行情, 模仿 StockSignal: 新浪 hq.sinajs.cn + akshare 兜底。"""
@@ -1110,6 +1288,7 @@ def api_etf():
             if typ:
                 data = [x for x in data if x.get("type") == typ]
             return jsonify({"ok": True, "offline": True, "rows": data,
+                            "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             "note": "离线静态样本(沙箱禁网)。有网环境 OFFLINE_MODE=False 即真实 ETF 行情。"})
         except Exception:
             return jsonify({"ok": True, "offline": True, "rows": [], "note": "本地 etf.json 缺失"})
@@ -1128,7 +1307,8 @@ def api_etf():
             })
         if typ:
             rows = [x for x in rows if x["type"] == typ]
-        return jsonify({"ok": True, "offline": False, "rows": rows[:200]})
+        return jsonify({"ok": True, "offline": False, "rows": rows[:200],
+                        "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
     except Exception as e:
         logger.warning("ETF 真抓取失败, 回退静态: %s", str(e)[:120])
         try:
@@ -1146,6 +1326,7 @@ def api_sector():
         try:
             data = _load_static("sector.json")
             return jsonify({"ok": True, "offline": True, "rows": data,
+                            "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             "note": "离线静态样本。有网环境 OFFLINE_MODE=False 即真实板块行情。"})
         except Exception:
             return jsonify({"ok": True, "offline": True, "rows": [], "note": "本地 sector.json 缺失"})
@@ -1162,7 +1343,8 @@ def api_sector():
                 "turnover": float(r.get("换手率", 0) or 0),
                 "leader": str(r.get("领涨股", "")),
             })
-        return jsonify({"ok": True, "offline": False, "rows": rows})
+        return jsonify({"ok": True, "offline": False, "rows": rows,
+                        "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
     except Exception as e:
         logger.warning("板块真抓取失败, 回退静态: %s", str(e)[:120])
         try:
@@ -1192,8 +1374,10 @@ def api_data():
     if fname not in allowed:
         return jsonify({"ok": False, "error": "文件不在白名单: %s" % fname}), 400
     try:
+        fpath = os.path.join(DATA_DIR, fname)
+        mtime = datetime.now().strftime("%Y-%m-%d %H:%M:%S") if os.path.isfile(fpath) else None
         data = _load_static(fname)
-        return jsonify({"ok": True, "rows": data})
+        return jsonify({"ok": True, "rows": data, "updated": mtime})
     except FileNotFoundError:
         return jsonify({"ok": False, "error": "文件不存在: %s" % fname}), 404
     except Exception as e:
@@ -1299,6 +1483,7 @@ ENDPOINTS = [
     "/api/blackswan", "/api/earnings", "/api/search", "/api/etf", "/api/sector",
     "/api/data", "/api/futures_events", "/api/futures_spread", "/api/trading_agents",
     "/api/llm", "/api/code_teacher", "/api/theme", "/api/data_status",
+    "/api/futures_chain",
 ]
 
 
@@ -1388,6 +1573,9 @@ def serve_frontend(path):
         return abort(403)
     if norm in _DENY_FILES or any(norm.startswith(p) for p in _DENY_PREFIXES):
         return abort(403)
+    # 根级脚本 / 日志 / 临时文件一律不托管(见 _DENY_ROOT_SUFFIXES 注释)
+    if "/" not in norm and norm.endswith(_DENY_ROOT_SUFFIXES):
+        return abort(403)
     if not norm:
         return send_from_directory(APP_ROOT, "index.html")
     full = os.path.join(APP_ROOT, norm)
@@ -1433,34 +1621,6 @@ BLACKSWAN_STOCKS = [
      "signal":"重要股东大额减持 + 低位质押平仓线逼近",
      "impact":"减持叠加质押风险，易引发个股闪崩","time":"动态"},
 ]
-
-
-@app.route("/api/blackswan", methods=["GET"])
-def api_blackswan():
-    """黑天鹅事件库 + 个股风险样本 + 实时公告/财报/监管扫描(可选 code)。
-       参数 code(个股代码, 如 600519) -> 返回该标的实时风险扫描结果。
-       离线内置公开历史; 有网时真抓 akshare 公告/业绩预告/新闻并做风险评分。"""
-    code = safe_code(request.args.get("code", ""))
-    try:
-        if code:
-            scan = _blackswan_scan(code) if not OFFLINE_MODE else _blackswan_scan_offline(code)
-            resp = {
-                "ok": True, "offline": OFFLINE_MODE,
-                "events": BLACKSWAN_EVENTS, "stocks": BLACKSWAN_STOCKS,
-                "code": code, "scan": scan,
-                "note": ("离线演示扫描。有网环境 OFFLINE_MODE=False 即真实监控公告/业绩预告/新闻。") if OFFLINE_MODE
-                        else "真实抓取 akshare 公告/业绩预告/新闻。",
-            }
-        else:
-            resp = {
-                "ok": True, "offline": OFFLINE_MODE,
-                "events": BLACKSWAN_EVENTS, "stocks": BLACKSWAN_STOCKS,
-                "note": "离线内置公开历史梳理; 真网可传入 code 触发实时风险扫描。",
-            }
-        return jsonify(resp)
-    except Exception as e:
-        logger.exception("blackswan 处理失败")
-        return jsonify({"ok": False, "error": str(e)[:200]}), 500
 
 
 # ───────── 黑天鹅风险关键词(业绩雷/监管异动/减持/立案) ─────────
@@ -1725,16 +1885,6 @@ def api_code_teacher():
                     "note": "离线演示样本。有网环境可接 LLM 生成更生动解释。"})
 
 
-@app.route("/api/theme", methods=["GET"])
-def api_theme():
-    """主题工坊：返回可用主题配置列表。"""
-    try:
-        data = _load_static("theme.json")
-        return jsonify({"ok": True, "offline": True, "themes": data})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)[:200]}), 500
-
-
 # ───────── 搜索: 股票/基金/期货/指数 ─────────
 SEARCH_SAMPLE = {
     "stock": [
@@ -1912,60 +2062,6 @@ SEARCH_SAMPLE = {
         {"code": "jpn225", "name": "日经225", "exchange": "JP"},
     ],
 }
-
-
-@app.route("/api/earnings", methods=["GET"])
-def api_earnings():
-    """往年财报查询。参数 code(6位股票代码) year(可选)。真实用 akshare stock_yjbb_em，
-       离线返回内置演示（茅台/宁德/平安）。"""
-    code = safe_code(request.args.get("code", ""))
-    year = cap_len(request.args.get("year", ""), 4)
-    DEMO = {
-        "600519": [  # 贵州茅台
-            {"year": "2023", "report": "年报", "eps": 59.49, "roe": 34.2, "rev": 1476.9, "profit": 747.3},
-            {"year": "2022", "report": "年报", "eps": 49.93, "roe": 30.3, "rev": 1241.0, "profit": 627.2},
-            {"year": "2021", "report": "年报", "eps": 41.76, "roe": 27.9, "rev": 1061.9, "profit": 524.6},
-        ],
-        "300750": [
-            {"year": "2023", "report": "年报", "eps": 10.01, "roe": 22.1, "rev": 4009.2, "profit": 441.2},
-            {"year": "2022", "report": "年报", "eps": 6.88, "roe": 24.7, "rev": 3285.9, "profit": 307.3},
-            {"year": "2021", "report": "年报", "eps": 6.88, "roe": 21.5, "rev": 1303.6, "profit": 159.3},
-        ],
-        "000001": [
-            {"year": "2023", "report": "年报", "eps": 2.25, "roe": 11.4, "rev": 1646.9, "profit": 464.6},
-            {"year": "2022", "report": "年报", "eps": 2.20, "roe": 12.4, "rev": 1535.4, "profit": 455.2},
-            {"year": "2021", "report": "年报", "eps": 1.73, "roe": 10.8, "rev": 1346.5, "profit": 363.4},
-        ],
-    }
-    if not code:
-        return jsonify({"ok": False, "error": "缺少 code 参数"}), 400
-    if OFFLINE_MODE:
-        rows = DEMO.get(code, [])
-        if year:
-            rows = [r for r in rows if r["year"] == year]
-        return jsonify({"ok": True, "offline": True, "code": code, "rows": rows,
-                        "note": "离线演示数据；有网环境 OFFLINE_MODE=False 即真实财报。"})
-    try:
-        import akshare as ak
-        df = ak.stock_yjbb_em(symbol=code)
-        rows = []
-        for _, r in df.iterrows():
-            rows.append({
-                "year": str(r.get("报告期", ""))[:4],
-                "report": str(r.get("报告类型", "")),
-                "eps": r.get("每股收益"),
-                "roe": r.get("净资产收益率(%)"),
-                "rev": r.get("营业总收入(元)"),
-                "profit": r.get("净利润(元)"),
-            })
-        if year:
-            rows = [x for x in rows if x["year"] == year]
-        return jsonify({"ok": True, "offline": False, "code": code, "rows": rows[:10]})
-    except Exception as e:
-        logger.warning("财报抓取失败, 回退演示: %s", str(e)[:120])
-        rows = DEMO.get(code, [])
-        return jsonify({"ok": True, "offline": True, "code": code, "rows": rows,
-                        "note": "真实抓取失败, 回退演示: " + str(e)[:80]})
 
 
 @app.route("/api/search", methods=["GET"])

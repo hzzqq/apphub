@@ -28,6 +28,7 @@ pytest -q test_app.py                  # 离线模式下接口契约测试(无�
 |---|---|---|
 | `/api/futures` | `symbol` `exchange` `start` `end` `mode=single\|global` | 期货K线收盘价 + 库存双轴数据；`global`=SHFE+LME+COMEX 全球合计 |
 | `/api/corr_top` | `n` | 全品种皮尔逊相关性排名 Top N（按 \|r\| 降序） |
+| `/api/futures_chain` | `symbol` `exchange` | 给定期货品种，返回跨品种相关性（原始+偏相关剔除大盘）+ 产业链传导报告（HTML） |
 | `/api/quote` | `code`（带前缀，如 `sh600519`） | 股票实时行情（新浪+GBK+Referer，akshare 兜底） |
 
 返回统一 JSON：`{ok, offline, data:[{date,close,inventory}], corr?, note?}`

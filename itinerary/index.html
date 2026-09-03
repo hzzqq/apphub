@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>行程规划 · Itinerary</title>
+<style>
+  :root{
+    --bg:#0f0f23; --card:#1a1a2e; --line:#2a2a44;
+    --up:#ff4d4f; --down:#00d486; --accent:#667eea; --accent2:#764ba2;
+    --text:#e8e8f0; --sub:#8a8a9a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);padding:20px;max-width:1000px;margin:0 auto}
+  h1{font-size:24px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{color:var(--sub);font-size:13px;margin:4px 0 16px;line-height:1.7}
+  .form{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+  .f{display:flex;flex-direction:column;gap:4px}
+  .f label{font-size:11px;color:var(--sub)}
+  input,select,textarea{background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px;font-family:inherit}
+  button{cursor:pointer;border:none;border-radius:8px;padding:8px 14px;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;font-weight:600}
+  button.ghost{background:var(--card);border:1px solid var(--line);color:var(--text)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+  .day{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  .day h3{font-size:15px;margin-bottom:10px;color:var(--accent)}
+  .slot{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .slot:last-child{border:none}
+  .slot .when{width:74px;color:var(--sub);font-size:12px;flex:none}
+  .slot input{flex:1}
+  .note{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:16px;font-size:13px;color:var(--sub);line-height:1.7}
+  .banner{font-size:12px;padding:8px 12px;border-radius:8px;margin-bottom:12px;display:none}
+  .banner.ok{background:#10202e;border:1px solid #36b37e;color:#9be8c4;display:block}
+  .banner.warn{background:#10202e;border:1px solid #ffb020;color:#ffd98a;display:block}
+  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
+  .summary div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+  .summary b{font-size:20px;color:var(--accent)}
+  textarea.share{width:100%;min-height:64px;font-size:12px;resize:vertical}
+  .diffadd{color:#36b37e}.diffdel{color:#ff7a59}.diffchg{color:#ffb020}
+  footer{margin-top:20px;color:var(--sub);font-size:12px;text-align:center}
+  .hubfoot{max-width:1180px;margin:30px auto 0;padding:16px;text-align:center;font-size:12px;color:var(--sub);border-top:1px solid var(--line);line-height:1.8}
+  .hubfoot a{color:var(--accent);text-decoration:none;font-weight:600}
+  .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35)}
+  .hubhome:hover{filter:brightness(1.12)}
+  @media (max-width:600px){body{padding:12px}h1{font-size:18px}.summary{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+  <a class="hubhome" aria-label="返回 App 大厅" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
+<h1>🌐 行程规划 · Itinerary</h1>
+<div class="sub">源自 map 项目的「AI 行程生成器」，作为 App Hub 小模块接入。按城市+天数+风格+兴趣词生成可编辑行程；配置地图后端地址可接真实 POI。支持分享码、对比、多格式导出。</div>
+
+<div class="form">
+  <div class="f"><label>城市</label><input type="text" id="city" placeholder="如 深圳" style="width:120px"></div>
+  <div class="f"><label>天数</label><input type="number" id="days" value="3" min="1" max="14" style="width:80px"></div>
+  <div class="f"><label>风格</label><select id="style">
+    <option value="classic">经典观光</option><option value="food">美食探店</option>
+    <option value="nature">自然户外</option><option value="chill">悠闲度假</option>
+    <option value="family">亲子同游</option></select></div>
+  <div class="f"><label>兴趣词(逗号分隔)</label><input type="text" id="interests" placeholder="咖啡,海边" style="width:160px"></div>
+  <div class="f"><label>出发日期(导出日历用)</label><input type="date" id="startDate" style="width:150px"></div>
+  <div class="f"><label>地图后端地址(可选)</label><input type="text" id="mapUrl" placeholder="http://127.0.0.1:5000" style="width:180px"></div>
+  <button id="genBtn">生成行程</button>
+</div>
+
+<div id="banner" class="banner"></div>
+<div id="plan"></div>
+
+<div class="row">
+  <button class="ghost" id="saveBtn">保存</button>
+  <button class="ghost" id="clrBtn">清空</button>
+  <button class="ghost" id="expJson">导出JSON</button>
+  <button class="ghost" id="expTxt">导出TXT</button>
+  <button class="ghost" id="expCsv">导出CSV</button>
+  <button class="ghost" id="expMd">导出MD</button>
+  <button class="ghost" id="expIcs">导出ICS</button>
+</div>
+
+<div class="note">
+  <b>分享 / 对比：</b>
+  <div class="row" style="margin:8px 0 4px">
+    <button class="ghost" id="encBtn">生成分享码</button>
+    <button class="ghost" id="decBtn">解析分享码</button>
+    <button class="ghost" id="diffBtn">与当前对比</button>
+  </div>
+  <textarea class="share" id="shareBox" placeholder="分享码：点击「生成分享码」得到；或粘贴他人分享码后点「解析分享码」载入 / 「与当前对比」做差异"></textarea>
+  <div id="diffOut" style="margin-top:10px"></div>
+</div>
+
+<div class="note" id="sumNote" style="display:none">
+  <b>行程摘要：</b>
+  <div class="summary" id="summary"></div>
+</div>
+
+<footer>双击即用的零依赖小工具 · 行程为模板/地图数据，请按实际开放时间与交通自行核实</footer>
+
+<script>
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);});}
+const $ = (id)=>document.getElementById(id);
+
+function showBanner(msg, kind){
+  const b=$("banner"); b.textContent=msg; b.className="banner "+(kind||"ok");
+  if(msg){ b.style.display="block"; } else { b.style.display="none"; }
+}
+
+function curPlan(){
+  return {
+    city: $("city").value.trim(),
+    days: parseInt($("days").value)||3,
+    style: $("style").value,
+    interests: ($("interests").value||"").split(",").map(s=>s.trim()).filter(Boolean),
+    days_list: [...document.querySelectorAll(".day")].map(d=>({
+      day: d.querySelector("h3").textContent,
+      slots: [...d.querySelectorAll(".slot")].map(s=>({
+        when: s.querySelector(".when").textContent,
+        plan: s.querySelector("input").value
+      }))
+    }))
+  };
+}
+
+function renderPlan(plan){
+  if(!plan || !plan.days_list || !plan.days_list.length){ $("plan").innerHTML=""; return; }
+  $("plan").innerHTML = plan.days_list.map(day=>
+    `<div class="day"><h3>${esc(day.day)}</h3>` +
+    day.slots.map(s=>`<div class="slot"><span class="when">${esc(s.when)}</span><input value="${esc(s.plan)}"></div>`).join("") +
+    `</div>`).join("");
+  [...document.querySelectorAll("#plan input")].forEach(inp=>inp.addEventListener("input",()=>{ savePlan(); renderSummary(curPlan()); }));
+  renderSummary(plan);
+}
+
+function gen(){
+  const city=$("city").value.trim()||"某城市";
+  const days=Math.min(14,Math.max(1,parseInt($("days").value)||3));
+  const body={city, days, style:$("style").value, interests:$("interests").value, map_backend_url:$("mapUrl").value.trim()};
+  showBanner("生成中…","ok");
+  fetch("/api/itinerary/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(r=>r.json()).then(d=>{
+      if(!d.ok){ showBanner("生成失败："+ (d.error||"未知错误"),"warn"); return; }
+      renderPlan(d.plan);
+      const src = d.source==="live" ? "地图项目实时AI" : "本地模板";
+      showBanner((d.note? (d.note+" · ") : "") + "来源："+src, d.source==="live"?"ok":"warn");
+      try{ localStorage.setItem("it_plan", JSON.stringify(d.plan)); }catch(e){}
+    })
+    .catch(e=>showBanner("请求失败："+e,"warn"));
+}
+
+function savePlan(){ try{ localStorage.setItem("it_plan", JSON.stringify(curPlan())); showBanner("已保存到本地","ok"); }catch(e){} }
+function clearPlan(){ if(confirm("清空当前行程？")){ try{localStorage.removeItem("it_plan");}catch(e){} gen(); } }
+
+function renderSummary(plan){
+  const nDays=(plan.days_list||[]).length;
+  const nSlots=(plan.days_list||[]).reduce((a,d)=>a+(d.slots?d.slots.length:0),0);
+  const inter=(plan.interests||[]).join("、")||"—";
+  $("sumNote").style.display="block";
+  $("summary").innerHTML =
+    `<div><b>${nDays}</b><br>天数</div>`+
+    `<div><b>${nSlots}</b><br>行程条目</div>`+
+    `<div><b style="font-size:14px">${esc(inter)}</b><br>兴趣词</div>`;
+}
+
+function dl(name, content, type){
+  const blob=new Blob([content],{type:type||"text/plain;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+}
+function expJson(){ const p=curPlan(); dl("行程.json", JSON.stringify(p,null,2), "application/json"); }
+function expTxt(){
+  const p=curPlan();
+  let s=(p.city||"行程")+" · "+p.days+"天\n";
+  p.days_list.forEach(d=>{ s+="\n"+d.day+"\n"; d.slots.forEach(sl=>s+="  ["+sl.when+"] "+sl.plan+"\n"); });
+  dl("行程.txt", s);
+}
+function expCsv(){
+  const p=curPlan(); let s="day,when,plan\n";
+  p.days_list.forEach(d=>d.slots.forEach(sl=>s+=`"${d.day}","${sl.when}","${sl.plan}"\n`));
+  dl("行程.csv", s, "text/csv");
+}
+function expMd(){
+  const p=curPlan(); let s="# "+(p.city||"行程")+" · "+p.days+"天\n\n";
+  p.days_list.forEach(d=>{ s+="## "+d.day+"\n"; d.slots.forEach(sl=>s+="- **"+sl.when+"**："+sl.plan+"\n"); s+="\n"; });
+  dl("行程.md", s, "text/markdown");
+}
+function expIcs(){
+  const p=curPlan(); const sd=$("startDate").value;
+  if(!sd){ showBanner("请先填「出发日期」再导出 ICS","warn"); return; }
+  const WHEN_TIME={ "上午":"T09:00:00","下午":"T14:00:00","晚上":"T19:00:00","灵活":"T16:00:00","兴趣":"T15:00:00" };
+  const dt=(base,i)=>{ const d=new Date(base+"T00:00:00"); d.setDate(d.getDate()+i); return d; };
+  const fmt=(dt)=>dt.toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,"");
+  let ics="BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//AppHub//Itinerary//CN\n";
+  p.days_list.forEach((d,i)=>d.slots.forEach(sl=>{
+    const st=dt(sd,i); const t=WHEN_TIME[sl.when]||"T10:00:00";
+    const start=new Date(st.toISOString().slice(0,10)+t); const end=new Date(start.getTime()+2*3600*1000);
+    ics+="BEGIN:VEVENT\nUID:"+i+"-"+Math.random().toString(36).slice(2)+"@apphub\n";
+    ics+="DTSTART:"+fmt(start)+"\nDTEND:"+fmt(end)+"\n";
+    ics+="SUMMARY:"+sl.plan+"\nLOCATION:"+(p.city||"")+"\nEND:VEVENT\n";
+  }));
+  ics+="END:VCALENDAR";
+  dl("行程.ics", ics, "text/calendar");
+}
+
+function enc(){
+  try{ const code=btoa(encodeURIComponent(JSON.stringify(curPlan()))); $("shareBox").value=code; showBanner("分享码已生成，可复制发给他人","ok"); }
+  catch(e){ showBanner("生成分享码失败："+e,"warn"); }
+}
+function dec(){
+  const code=$("shareBox").value.trim(); if(!code){ showBanner("请粘贴分享码","warn"); return; }
+  try{ const p=JSON.parse(decodeURIComponent(atob(code))); renderPlan(p); showBanner("已解析并载入分享码","ok"); }
+  catch(e){ showBanner("分享码解析失败（格式错误）","warn"); }
+}
+function diff(){
+  const code=$("shareBox").value.trim(); if(!code){ showBanner("请先粘贴待对比的分享码","warn"); return; }
+  let other; try{ other=JSON.parse(decodeURIComponent(atob(code))); }catch(e){ showBanner("分享码解析失败","warn"); return; }
+  const cur=curPlan(); const out=[];
+  const n=Math.max((cur.days_list||[]).length,(other.days_list||[]).length);
+  for(let i=0;i<n;i++){
+    const a=(cur.days_list||[])[i], b=(other.days_list||[])[i];
+    if(!a&&b){ out.push(`<div class="diffadd">+ 新增 ${(b.day)}（${b.slots.length} 项）</div>`); continue; }
+    if(a&&!b){ out.push(`<div class="diffdel">- 移除 ${esc(a.day)}</div>`); continue; }
+    const m=Math.max(a.slots.length,b.slots.length);
+    for(let j=0;j<m;j++){
+      const sa=a.slots[j], sb=b.slots[j];
+      if(!sa&&sb) out.push(`<div class="diffadd">+ [${esc(b.day)}] ${esc(sb.when)}: ${esc(sb.plan)}</div>`);
+      else if(sa&&!sb) out.push(`<div class="diffdel">- [${esc(a.day)}] ${esc(sa.when)}: ${esc(sa.plan)}</div>`);
+      else if(sa.plan!==sb.plan) out.push(`<div class="diffchg">~ [${esc(a.day)}] ${esc(sa.when)}: ${esc(sb.plan)} <span style="color:#8a8a9a">(原:${esc(sa.plan)})</span></div>`);
+    }
+  }
+  $("diffOut").innerHTML = out.length? out.join("") : '<div style="color:#9be8c4">两个行程完全一致 ✓</div>';
+  if(out.length) showBanner("对比完成，差异见上方","ok");
+}
+
+$("genBtn").addEventListener("click",gen);
+$("saveBtn").addEventListener("click",savePlan);
+$("clrBtn").addEventListener("click",clearPlan);
+$("expJson").addEventListener("click",expJson);
+$("expTxt").addEventListener("click",expTxt);
+$("expCsv").addEventListener("click",expCsv);
+$("expMd").addEventListener("click",expMd);
+$("expIcs").addEventListener("click",expIcs);
+$("encBtn").addEventListener("click",enc);
+$("decBtn").addEventListener("click",dec);
+$("diffBtn").addEventListener("click",diff);
+
+const saved=localStorage.getItem("it_plan");
+if(saved){ try{ renderPlan(JSON.parse(saved)); }catch(e){ gen(); } } else { gen(); }
+</script>
+
+  <footer class="hubfoot">
+    <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
+    <span>数据来自地图项目或本地模板，仅供学习与参考，不构成任何投资建议。</span>
+  </footer>
+</body>
+</html>
