@@ -274,6 +274,8 @@
       <button class="ghost" id="fcAddRowBtn" style="display:none">＋ 新增行</button>
       <button class="ghost" id="fcEditBtn" style="display:none">✎ 编辑推演</button>
       <button class="ghost" id="fcResetBtn" style="display:none">↺ 清空</button>
+      <button class="ghost" id="fcExportBtn">📤 导出</button>
+      <button class="ghost" id="fcShareBtn">📋 分享</button>
     </div>
     <div id="fcWrap" style="display:none">
       <div class="fcrow">
@@ -4096,6 +4098,55 @@ function fcFmtChg(v){
 }
 function fcEsc(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
+// 导出/分享：把当前推演(真实历史行 + 人工未来行)打包成 JSON 与 Markdown 摘要
+function fcBuildExport(){
+  const key = fcKey();
+  const data = fcGet(key);
+  if(!data || !data.rows || !data.rows.length) return null;
+  const symEl = document.getElementById("symbol");
+  const sym = (curExch + ":" + (symEl ? symEl.value : "")).toUpperCase();
+  const meta = { exchange: curExch, symbol: symEl ? symEl.value : "", generatedAt: new Date().toISOString().slice(0,10) };
+  const json = JSON.stringify({ meta, data }, null, 2);
+  let md = "# 库存轨迹推演 · " + sym + "\n";
+  if(data.title) md += "**" + data.title + "**\n\n";
+  md += "- 口径：" + (data.source || "—") + "\n";
+  md += "- 基准库存：" + fcFmt(data.baseline_inventory) + " 万吨\n";
+  if(data.assumptions) md += "- 假设：" + data.assumptions + "\n";
+  if(data.triggerRule) md += "- 触发规则：" + data.triggerRule + "\n";
+  md += "\n| 报告期 | 统计日 | 库存(万吨) | 变动 | 方向 | 驱动 |\n";
+  md += "|--------|--------|-----------|------|------|------|\n";
+  data.rows.forEach(r=>{
+    md += "| " + (r.report||"") + " | " + (r.stat||"") + " | " + fcFmt(r.inv) + " | " + fcFmtChg(r.change) + " | " + (r.dir||"—") + " | " + (r.driver||"") + " |\n";
+  });
+  md += "\n> 历史行=真实库存序列；未来行=人工推演。由期库镜生成。\n";
+  return { json, md, sym };
+}
+function fcDownload(name, text, type){
+  try{
+    const blob = new Blob([text], { type: type || "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 120);
+  }catch(e){ if(typeof alert==="function") alert("导出失败：" + e.message); }
+}
+function fcCopy(text){
+  function fallback(){
+    try{
+      const ta = document.createElement("textarea"); ta.value = text;
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); document.body.removeChild(ta);
+      if(typeof alert==="function") alert("已复制推演摘要到剪贴板，可粘贴到微信/文档分享。");
+    }catch(e){ if(typeof alert==="function") alert("复制失败，请改用「📤 导出」下载 JSON 后分享。"); }
+  }
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(()=>{ if(typeof alert==="function") alert("已复制推演摘要到剪贴板，可粘贴到微信/文档分享。"); }, ()=>fallback());
+    } else fallback();
+  }catch(e){ fallback(); }
+}
+
 function renderForecast(){
   const key = fcKey();
   let data = fcGet(key);
@@ -4305,6 +4356,20 @@ function initForecast(){
     fcSet(fcKey(), { rows:[], cleared:true, source: document.getElementById("fcSource").value });
     setEditable(false);
     renderForecast();
+  });
+
+  // 导出(JSON 文件) / 分享(Markdown 摘要复制到剪贴板)
+  const exportBtn = document.getElementById("fcExportBtn");
+  const shareBtn = document.getElementById("fcShareBtn");
+  if(exportBtn) exportBtn.addEventListener("click", ()=>{
+    const ex = fcBuildExport();
+    if(!ex){ if(typeof alert==="function") alert("当前无推演数据可导出，请先点「🌱 播种真实序列」或「✎ 编辑推演」。"); return; }
+    fcDownload("库存推演_" + ex.sym + ".json", ex.json, "application/json");
+  });
+  if(shareBtn) shareBtn.addEventListener("click", ()=>{
+    const ex = fcBuildExport();
+    if(!ex){ if(typeof alert==="function") alert("当前无推演数据可分享，请先点「🌱 播种真实序列」或「✎ 编辑推演」。"); return; }
+    fcCopy(ex.md);
   });
 
   // 口径切换(无需进入编辑模式即生效)
