@@ -114,6 +114,16 @@
   .fcpct.sc-bull{border-color:var(--up);color:var(--up)}
   .fcpct.sc-bear{border-color:var(--down);color:var(--down)}
   .fcpct.sc-mid{border-color:var(--sub);color:var(--sub)}
+  .price-inzone{color:var(--txt);background:rgba(255,169,77,.16)}
+  .price-below{color:var(--down);background:rgba(0,212,134,.16)}
+  .price-above{color:var(--up);background:rgba(255,77,79,.16)}
+  .ztag{font-size:10px;padding:0 4px;border-radius:4px;margin-left:4px;vertical-align:middle}
+  .ztag.price-inzone{background:rgba(255,169,77,.28);color:#ffa94d}
+  .ztag.price-below{background:rgba(0,212,134,.28);color:var(--down)}
+  .ztag.price-above{background:rgba(255,77,79,.28);color:var(--up)}
+  #fcZone{display:none;margin:8px 0;padding:8px 12px;border-radius:8px;font-size:12.5px;line-height:1.6;background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--sub)}
+  #fcZone.on{display:block}
+  #fcZone b{color:var(--txt)}
   .fcempty{padding:18px;text-align:center;color:var(--sub);font-size:13px}
 </style>
 </head>
@@ -297,10 +307,12 @@
           </select>
         </label>
         <label>推演标题 <input type="text" id="fcTitle" placeholder="如：③ 周度推演（从这周 9/3 起）" style="min-width:260px"></label>
+        <label>关键价位带(元/吨) <input type="number" id="fcKeyLow" placeholder="低" style="width:74px"> – <input type="number" id="fcKeyHigh" placeholder="高" style="width:74px"></label>
         <span id="fcSrc" style="font-size:12px"></span>
       </div>
       <div class="fctitle" id="fcTitleView" style="display:none"></div>
       <div id="fcPct" class="fcpct"></div>
+      <div id="fcZone" ></div>
       <div id="fcTrigger" class="fctrigger"></div>
       <table class="fctbl" id="fcTable" style="margin-top:6px">
         <thead>
@@ -4182,6 +4194,13 @@ function fcInvScenario(pct){
   if(pct>=75) return {tag:"利空", cls:"sc-bear", text:"库存处高分位（≥75%）：现货宽松、价格承压"};
   return {tag:"中性", cls:"sc-mid", text:"库存处中分位（25%–75%）：方向待驱动确认"};
 }
+// 关键价位带：收盘价相对[low,high]的位置 → 方向提示（绿=偏低利多/红=偏高利空/琥珀=区间内）
+function fcPriceZoneCls(px, low, high){
+  if(px==null || low==null || high==null || isNaN(low) || isNaN(high) || low>=high) return null;
+  if(px < low)  return {cls:"price-below", tag:"偏低", status:"跌破关键低位 "+Math.round(low)+"（成本区下沿，偏低利多）"};
+  if(px > high) return {cls:"price-above", tag:"偏高", status:"突破关键高位 "+Math.round(high)+"（压力区上沿，偏高利空）"};
+  return {cls:"price-inzone", tag:"区间内", status:"处于关键价位带 ["+Math.round(low)+", "+Math.round(high)+"] 内"};
+}
 
 // 导出/分享：把当前推演(真实历史行 + 人工未来行)打包成 JSON 与 Markdown 摘要
 function fcBuildExport(){
@@ -4201,6 +4220,12 @@ function fcBuildExport(){
   if(data.triggerRule) md += "- 触发规则：" + data.triggerRule + "\n";
   const _ip = fcInvPercentile();
   if(_ip) md += "- 库存分位：" + _ip.pct + "%（当前 " + fcFmt(_ip.cur) + " 万吨，近 " + _ip.n + " 周，区间 " + fcFmt(_ip.min) + "–" + fcFmt(_ip.max) + "）→ 价格情景：" + fcInvScenario(_ip.pct).tag + "\n";
+  const _zLow = data.keyLow, _zHigh = data.keyHigh;
+  if(_zLow!=null && _zHigh!=null){
+    let _lp = null; for(const r of (window.__data||[])){ if(r.close!=null) _lp = r.close; }
+    const _zz = fcPriceZoneCls(_lp, +_zLow, +_zHigh);
+    md += "- 关键价位带：[" + _zLow + "–" + _zHigh + "] 元/吨" + (_zz ? (" → 当前收盘价 " + fcFmtPx(_lp) + "：" + _zz.status) : "") + "\n";
+  }
   md += "\n| 报告期 | 统计日 | 库存(万吨) | 收盘价 | 变动 | 方向 | 驱动 |\n";
   md += "|--------|--------|-----------|--------|------|------|------|\n";
   data.rows.forEach(r=>{
@@ -4261,6 +4286,26 @@ function renderForecast(){
     pctEl.innerHTML = "";
   }
 
+  // 关键价位带：读/写输入、算当前收盘价状态（区带已设才提示）
+  const zoneLow = (data && data.keyLow!=null && data.keyLow!=="") ? +data.keyLow : null;
+  const zoneHigh = (data && data.keyHigh!=null && data.keyHigh!=="") ? +data.keyHigh : null;
+  const keyLowIn = document.getElementById("fcKeyLow");
+  const keyHighIn = document.getElementById("fcKeyHigh");
+  if(keyLowIn) keyLowIn.value = (data && data.keyLow!=null) ? data.keyLow : "";
+  if(keyHighIn) keyHighIn.value = (data && data.keyHigh!=null) ? data.keyHigh : "";
+  const zoneEl = document.getElementById("fcZone");
+  let _lastPx = null;
+  for(const r of (window.__data||[])){ if(r.close!=null) _lastPx = r.close; }
+  const _zc = fcPriceZoneCls(_lastPx, zoneLow, zoneHigh);
+  if(zoneLow!=null && zoneHigh!=null){
+    zoneEl.className = "on " + (_zc ? _zc.cls : "sc-mid");
+    zoneEl.innerHTML = '🎯 <b>关键价位带</b>：['+zoneLow+'–'+zoneHigh+'] 元/吨'
+      + (_zc ? (' → 当前收盘价 <b>'+fcFmtPx(_lastPx)+'</b>：'+_zc.status) : '（未取到真实收盘价）');
+  } else {
+    zoneEl.className = "";
+    zoneEl.innerHTML = "";
+  }
+
   if(!data || !data.rows || !data.rows.length){
     // 尝试用真实库存序列自动播种（仅真实数据，全品种通用）
     if((!data || !data.cleared) && fcRealUsable()){
@@ -4294,11 +4339,14 @@ function renderForecast(){
     const dirCls = dirClassOf(r.dir);
     const cumCls = r.cum ? " cum" : "";
     const chgCell = (r.change===null||r.change===undefined||r.change==="") ? "—" : fcFmtChg(r.change);
+    const _px = fcPriceOf(r.report) != null ? fcPriceOf(r.report) : fcPriceOf(r.stat);
+    const _zcR = fcPriceZoneCls(_px, zoneLow, zoneHigh);
+    const _pxTxt = (_px==null) ? "—" : fcFmtPx(_px);
     return '<tr data-idx="'+i+'">'
       +'<td data-k="report">'+fcEsc(r.report||"")+'</td>'
       +'<td data-k="stat">'+fcEsc(r.stat||"")+'</td>'
       +'<td class="num" data-k="inv">'+fcFmt(r.inv)+'</td>'
-      +'<td class="num" data-k="price" contenteditable="false">'+fcFmtPx(fcPriceOf(r.report) != null ? fcPriceOf(r.report) : fcPriceOf(r.stat))+'</td>'
+      +'<td class="num' + (_zcR?(' '+_zcR.cls):'') + '" data-k="price" contenteditable="false">'+_pxTxt + (_zcR?(' <span class="ztag '+_zcR.cls+'">'+_zcR.tag+'</span>'):'')+'</td>'
       +'<td class="num'+cumCls+'" data-k="change">'+chgCell+'</td>'
       +'<td data-k="dir"><span class="dir-tag '+dirCls+'">'+fcEsc(r.dir||"—")+'</span></td>'
       +'<td data-k="driver">'+fcEsc(r.driver||"")+'</td>'
@@ -4404,6 +4452,9 @@ function initForecast(){
       data.assumptions = avIn.value.trim();
       data.triggerRule = rvIn.value.trim();
       data.source = document.getElementById("fcSource").value;
+      const _kl = document.getElementById("fcKeyLow"), _kh = document.getElementById("fcKeyHigh");
+      data.keyLow = (_kl && _kl.value!=="" ) ? (+_kl.value) : null;
+      data.keyHigh = (_kh && _kh.value!=="" ) ? (+_kh.value) : null;
       // 同步基准: 取第一个 baseline:true 行的 inv
       const baseRow = data.rows.find(r => r.baseline===true);
       if(baseRow && baseRow.inv!==null) data.baseline_inventory = baseRow.inv;
@@ -4450,8 +4501,27 @@ function initForecast(){
     const cur = fcGet(fcKey());
     if(cur && cur.rows && cur.rows.length && typeof confirm==="function" && !confirm("用当前真实库存序列覆盖本品种推演表？")) return;
     const s = fcSeedFromReal(8);
-    if(s){ fcSet(fcKey(), s); setEditable(false); renderForecast(); }
+    if(s){
+      // 保留已设的关键价位带
+      if(cur && cur.keyLow!=null) s.keyLow = cur.keyLow;
+      if(cur && cur.keyHigh!=null) s.keyHigh = cur.keyHigh;
+      fcSet(fcKey(), s); setEditable(false); renderForecast();
+    }
   });
+
+  // 关键价位带：输入即存（免进编辑态），重新渲染上色
+  function fcSaveZone(){
+    const k = fcKey();
+    const d = fcGet(k) || { rows:[], baseline_inventory:0, source:"隆众", title:"", assumptions:"", triggerRule:"" };
+    const _kl = document.getElementById("fcKeyLow"), _kh = document.getElementById("fcKeyHigh");
+    d.keyLow = (_kl && _kl.value!=="") ? (+_kl.value) : null;
+    d.keyHigh = (_kh && _kh.value!=="") ? (+_kh.value) : null;
+    fcSet(k, d);
+    renderForecast();
+  }
+  const _klIn = document.getElementById("fcKeyLow"), _khIn = document.getElementById("fcKeyHigh");
+  if(_klIn) _klIn.addEventListener("change", fcSaveZone);
+  if(_khIn) _khIn.addEventListener("change", fcSaveZone);
 
   // 清空（保留为空态，不再自动播种）
   resetBtn.addEventListener("click", ()=>{
