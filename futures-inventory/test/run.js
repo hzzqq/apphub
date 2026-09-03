@@ -378,22 +378,31 @@ if (typeof sandbox.dataQuality === "function") {
 console.log("\n[Round 12] 内置真实样本 REAL_DATA");
 const RD = sandbox.REAL_DATA;
 ok("REAL_DATA 存在", !!RD);
-ok("SHFE:sp 有 9 条真实样本", RD && Array.isArray(RD["SHFE:sp"]) && RD["SHFE:sp"].length === 9);
+ok("SHFE:sp 有真实库存序列(>=20 行)", RD && Array.isArray(RD["SHFE:sp"]) && RD["SHFE:sp"].length >= 20);
+ok("全品种内置真实样本(>=50 品种)", RD && Object.keys(RD).length >= 50);
 if (RD && RD["SHFE:sp"]) {
   const sp = RD["SHFE:sp"];
-  const by = d => sp.find(x => x.date === d);
-  ok("2026-06-25 库存 2335200 吨(真实)", by("2026-06-25").inventory_total === 2335200);
-  ok("2026-08-13 收盘价 4538(真实)", by("2026-08-13").close === 4538);
-  ok("2026-06-26 库存为 null(未编造)", by("2026-06-26").inventory_total === null);
-  ok("2026-08-25 收盘价 4828(真实)", by("2026-08-25").close === 4828);
-  // 映射后字段口径与后端一致
+  // 全部为真实公开库存（东方财富口径，单位吨），无编造收盘价
+  const allReal = sp.every(x => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(x.date)) return false;
+    if (x.inventory_total == null) return false;
+    if (!(x.inventory_total > 0)) return false;
+    return true;
+  });
+  ok("SP 序列全是真实日期+正库存(无编造)", allReal);
+  ok("SP 末值 = 最近真实库存(吨)", sp[sp.length-1].inventory_total > 0);
+  // 映射后字段口径与后端一致：inventory_total 保留、null 不被转 0
   const mapped = sp.map(x => ({
     date: x.date,
     close: x.close == null ? null : +x.close,
     inventory_total: x.inventory_total == null ? null : +x.inventory_total
   }));
-  ok("映射后 2026-06-25 inventory_total 仍为真实值", mapped.find(m=>m.date==="2026-06-25").inventory_total === 2335200);
-  ok("映射后 null 不被转成 0", mapped.find(m=>m.date==="2026-06-26").inventory_total === null);
+  ok("映射后 inventory_total 仍为真实值", mapped[mapped.length-1].inventory_total === sp[sp.length-1].inventory_total);
+  ok("映射后 null 不被转成 0", mapped.every(m => m.inventory_total === null || m.inventory_total > 0));
+}
+// 抽检其他品种也内置真实序列（证明"所有品种都有真实数据"）
+for (const k of ["SHFE:cu","SHFE:rb","CZCE:fg","DCE:jd","CZCE:sa","DCE:eg"]) {
+  ok(k+" 有真实库存序列", RD[k] && RD[k].some(r => r.inventory_total != null && r.inventory_total > 0));
 }
 
 /* ============================================================

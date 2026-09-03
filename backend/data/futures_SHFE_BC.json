@@ -3854,46 +3854,46 @@
 {
 "date": "2026-05-19",
 "close": 92660.0,
-"inventory": 14821.0,
-"inventory_total": 14821.0,
+"inventory": null,
+"inventory_total": null,
 "inventory_circ": null,
-"inventory_warehouse": 14821.0,
+"inventory_warehouse": null,
 "inventory_bonded": null
 },
 {
 "date": "2026-05-20",
 "close": 92080.0,
-"inventory": 13623.0,
-"inventory_total": 13623.0,
+"inventory": null,
+"inventory_total": null,
 "inventory_circ": null,
-"inventory_warehouse": 13623.0,
+"inventory_warehouse": null,
 "inventory_bonded": null
 },
 {
 "date": "2026-05-21",
 "close": 92100.0,
-"inventory": 13274.0,
-"inventory_total": 13274.0,
+"inventory": null,
+"inventory_total": null,
 "inventory_circ": null,
-"inventory_warehouse": 13274.0,
+"inventory_warehouse": null,
 "inventory_bonded": null
 },
 {
 "date": "2026-05-22",
 "close": 93030.0,
-"inventory": 13274.0,
-"inventory_total": 13274.0,
+"inventory": null,
+"inventory_total": null,
 "inventory_circ": null,
-"inventory_warehouse": 13274.0,
+"inventory_warehouse": null,
 "inventory_bonded": null
 },
 {
 "date": "2026-05-25",
 "close": 93660.0,
-"inventory": 12778.0,
-"inventory_total": 12778.0,
+"inventory": null,
+"inventory_total": null,
 "inventory_circ": null,
-"inventory_warehouse": 12778.0,
+"inventory_warehouse": null,
 "inventory_bonded": null
 },
 {

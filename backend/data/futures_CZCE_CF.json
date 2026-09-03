@@ -3890,10 +3890,10 @@
 {
 "date": "2026-05-25",
 "close": 15935.0,
-"inventory": 12289.0,
-"inventory_total": 12289.0,
+"inventory": null,
+"inventory_total": null,
 "inventory_circ": null,
-"inventory_warehouse": 12289.0,
+"inventory_warehouse": null,
 "inventory_bonded": null
 },
 {
