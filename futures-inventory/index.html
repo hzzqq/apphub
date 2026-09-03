@@ -108,6 +108,12 @@
   .fcrow label{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;color:var(--sub)}
   .fcrow label input{font-size:12px;padding:5px 8px}
   .fctitle{font-size:13px;color:var(--inv);font-weight:600;margin:6px 0}
+  .fcpct{display:none;margin:8px 0;padding:8px 12px;border-radius:8px;font-size:12.5px;line-height:1.6;background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--sub)}
+  .fcpct.on{display:block}
+  .fcpct b{color:var(--txt)}
+  .fcpct.sc-bull{border-color:var(--up);color:var(--up)}
+  .fcpct.sc-bear{border-color:var(--down);color:var(--down)}
+  .fcpct.sc-mid{border-color:var(--sub);color:var(--sub)}
   .fcempty{padding:18px;text-align:center;color:var(--sub);font-size:13px}
 </style>
 </head>
@@ -294,6 +300,7 @@
         <span id="fcSrc" style="font-size:12px"></span>
       </div>
       <div class="fctitle" id="fcTitleView" style="display:none"></div>
+      <div id="fcPct" class="fcpct"></div>
       <div id="fcTrigger" class="fctrigger"></div>
       <table class="fctbl" id="fcTable" style="margin-top:6px">
         <thead>
@@ -4153,6 +4160,28 @@ function fcPriceOf(date){
   for(const r of d){ if(r.date === date && r.close != null) return r.close; }
   return null;
 }
+// 库存分位：当前(末真实点)在真实序列中的分位 → 价格情景（低库存利多、高库存利空）
+function fcInvPercentile(){
+  const d = (window.__data||[]).filter(r=>fcMetricVal(r)!=null)
+    .map(r=>({date:r.date, v:fcToWan(fcMetricVal(r))}))
+    .sort((a,b)=> (a.date<b.date?-1:(a.date>b.date?1:0)));
+  if(d.length < 2) return null;
+  const vals = d.map(x=>x.v);
+  const cur = vals[vals.length-1];
+  const below = vals.filter(v=>v < cur).length;
+  return {
+    pct: Math.round(below/vals.length*100),
+    cur, n: vals.length, lastDate: d[d.length-1].date,
+    min: Math.min.apply(null, vals), max: Math.max.apply(null, vals),
+    avg: +(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2)
+  };
+}
+function fcInvScenario(pct){
+  if(pct==null) return {tag:"—", cls:"sc-mid", text:"样本不足，无法判分位"};
+  if(pct<=25) return {tag:"利多", cls:"sc-bull", text:"库存处低分位（≤25%）：现货偏紧、价格易涨"};
+  if(pct>=75) return {tag:"利空", cls:"sc-bear", text:"库存处高分位（≥75%）：现货宽松、价格承压"};
+  return {tag:"中性", cls:"sc-mid", text:"库存处中分位（25%–75%）：方向待驱动确认"};
+}
 
 // 导出/分享：把当前推演(真实历史行 + 人工未来行)打包成 JSON 与 Markdown 摘要
 function fcBuildExport(){
@@ -4170,6 +4199,8 @@ function fcBuildExport(){
   md += "- 基准库存：" + fcFmt(data.baseline_inventory) + " 万吨\n";
   if(data.assumptions) md += "- 假设：" + data.assumptions + "\n";
   if(data.triggerRule) md += "- 触发规则：" + data.triggerRule + "\n";
+  const _ip = fcInvPercentile();
+  if(_ip) md += "- 库存分位：" + _ip.pct + "%（当前 " + fcFmt(_ip.cur) + " 万吨，近 " + _ip.n + " 周，区间 " + fcFmt(_ip.min) + "–" + fcFmt(_ip.max) + "）→ 价格情景：" + fcInvScenario(_ip.pct).tag + "\n";
   md += "\n| 报告期 | 统计日 | 库存(万吨) | 收盘价 | 变动 | 方向 | 驱动 |\n";
   md += "|--------|--------|-----------|--------|------|------|------|\n";
   data.rows.forEach(r=>{
@@ -4216,6 +4247,19 @@ function renderForecast(){
   const avView = document.getElementById("fcAssumptionsView");
   const ruleView = document.getElementById("fcRuleView");
   const fcWrap = document.getElementById("fcWrap");
+  const pctEl = document.getElementById("fcPct");
+
+  // 库存分位 × 价格情景：实时从真实序列算出，与推演行有无无关
+  const ip = fcInvPercentile();
+  if(ip){
+    const sc = fcInvScenario(ip.pct);
+    pctEl.className = "fcpct on " + sc.cls;
+    pctEl.innerHTML = '📊 <b>库存分位</b>：当前 <b>'+fcFmt(ip.cur)+'</b> 万吨（截至 '+ip.lastDate+'，近 '+ip.n+' 周），处 <b>'+ip.pct+'%</b> 分位'
+      + '（区间 '+fcFmt(ip.min)+'–'+fcFmt(ip.max)+'，均 '+fcFmt(ip.avg)+'）→ 价格情景：<b>'+sc.tag+'</b> · '+sc.text;
+  } else {
+    pctEl.className = "fcpct";
+    pctEl.innerHTML = "";
+  }
 
   if(!data || !data.rows || !data.rows.length){
     // 尝试用真实库存序列自动播种（仅真实数据，全品种通用）
