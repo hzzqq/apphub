@@ -298,11 +298,12 @@
       <table class="fctbl" id="fcTable" style="margin-top:6px">
         <thead>
           <tr>
-            <th style="width:14%">报告日</th>
-            <th style="width:11%">统计截至</th>
-            <th style="width:11%">预计库存</th>
-            <th style="width:10%">周变动</th>
-            <th style="width:10%">方向</th>
+            <th style="width:13%">报告日</th>
+            <th style="width:10%">统计截至</th>
+            <th style="width:10%">预计库存</th>
+            <th style="width:13%">收盘价(元/吨)</th>
+            <th style="width:9%">周变动</th>
+            <th style="width:9%">方向</th>
             <th>主要驱动</th>
           </tr>
         </thead>
@@ -4144,6 +4145,14 @@ function fcFmtChg(v){
   return (n>0?"+":"") + n.toLocaleString("zh-CN",{maximumFractionDigits:1});
 }
 function fcEsc(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+// 收盘价（元/吨）：从真实序列按日期取期货收盘价，无对应真实交易日则显示「—」（不编造未来价）
+function fcFmtPx(v){ return (v===undefined||v===null||v==="")?"—":Math.round(+v).toLocaleString("zh-CN"); }
+function fcPriceOf(date){
+  if(!date) return null;
+  const d = window.__data || [];
+  for(const r of d){ if(r.date === date && r.close != null) return r.close; }
+  return null;
+}
 
 // 导出/分享：把当前推演(真实历史行 + 人工未来行)打包成 JSON 与 Markdown 摘要
 function fcBuildExport(){
@@ -4153,17 +4162,18 @@ function fcBuildExport(){
   const symEl = document.getElementById("symbol");
   const sym = (curExch + ":" + (symEl ? symEl.value : "")).toUpperCase();
   const meta = { exchange: curExch, symbol: symEl ? symEl.value : "", generatedAt: new Date().toISOString().slice(0,10) };
-  const json = JSON.stringify({ meta, data }, null, 2);
+  const rowsOut = data.rows.map(r=>({ ...r, price: (fcPriceOf(r.report) != null ? fcPriceOf(r.report) : fcPriceOf(r.stat)) }));
+  const json = JSON.stringify({ meta, data: { ...data, rows: rowsOut } }, null, 2);
   let md = "# 库存轨迹推演 · " + sym + "\n";
   if(data.title) md += "**" + data.title + "**\n\n";
   md += "- 口径：" + (data.source || "—") + "\n";
   md += "- 基准库存：" + fcFmt(data.baseline_inventory) + " 万吨\n";
   if(data.assumptions) md += "- 假设：" + data.assumptions + "\n";
   if(data.triggerRule) md += "- 触发规则：" + data.triggerRule + "\n";
-  md += "\n| 报告期 | 统计日 | 库存(万吨) | 变动 | 方向 | 驱动 |\n";
-  md += "|--------|--------|-----------|------|------|------|\n";
+  md += "\n| 报告期 | 统计日 | 库存(万吨) | 收盘价 | 变动 | 方向 | 驱动 |\n";
+  md += "|--------|--------|-----------|--------|------|------|------|\n";
   data.rows.forEach(r=>{
-    md += "| " + (r.report||"") + " | " + (r.stat||"") + " | " + fcFmt(r.inv) + " | " + fcFmtChg(r.change) + " | " + (r.dir||"—") + " | " + (r.driver||"") + " |\n";
+    md += "| " + (r.report||"") + " | " + (r.stat||"") + " | " + fcFmt(r.inv) + " | " + fcFmtPx(fcPriceOf(r.report) != null ? fcPriceOf(r.report) : fcPriceOf(r.stat)) + " | " + fcFmtChg(r.change) + " | " + (r.dir||"—") + " | " + (r.driver||"") + " |\n";
   });
   md += "\n> 历史行=真实库存序列；未来行=人工推演。由期库镜生成。\n";
   return { json, md, sym };
@@ -4218,7 +4228,7 @@ function renderForecast(){
     const why = fcIsDemo()
       ? "当前品种为<b>合成演示数据</b>（无后端且暂无真实样本），推演基准需用真实库存。"
       : "该品种暂无可用的<b>真实库存序列</b>。";
-    tbody.innerHTML = '<tr><td colspan="6" class="fcempty">'+why
+    tbody.innerHTML = '<tr><td colspan="7" class="fcempty">'+why
       + ' 配置真实数据接口（<code>http://127.0.0.1:8787</code>）或联网后，点「🌱 播种真实序列」即用真实库存自动生成推演表；也可点「✎ 编辑推演」逐行手建。</td></tr>';
     triggerEl.className = "fctrigger";
     triggerEl.innerHTML = "";
@@ -4244,6 +4254,7 @@ function renderForecast(){
       +'<td data-k="report">'+fcEsc(r.report||"")+'</td>'
       +'<td data-k="stat">'+fcEsc(r.stat||"")+'</td>'
       +'<td class="num" data-k="inv">'+fcFmt(r.inv)+'</td>'
+      +'<td class="num" data-k="price" contenteditable="false">'+fcFmtPx(fcPriceOf(r.report) != null ? fcPriceOf(r.report) : fcPriceOf(r.stat))+'</td>'
       +'<td class="num'+cumCls+'" data-k="change">'+chgCell+'</td>'
       +'<td data-k="dir"><span class="dir-tag '+dirCls+'">'+fcEsc(r.dir||"—")+'</span></td>'
       +'<td data-k="driver">'+fcEsc(r.driver||"")+'</td>'
