@@ -84,6 +84,31 @@
 
   .hubhome{position:fixed;top:14px;right:14px;z-index:90;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(124,92,255,.35);transition:filter .15s}
   .hubhome:hover{filter:brightness(1.12)}
+
+  /* 库存轨迹推演表 */
+  .dir-tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600;border:1px solid transparent}
+  .dir-base{color:var(--sub);background:#22223a;border-color:var(--line)}
+  .dir-up{color:var(--up);background:rgba(255,77,79,.14);border-color:rgba(255,77,79,.4)}
+  .dir-up-bold{color:#fff;background:var(--up);border-color:var(--up)}
+  .dir-down{color:var(--down);background:rgba(0,212,134,.14);border-color:rgba(0,212,134,.4)}
+  .dir-down-bold{color:#fff;background:var(--down);border-color:var(--down)}
+  .dir-peak{color:#1a1a2e;background:var(--inv);border-color:var(--inv)}
+  .fctbl td.num{font-variant-numeric:tabular-nums}
+  .fctbl td.cum{position:relative}
+  .fctbl td.cum::after{content:"*";color:var(--inv);font-weight:700;margin-left:2px}
+  .fctbl[contenteditable="true"] td{outline:1px dashed rgba(102,126,234,.45);outline-offset:-1px;cursor:text}
+  .fctbl[contenteditable="true"] td:focus{outline:1px solid var(--g1);background:rgba(102,126,234,.08)}
+  .fctbl .baseline td{color:var(--sub);font-style:italic}
+  .fctrigger{display:none;margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(255,77,79,.12);border:1px solid rgba(255,77,79,.4);color:var(--up);font-size:12.5px;line-height:1.6}
+  .fctrigger.on{display:block}
+  .fctrigger b{color:#fff}
+  .fcnote{margin-top:10px;padding:10px 12px;background:#16162a;border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--sub);line-height:1.7}
+  .fcnote .lbl{color:var(--txt);font-weight:600;margin-right:6px}
+  .fcrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:12.5px}
+  .fcrow label{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;color:var(--sub)}
+  .fcrow label input{font-size:12px;padding:5px 8px}
+  .fctitle{font-size:13px;color:var(--inv);font-weight:600;margin:6px 0}
+  .fcempty{padding:18px;text-align:center;color:var(--sub);font-size:13px}
 </style>
 </head>
 <body>
@@ -237,6 +262,54 @@
       </div>
     </div>
     <div class="tl" id="tlBox"></div>
+  </div>
+
+  <!-- 库存轨迹推演表（按品种持久化·人工编辑·情景复活预警） -->
+  <div class="card">
+    <div class="toolbar">
+      <span class="exchgrp" style="margin:0">📦 库存轨迹推演表（万吨 · 隆众口径）</span>
+      <span style="flex:1"></span>
+      <button class="ghost" id="fcToggleBtn">▼ 展开</button>
+      <button class="ghost" id="fcAddRowBtn" style="display:none">＋ 新增行</button>
+      <button class="ghost" id="fcEditBtn" style="display:none">✎ 编辑推演</button>
+      <button class="ghost" id="fcResetBtn" style="display:none">↺ 恢复示例</button>
+    </div>
+    <div id="fcWrap" style="display:none">
+      <div class="fcrow">
+        <label>口径
+          <select id="fcSource">
+            <option value="隆众">隆众</option>
+            <option value="钢联">钢联</option>
+            <option value="卓创">卓创</option>
+            <option value="MySteel">MySteel</option>
+            <option value="SMM">SMM</option>
+            <option value="交易所">交易所周报</option>
+          </select>
+        </label>
+        <label>推演标题 <input type="text" id="fcTitle" placeholder="如：③ 周度推演（从这周 9/3 起）" style="min-width:260px"></label>
+        <span id="fcSrc" style="font-size:12px"></span>
+      </div>
+      <div class="fctitle" id="fcTitleView" style="display:none"></div>
+      <div id="fcTrigger" class="fctrigger"></div>
+      <table class="fctbl" id="fcTable" style="margin-top:6px">
+        <thead>
+          <tr>
+            <th style="width:14%">报告日</th>
+            <th style="width:11%">统计截至</th>
+            <th style="width:11%">预计库存</th>
+            <th style="width:10%">周变动</th>
+            <th style="width:10%">方向</th>
+            <th>主要驱动</th>
+          </tr>
+        </thead>
+        <tbody id="fcBody"></tbody>
+      </table>
+      <div class="fcnote">
+        <div><span class="lbl">说明</span>*为区间累计值，非单周。推演值由人工设定/编辑；与实际公布库存以隆众官方数据为准。</div>
+        <div style="margin-top:6px"><span class="lbl">推演假设</span><span id="fcAssumptionsView">—</span><input type="text" id="fcAssumptionsInput" style="display:none;width:100%;margin-top:4px"></div>
+        <div style="margin-top:6px"><span class="lbl">情景触发规则</span><span id="fcRuleView">—</span><input type="text" id="fcRuleInput" style="display:none;width:100%;margin-top:4px"></div>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -1220,6 +1293,7 @@ async function refresh(){
     await loadBackendEvents(code);   // 可选：拉取后端事件
     draw(); renderTable(); renderTimeline();
     updateFavBtn(); renderFavorites(); renderSeasonal(); renderDQ();
+    renderForecast();
   }
   finally{ if(btn){ btn.disabled=false; btn.textContent="绘制透视"; } }
 }
@@ -1715,7 +1789,262 @@ fillSymbols();
   curRange = 0;
   document.querySelectorAll("#rangeSeg button").forEach(b=>b.classList.toggle("on", b.dataset.r==="365"));
 })();
+// ───────────────────── 库存轨迹推演表 ─────────────────────
+const FC_KEY_PREFIX = "fl_inventory_forecast_v1";
+const FORECAST_DEFAULT = {
+  "SHFE:sp": {
+    title: "③ 周度推演（从这周 9/3 起）",
+    assumptions: "海外停机按计划落地、无新增大产能投产、下游节前备货正常",
+    triggerRule: '若库存重新周度累库≥8/27 水平（228.7 万吨），则"破 4700"情景复活（见下方价格映射）',
+    baseline_inventory: 228.7,
+    source: "隆众",
+    rows: [
+      { report:"8/27(已发)", stat:"8/27",      inv:228.7, change:null, dir:"基准",   driver:"高位，前周微累 +6.1", baseline:true },
+      { report:"9/3",        stat:"9/3",       inv:230.7, change: 2.0, dir:"微累",   driver:"旺季补库未放量，到港正常" },
+      { report:"9/10",       stat:"9/10",      inv:227.7, change:-3.0, dir:"去库",   driver:"教材招标 + 备货启动，提货加快" },
+      { report:"9/17",       stat:"9/17",      inv:226.7, change:-1.0, dir:"弱去",   driver:"到港脉冲间，去库放缓" },
+      { report:"9/24",       stat:"9/24",      inv:220.7, change:-6.0, dir:"明显去", driver:"国庆前集中采购冲量，提货峰值" },
+      { report:"10/8(节后)", stat:"~10/8",     inv:230.7, change:10.0, dir:"跳升累", driver:"国庆假期累积到港 + 工厂停工" },
+      { report:"10/15",      stat:"10/15",     inv:226.7, change:-4.0, dir:"去库",   driver:"双 11 包装 + 教辅印刷备货" },
+      { report:"10/22",      stat:"10/22",     inv:222.7, change:-4.0, dir:"去库",   driver:"旺季刚需持续" },
+      { report:"11/19",      stat:"11/19",     inv:193.7, change:-29,  dir:"加速去", driver:"海外减量到港兑现 + 年末刚需", cum:true },
+      { report:"12/31",      stat:"12/31",     inv:178.7, change:-15,  dir:"年内低", driver:"Q4 季度末升，库存加速去化",   cum:true }
+    ]
+  }
+};
+const DIR_CLASS = {
+  "基准":"dir-base",
+  "微累":"dir-up",
+  "弱累":"dir-up",
+  "累库":"dir-up",
+  "跳升累":"dir-up-bold",
+  "去库":"dir-down",
+  "弱去":"dir-down",
+  "明显去":"dir-down-bold",
+  "加速去":"dir-down-bold",
+  "年内低":"dir-peak"
+};
+function fcKey(){ return curExch + ":" + (document.getElementById("symbol").value || ""); }
+function fcLoadStore(){ try{ return JSON.parse(localStorage.getItem(FC_KEY_PREFIX)||"{}") || {}; }catch(e){ return {}; } }
+function fcSaveStore(s){ try{ localStorage.setItem(FC_KEY_PREFIX, JSON.stringify(s)); }catch(e){} }
+function fcGet(key){
+  const store = fcLoadStore();
+  if(store[key]) return store[key];
+  if(FORECAST_DEFAULT[key]) return JSON.parse(JSON.stringify(FORECAST_DEFAULT[key]));
+  return null;
+}
+function fcSet(key, data){ const s = fcLoadStore(); s[key] = data; fcSaveStore(s); }
+function fcDel(key){ const s = fcLoadStore(); delete s[key]; fcSaveStore(s); }
+function dirClassOf(d){ return DIR_CLASS[d] || "dir-base"; }
+function fcFmt(v){ return (v===undefined||v===null||v==="")?"—":(+v).toLocaleString("zh-CN",{maximumFractionDigits:1}); }
+function fcFmtChg(v){
+  if(v===undefined||v===null||v==="") return "—";
+  const n=+v;
+  return (n>0?"+":"") + n.toLocaleString("zh-CN",{maximumFractionDigits:1});
+}
+function fcEsc(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function renderForecast(){
+  const key = fcKey();
+  const data = fcGet(key);
+  const tbody = document.getElementById("fcBody");
+  const triggerEl = document.getElementById("fcTrigger");
+  const viewTitle = document.getElementById("fcTitleView");
+  const titleInput = document.getElementById("fcTitle");
+  const srcSelect = document.getElementById("fcSource");
+  const srcTag = document.getElementById("fcSrc");
+  const avView = document.getElementById("fcAssumptionsView");
+  const ruleView = document.getElementById("fcRuleView");
+  const fcWrap = document.getElementById("fcWrap");
+
+  if(!data || !data.rows || !data.rows.length){
+    tbody.innerHTML = '<tr><td colspan="6" class="fcempty">该品种暂无库存推演。点击右上「✎ 编辑推演」逐行创建，或「↺ 恢复示例」载入 SP 示例参考。</td></tr>';
+    triggerEl.className = "fctrigger";
+    triggerEl.innerHTML = "";
+    viewTitle.style.display = "none";
+    avView.textContent = "—";
+    ruleView.textContent = "—";
+    srcTag.textContent = "—";
+    titleInput.value = "";
+    if(data && data.source) srcSelect.value = data.source;
+    return;
+  }
+
+  // 渲染表格
+  let hit = null;
+  const baseline = data.baseline_inventory;
+  tbody.innerHTML = data.rows.map((r,i)=>{
+    if(r.baseline === true) return "";
+    if(baseline && +r.inv >= +baseline) hit = r;
+    const dirCls = dirClassOf(r.dir);
+    const cumCls = r.cum ? " cum" : "";
+    const chgCell = (r.change===null||r.change===undefined||r.change==="") ? "—" : fcFmtChg(r.change);
+    return '<tr data-idx="'+i+'">'
+      +'<td data-k="report">'+fcEsc(r.report||"")+'</td>'
+      +'<td data-k="stat">'+fcEsc(r.stat||"")+'</td>'
+      +'<td class="num" data-k="inv">'+fcFmt(r.inv)+'</td>'
+      +'<td class="num'+cumCls+'" data-k="change">'+chgCell+'</td>'
+      +'<td data-k="dir"><span class="dir-tag '+dirCls+'">'+fcEsc(r.dir||"—")+'</span></td>'
+      +'<td data-k="driver">'+fcEsc(r.driver||"")+'</td>'
+    +'</tr>';
+  }).join("");
+
+  // 触发警示
+  if(hit){
+    triggerEl.className = "fctrigger on";
+    triggerEl.innerHTML = '<b>⚠ 情景复活预警</b>　'+fcEsc(hit.report)+' 预计库存 '+fcFmt(hit.inv)+' 万吨，已 ≥ 基准 '+fcFmt(baseline)+' 万吨（+'+fcFmtChg(hit.inv-baseline)+'）。'+(data.triggerRule||"");
+  } else {
+    triggerEl.className = "fctrigger";
+    triggerEl.innerHTML = "";
+  }
+
+  // 注脚 + 标题 + 口径
+  if(data.title){
+    viewTitle.style.display = "block";
+    viewTitle.textContent = data.title;
+    titleInput.value = data.title;
+  } else {
+    viewTitle.style.display = "none";
+    titleInput.value = "";
+  }
+  avView.textContent = data.assumptions || "—";
+  ruleView.textContent = data.triggerRule || "—";
+  if(data.source) srcSelect.value = data.source;
+  srcTag.textContent = "已为「"+data.source+"」编辑（"+data.rows.length+" 行 / "+((hit)?"触发":"未触发")+"）";
+  srcTag.style.color = hit ? "var(--up)" : "var(--sub)";
+}
+
+function initForecast(){
+  // 折叠
+  const tb = document.getElementById("fcToggleBtn");
+  const wrap = document.getElementById("fcWrap");
+  tb.addEventListener("click", ()=>{
+    const shown = wrap.style.display !== "none";
+    wrap.style.display = shown ? "none" : "block";
+    tb.textContent = shown ? "▶ 展开" : "▼ 收起";
+  });
+  // 默认展开(让用户看到示例)
+  wrap.style.display = "block";
+  tb.textContent = "▼ 收起";
+
+  // 编辑切换
+  const editBtn = document.getElementById("fcEditBtn");
+  const tbl = document.getElementById("fcTable");
+  const avIn = document.getElementById("fcAssumptionsInput");
+  const rvIn = document.getElementById("fcRuleInput");
+  const avV = document.getElementById("fcAssumptionsView");
+  const rvV = document.getElementById("fcRuleView");
+  const titleIn = document.getElementById("fcTitle");
+  const addBtn = document.getElementById("fcAddRowBtn");
+  const resetBtn = document.getElementById("fcResetBtn");
+
+  editBtn.style.display = "";
+  resetBtn.style.display = "";
+
+  function setEditable(on){
+    if(on){
+      tbl.setAttribute("contenteditable","true");
+      avIn.style.display = "block"; avV.style.display = "none";
+      rvIn.style.display = "block"; rvV.style.display = "none";
+      titleIn.style.display = "inline-block";
+      addBtn.style.display = "";
+      editBtn.textContent = "💾 保存编辑";
+    } else {
+      tbl.setAttribute("contenteditable","false");
+      avIn.style.display = "none"; avV.style.display = "";
+      rvIn.style.display = "none"; rvV.style.display = "";
+      titleIn.style.display = "none";
+      addBtn.style.display = "none";
+      editBtn.textContent = "✎ 编辑推演";
+    }
+  }
+  setEditable(false);
+
+  editBtn.addEventListener("click", ()=>{
+    const editing = tbl.getAttribute("contenteditable") === "true";
+    if(editing){
+      // 保存
+      const key = fcKey();
+      const data = fcGet(key) || { rows:[], baseline_inventory:0, source:"隆众", title:"", assumptions:"", triggerRule:"" };
+      const rows = tbl.querySelectorAll("tr[data-idx]");
+      rows.forEach(tr=>{
+        const idx = +tr.dataset.idx;
+        if(!data.rows[idx]) return;
+        data.rows[idx].report = tr.querySelector('[data-k="report"]').textContent.trim();
+        data.rows[idx].stat   = tr.querySelector('[data-k="stat"]').textContent.trim();
+        const invTxt = tr.querySelector('[data-k="inv"]').textContent.trim().replace(/,/g,"");
+        const chgTxt = tr.querySelector('[data-k="change"]').textContent.trim().replace(/[*+]/g,"").replace(/,/g,"");
+        const dirTxt = tr.querySelector('[data-k="dir"]').textContent.trim();
+        const drvTxt = tr.querySelector('[data-k="driver"]').textContent.trim();
+        data.rows[idx].inv = (invTxt==="—"||invTxt==="") ? null : (+invTxt);
+        data.rows[idx].change = (chgTxt==="—"||chgTxt==="") ? null : (+chgTxt);
+        data.rows[idx].cum = tr.querySelector('[data-k="change"]').classList.contains("cum");
+        data.rows[idx].dir = dirTxt;
+        data.rows[idx].driver = drvTxt;
+      });
+      data.title = titleIn.value.trim();
+      data.assumptions = avIn.value.trim();
+      data.triggerRule = rvIn.value.trim();
+      data.source = document.getElementById("fcSource").value;
+      // 同步基准: 取第一个 baseline:true 行的 inv
+      const baseRow = data.rows.find(r => r.baseline===true);
+      if(baseRow && baseRow.inv!==null) data.baseline_inventory = baseRow.inv;
+      fcSet(key, data);
+      setEditable(false);
+      renderForecast();
+    } else {
+      // 进入编辑: 空态先播种一行基准
+      const key = fcKey();
+      const d = fcGet(key);
+      if(!d || !d.rows.length){
+        const seed = { title:"", assumptions:"", triggerRule:"", baseline_inventory:0, source:"隆众",
+          rows:[{ report:"基准", stat:"—", inv:0, change:null, dir:"基准", driver:"", baseline:true }] };
+        fcSet(key, seed);
+      }
+      // 同步 title/assumptions/rule 到 input
+      const cur = fcGet(key);
+      if(cur){
+        titleIn.value = cur.title || "";
+        avIn.value = cur.assumptions || "";
+        rvIn.value = cur.triggerRule || "";
+      }
+      setEditable(true);
+      renderForecast();
+    }
+  });
+
+  // 新增行
+  addBtn.addEventListener("click", ()=>{
+    const key = fcKey();
+    const data = fcGet(key) || { rows:[], baseline_inventory:0, source:"隆众", title:"", assumptions:"", triggerRule:"" };
+    data.rows.push({ report:"新行", stat:"—", inv:null, change:null, dir:"去库", driver:"", cum:false });
+    fcSet(key, data);
+    setEditable(true);
+    renderForecast();
+  });
+
+  // 恢复示例
+  resetBtn.addEventListener("click", ()=>{
+    fcDel(fcKey());
+    setEditable(false);
+    renderForecast();
+  });
+
+  // 口径切换(无需进入编辑模式即生效)
+  document.getElementById("fcSource").addEventListener("change", ()=>{
+    const key = fcKey();
+    const data = fcGet(key) || { rows:[], baseline_inventory:0, source:"隆众", title:"", assumptions:"", triggerRule:"" };
+    data.source = document.getElementById("fcSource").value;
+    fcSet(key, data);
+    renderForecast();
+  });
+
+  // 初始渲染
+  renderForecast();
+}
+
 refresh(); loadTopN(); attachChartHover(); loadOverview();
+initForecast();
 </script>
 
   <footer class="hubfoot">
