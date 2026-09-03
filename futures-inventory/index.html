@@ -292,6 +292,7 @@
       <button class="ghost" id="fcEditBtn" style="display:none">✎ 编辑推演</button>
       <button class="ghost" id="fcResetBtn" style="display:none">↺ 清空</button>
       <button class="ghost" id="fcExportBtn">📤 导出</button>
+      <button class="ghost" id="fcCsvBtn">📊 CSV</button>
       <button class="ghost" id="fcShareBtn">📋 分享</button>
     </div>
     <div id="fcWrap" style="display:none">
@@ -4293,6 +4294,52 @@ function fcBuildExport(){
   md += "\n> 历史行=真实库存序列；未来行=人工推演。由期库镜生成。\n";
   return { json, md, sym };
 }
+// CSV 导出：矩形表（可直接进 Excel/pandas 分析），顶部附 # 注释元数据行
+function fcBuildCSV(){
+  const key = fcKey();
+  const data = fcGet(key);
+  if(!data || !data.rows || !data.rows.length) return null;
+  const symEl = document.getElementById("symbol");
+  const sym = (curExch + ":" + (symEl ? symEl.value : "")).toUpperCase();
+  const ip = fcInvPercentile();
+  const _invTag = ip ? fcInvScenario(ip.pct).tag : "—";
+  const _zLow = data.keyLow, _zHigh = data.keyHigh;
+  let _lp = null, _zz = null, _cf = null;
+  for(const r of (window.__data||[])){ if(r.close!=null) _lp = r.close; }
+  if(_zLow!=null && _zHigh!=null){
+    _zz = fcPriceZoneCls(_lp, +_zLow, +_zHigh);
+    _cf = fcConfluence(_invTag, _zz ? _zz.tag : null);
+  }
+  const _zzStatus = _zz ? _zz.status : "未设关键价位带";
+  const _cfText   = _cf ? (_cf.tag + " " + _cf.text) : "—";
+  const esc = v => '"' + String(v==null?"":v).replace(/"/g,'""') + '"';
+  const lines = [];
+  // 元数据注释行（pandas：read_csv(..., comment='#') 可忽略；Excel 用户可删）
+  lines.push("# 库存轨迹推演 · " + sym);
+  if(data.title) lines.push("# 标题：" + data.title);
+  lines.push("# 口径：" + (data.source || "—"));
+  lines.push("# 基准库存：" + fcFmt(data.baseline_inventory) + " 万吨");
+  if(data.assumptions) lines.push("# 假设：" + data.assumptions);
+  if(data.triggerRule) lines.push("# 触发规则：" + data.triggerRule);
+  if(ip) lines.push("# 库存分位：" + ip.pct + "%（当前 " + fcFmt(ip.cur) + " 万吨，近 " + ip.n + " 周，区间 " + fcFmt(ip.min) + "–" + fcFmt(ip.max) + "）→ 价格情景：" + _invTag);
+  if(_zz) lines.push("# 关键价位带：[" + _zLow + "–" + _zHigh + "] 元/吨 → 当前收盘价 " + fcFmtPx(_lp) + "：" + _zzStatus);
+  if(_cf) lines.push("# 库存×价格联动：" + _cfText);
+  // 矩形表头
+  lines.push(["报告期","统计日","类型","库存(万吨)","收盘价(元/吨)","变动(万吨)","方向","驱动","库存分位情景","关键价位带状态","联动信号"].map(esc).join(","));
+  // 数据行
+  data.rows.forEach(r=>{
+    const px = (fcPriceOf(r.report) != null ? fcPriceOf(r.report) : fcPriceOf(r.stat));
+    const type = r._proj ? "未来推演" : "真实历史";
+    lines.push([
+      r.report||"", r.stat||"", type, fcFmt(r.inv),
+      px!=null ? fcFmtPx(px) : "—",
+      fcFmtChg(r.change), r.dir||"—", r.driver||"",
+      _invTag, _zzStatus, _cfText
+    ].map(esc).join(","));
+  });
+  lines.push("# 历史行=真实库存序列；未来行=人工推演。由期库镜生成。");
+  return { csv: lines.join("\n"), sym };
+}
 function fcDownload(name, text, type){
   try{
     const blob = new Blob([text], { type: type || "text/plain;charset=utf-8" });
@@ -4613,6 +4660,13 @@ function initForecast(){
     const ex = fcBuildExport();
     if(!ex){ if(typeof alert==="function") alert("当前无推演数据可导出，请先点「🌱 播种真实序列」或「✎ 编辑推演」。"); return; }
     fcDownload("库存推演_" + ex.sym + ".json", ex.json, "application/json");
+  });
+  // CSV 导出（带 BOM，确保 Excel 中文不乱码）
+  const csvBtn = document.getElementById("fcCsvBtn");
+  if(csvBtn) csvBtn.addEventListener("click", ()=>{
+    const cv = fcBuildCSV();
+    if(!cv){ if(typeof alert==="function") alert("当前无推演数据可导出，请先点「🌱 播种真实序列」或「✎ 编辑推演」。"); return; }
+    fcDownload("库存推演_" + cv.sym + ".csv", "﻿" + cv.csv, "text/csv;charset=utf-8");
   });
   if(shareBtn) shareBtn.addEventListener("click", ()=>{
     const ex = fcBuildExport();

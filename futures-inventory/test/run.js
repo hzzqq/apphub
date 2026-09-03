@@ -464,6 +464,59 @@ if (typeof sandbox.freshnessInfo === "function") {
   console.log("\n[Round 13] 数据新鲜度 —— 本轮尚未实现，跳过");
 }
 
+/* ============================================================
+ *  Round 14: 推演表 CSV 导出 fcBuildCSV
+ * ============================================================ */
+if (typeof sandbox.fcBuildCSV === "function") {
+  console.log("\n[Round 14] 推演表 CSV 导出 fcBuildCSV");
+  // 准备真实库存序列（让分位/收盘价映射可用）
+  sandbox.window.__data = [
+    { date:"2026-08-01", close:4800, inventory_total:120000 },
+    { date:"2026-08-08", close:4750, inventory_total:110000 },
+    { date:"2026-08-15", close:4700, inventory_total:100000 }
+  ];
+  const symEl = sandbox.document.getElementById("symbol");
+  symEl.value = "SP";
+  const key = sandbox.fcKey();            // 默认 curExch="SHFE" → "SHFE:SP"
+  const fdata = {
+    title: "测试推演",
+    source: "交易所周报",
+    baseline_inventory: 100,
+    keyLow: 4500, keyHigh: 4650,          // 当前 4700 > 4650 → 价位"偏高"，与低库存分位构成 ⚠背离
+    assumptions: "假设无新增产能",
+    triggerRule: "破基准预警",
+    rows: [
+      { report:"2026-08-01", stat:"2026-08-01", inv:120, change:-5, dir:"去库", driver:"周报, 进口少" },
+      { report:"2026-08-08", stat:"2026-08-08", inv:110, change:-10, dir:"去库", driver:"正常去化" },
+      { report:"推演W+1", stat:"2026-08-22", inv:100, change:-10, dir:"去库", driver:"推演(近4周斜率 -8.33 万吨/周)", _proj:true }
+    ]
+  };
+  sandbox.fcSet(key, fdata);
+  const cv = sandbox.fcBuildCSV();
+  ok("fcBuildCSV 返回非空对象", cv && typeof cv.csv === "string");
+  if (cv) {
+    const lines = cv.csv.split("\n");
+    ok("CSV 顶部含 # 标题注释", lines.some(l => /^# 标题：测试推演/.test(l)));
+    ok("CSV 含 # 口径注释", lines.some(l => /^# 口径：交易所周报/.test(l)));
+    ok("CSV 含 # 基准库存注释", lines.some(l => /^# 基准库存：100 万吨/.test(l)));
+    ok("CSV 含 # 库存分位注释(近3周)", lines.some(l => /^# 库存分位：/.test(l)));
+    ok("CSV 含 # 关键价位带注释", lines.some(l => /^# 关键价位带：/.test(l)));
+    ok("CSV 含 # 库存×价格联动注释(⚠背离)", lines.some(l => /^# 库存×价格联动：/.test(l)));
+    const header = lines.find(l => l.startsWith('"报告期"'));
+    ok("CSV 表头存在且为 11 列", header && header.split(",").length === 11, header && header.split(",").length);
+    ok("CSV 含 真实历史 行标记", cv.csv.includes('"真实历史"'));
+    ok("CSV 含 未来推演 行标记", cv.csv.includes('"未来推演"'));
+    ok("CSV 转义：含逗号字段被双引号包裹", /"周报, 进口少"/.test(cv.csv));
+    ok("CSV 收盘价列映射真实序列(4,800)", cv.csv.includes('"4,800"'));
+    ok("CSV.sym 为 SHFE:SP", cv.sym === "SHFE:SP", cv.sym);
+  }
+  // 空数据应返回 null（导出按钮据此提示）
+  sandbox.fcSet(key, { rows: [] });
+  ok("fcBuildCSV 空数据返回 null", sandbox.fcBuildCSV() === null);
+} else {
+  console.log("\n[Round 14] 推演表 CSV 导出 —— fcBuildCSV 不存在，跳过");
+}
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }
