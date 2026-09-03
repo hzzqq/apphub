@@ -313,6 +313,7 @@
       <div class="fctitle" id="fcTitleView" style="display:none"></div>
       <div id="fcPct" class="fcpct"></div>
       <div id="fcZone" ></div>
+      <div id="fcLink" class="fcpct"></div>
       <div id="fcTrigger" class="fctrigger"></div>
       <table class="fctbl" id="fcTable" style="margin-top:6px">
         <thead>
@@ -4222,6 +4223,15 @@ function fcPriceZoneCls(px, low, high){
   if(px > high) return {cls:"price-above", tag:"偏高", status:"突破关键高位 "+Math.round(high)+"（压力区上沿，偏高利空）"};
   return {cls:"price-inzone", tag:"区间内", status:"处于关键价位带 ["+Math.round(low)+", "+Math.round(high)+"] 内"};
 }
+// 库存×价格联动：库存分位情景(invTag) 与 价位带状态(priceTag) 共振/背离 → 高置信联动信号
+function fcConfluence(invTag, priceTag){
+  if(!priceTag) return null; // 未设关键价位带则无联动
+  if(invTag==="利多" && priceTag==="偏低") return {cls:"price-below", tag:"⚡双多共振", text:"库存低位 + 价格偏低：两透镜同向，多头置信高"};
+  if(invTag==="利空" && priceTag==="偏高") return {cls:"price-above", tag:"⚡双空共振", text:"库存高位 + 价格偏高：两透镜同向，空头置信高"};
+  if(invTag==="利多" && priceTag==="偏高") return {cls:"price-above", tag:"⚠背离", text:"库存利多但价格偏高：两透镜背离，警惕回落/反转"};
+  if(invTag==="利空" && priceTag==="偏低") return {cls:"price-below", tag:"⚠背离", text:"库存利空但价格偏低：两透镜背离，警惕反弹/反转"};
+  return null; // 中性 / 区间内等无特殊联动
+}
 
 // 导出/分享：把当前推演(真实历史行 + 人工未来行)打包成 JSON 与 Markdown 摘要
 function fcBuildExport(){
@@ -4246,6 +4256,9 @@ function fcBuildExport(){
     let _lp = null; for(const r of (window.__data||[])){ if(r.close!=null) _lp = r.close; }
     const _zz = fcPriceZoneCls(_lp, +_zLow, +_zHigh);
     md += "- 关键价位带：[" + _zLow + "–" + _zHigh + "] 元/吨" + (_zz ? (" → 当前收盘价 " + fcFmtPx(_lp) + "：" + _zz.status) : "") + "\n";
+    const _invTag = (fcInvPercentile() ? fcInvScenario(fcInvPercentile().pct).tag : null);
+    const _cf = fcConfluence(_invTag, _zz ? _zz.tag : null);
+    if(_cf) md += "- 库存×价格联动：" + _cf.tag + " · " + _cf.text + "\n";
   }
   md += "\n| 报告期 | 统计日 | 库存(万吨) | 收盘价 | 变动 | 方向 | 驱动 |\n";
   md += "|--------|--------|-----------|--------|------|------|------|\n";
@@ -4315,8 +4328,8 @@ function renderForecast(){
   if(keyLowIn) keyLowIn.value = (data && data.keyLow!=null) ? data.keyLow : "";
   if(keyHighIn) keyHighIn.value = (data && data.keyHigh!=null) ? data.keyHigh : "";
   const zoneEl = document.getElementById("fcZone");
-  let _lastPx = null;
-  for(const r of (window.__data||[])){ if(r.close!=null) _lastPx = r.close; }
+  let _lastPx = null, _lastDate = null;
+  for(const r of (window.__data||[])){ if(r.close!=null){ _lastPx = r.close; _lastDate = r.date; } }
   const _zc = fcPriceZoneCls(_lastPx, zoneLow, zoneHigh);
   if(zoneLow!=null && zoneHigh!=null){
     zoneEl.className = "on " + (_zc ? _zc.cls : "sc-mid");
@@ -4325,6 +4338,21 @@ function renderForecast(){
   } else {
     zoneEl.className = "";
     zoneEl.innerHTML = "";
+  }
+
+  // 库存×价格联动预警：库存分位情景 与 价位带状态 共振/背离
+  const linkEl = document.getElementById("fcLink");
+  const _invTag = ip ? fcInvScenario(ip.pct).tag : null;
+  const _conf = fcConfluence(_invTag, _zc ? _zc.tag : null);
+  if(_conf){
+    linkEl.className = "fcpct on " + _conf.cls;
+    linkEl.innerHTML = '🔗 <b>库存×价格联动</b>：' + _conf.tag + ' · ' + _conf.text;
+  } else if(zoneLow!=null && zoneHigh!=null){
+    linkEl.className = "fcpct on sc-mid";
+    linkEl.innerHTML = '🔗 <b>库存×价格联动</b>：库存情景「' + (_invTag||"—") + '」与价位带「' + (_zc?_zc.tag:"—") + '」无强共振（观望）';
+  } else {
+    linkEl.className = "fcpct";
+    linkEl.innerHTML = "";
   }
 
   if(!data || !data.rows || !data.rows.length){
@@ -4363,11 +4391,12 @@ function renderForecast(){
     const _px = fcPriceOf(r.report) != null ? fcPriceOf(r.report) : fcPriceOf(r.stat);
     const _zcR = fcPriceZoneCls(_px, zoneLow, zoneHigh);
     const _pxTxt = (_px==null) ? "—" : fcFmtPx(_px);
+    const _confBadge = (r.report === _lastDate && _conf) ? (' <span class="ztag '+_conf.cls+'">'+_conf.tag+'</span>') : '';
     return '<tr data-idx="'+i+'">'
       +'<td data-k="report">'+fcEsc(r.report||"")+'</td>'
       +'<td data-k="stat">'+fcEsc(r.stat||"")+'</td>'
       +'<td class="num" data-k="inv">'+fcFmt(r.inv)+'</td>'
-      +'<td class="num' + (_zcR?(' '+_zcR.cls):'') + '" data-k="price" contenteditable="false">'+_pxTxt + (_zcR?(' <span class="ztag '+_zcR.cls+'">'+_zcR.tag+'</span>'):'')+'</td>'
+      +'<td class="num' + (_zcR?(' '+_zcR.cls):'') + '" data-k="price" contenteditable="false">'+_pxTxt + (_zcR?(' <span class="ztag '+_zcR.cls+'">'+_zcR.tag+'</span>'):'') + _confBadge + '</td>'
       +'<td class="num'+cumCls+'" data-k="change">'+chgCell+'</td>'
       +'<td data-k="dir"><span class="dir-tag '+dirCls+'">'+fcEsc(r.dir||"—")+'</span></td>'
       +'<td data-k="driver">'+fcEsc(r.driver||"")+'</td>'
