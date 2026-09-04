@@ -667,6 +667,57 @@ if (typeof sandbox.fcComputeSignals === "function" && typeof sandbox.fcRenderSig
   console.log("\n[Round 17] 联动信号历史汇总小卡 —— 函数不存在，跳过");
 }
 
+/* ---------- Round 18：联动信号统计条（计数 + 胜率 + 窗口） ---------- */
+console.log("\n[Round 18] 联动信号统计条");
+if (typeof sandbox.fcSignalStats === "function" && typeof sandbox.fcExpectedDir === "function") {
+  // 全部周五发布日(SHFE)，库存单调递增(验证日持平)，使每个发布日分位确定：双多/双空/双空/背离
+  const dStat = [
+    {date:"2026-07-10",close:4700,inventory_total:100}, // idx0 首点无分位
+    {date:"2026-07-17",close:4400,inventory_total:100}, // idx1 双多(利多 pct0 + 偏低)
+    {date:"2026-07-18",close:4450,inventory_total:100}, // 验证(涨→命中)
+    {date:"2026-07-24",close:4700,inventory_total:200}, // idx3 双空(利空 pct75 + 偏高)
+    {date:"2026-07-25",close:4650,inventory_total:200}, // 验证(跌→命中)
+    {date:"2026-07-31",close:4680,inventory_total:300}, // idx5 双空(利空 pct80 + 偏高)
+    {date:"2026-08-01",close:4720,inventory_total:300}, // 验证(涨→未命中)
+    {date:"2026-08-07",close:4400,inventory_total:400}, // idx7 背离看多(利空 pct87 + 偏低)
+    {date:"2026-08-08",close:4450,inventory_total:400}  // 验证(涨→命中)
+  ];
+  sandbox.window.__data = dStat;
+  sandbox.window.__bestInvMetric = "inventory_total";
+  sandbox.document.getElementById("symbol").value = "SP";
+  sandbox.fcSet(sandbox.fcKey(), { keyLow:4500, keyHigh:4650 });
+  sandbox.fcSigWin = 0;
+
+  const sigs = sandbox.fcComputeSignals();
+  // 调试：打印每个信号的实际分类与分位
+  sigs.forEach(s=>{ const ip=sandbox.fcInvPercentileAt(dStat, s.idx, "inventory_total"); console.log("  [debug] sig", s.date, "idx="+s.idx, s.conf.tag, "pct="+(ip?ip.pct:"-")); });
+
+  ok("统计条：扫描出 4 个发布日信号", sigs.length === 4, "len="+sigs.length);
+  const st = sandbox.fcSignalStats(sigs);
+  ok("统计条：背离=1 / 双多=1 / 双空=2", st.div===1 && st.bull===1 && st.bear===2, JSON.stringify(st));
+  ok("统计条：胜率=75%（4 个有验证，3 命中）", st.win===75 && st.tot===4, JSON.stringify(st));
+
+  // fcExpectedDir 方向单测
+  const mk = (tag,text)=>({conf:{tag,text}});
+  ok("预期方向：双多=+1", sandbox.fcExpectedDir(mk("⚡双多共振",""))===1);
+  ok("预期方向：双空=-1", sandbox.fcExpectedDir(mk("⚡双空共振",""))===-1);
+  ok("预期方向：背离-偏高=-1(看空)", sandbox.fcExpectedDir(mk("⚠背离","库存利多但价格偏高：警惕回落"))===-1);
+  ok("预期方向：背离-偏低=+1(看多)", sandbox.fcExpectedDir(mk("⚠背离","库存利空但价格偏低：警惕反弹"))===1);
+
+  // 窗口切片纯函数（vm 沙箱无法从外部改 let 闭包 fcSigWin，故测可传参覆盖的 fcWindowSigs）
+  ok("统计条窗口：fcWindowSigs(2) 仅留最近 2 个发布日", sandbox.fcWindowSigs(sigs, 2).length === 2, "len="+sandbox.fcWindowSigs(sigs,2).length);
+  ok("统计条窗口：fcWindowSigs(0) 返回全部 4 个", sandbox.fcWindowSigs(sigs, 0).length === 4);
+  // 验证 select 元素存在且重渲染不抛错（change 绑定在 render 末尾执行）
+  let wok = true, werr = "";
+  try {
+    sandbox.fcSigWin = 0;
+    sandbox.fcRenderSignalSummary();
+  } catch(e){ wok=false; werr=e.message; }
+  const sel2 = sandbox.document.getElementById("fcSigSummary").querySelector("#fcSigWin");
+  ok("统计条窗口：渲染含 #fcSigWin 且重渲染不抛错", wok && !!sel2, werr);
+} else {
+  console.log("\n[Round 18] 联动信号统计条 —— 函数不存在，跳过");
+}
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }

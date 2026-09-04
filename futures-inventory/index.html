@@ -129,6 +129,14 @@
   .fcsigsum .fcsdate{font-variant-numeric:tabular-nums;color:var(--txt);min-width:74px}
   .fcsigsum .fcstag{font-weight:600;white-space:nowrap}
   .fcsigsum .fcstxt{color:var(--sub);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fcsigsum .fcstats{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px}
+  .fcsigsum .fcstats .fcc{font-size:11px;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,.06);color:var(--sub);white-space:nowrap}
+  .fcsigsum .fcstats .fcc small{opacity:.7;font-size:10px}
+  .fcsigsum .fcstats .fcc.div{color:#ffa94d}
+  .fcsigsum .fcstats .fcc.bull{color:#00d486}
+  .fcsigsum .fcstats .fcc.bear{color:#ff4d4f}
+  .fcsigsum .fcstats .fcc.win{color:var(--txt);font-weight:600}
+  .fcsigsum .fcstats .fcwin{margin-left:auto;font-size:11px;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:2px 4px;cursor:pointer}
   .fcsigsum .fcsempty{color:var(--sub);padding:4px 6px}
   .fcpct b{color:var(--txt)}
   .fcpct.sc-bull{border-color:var(--up);color:var(--up)}
@@ -613,6 +621,7 @@ let curExch="SHFE", curRange=90, curTbl="price", curInvMode="single", curInvMetr
 let customStart=null, customEnd=null;
 let chartGeom=null;   // draw() 写入，图表悬停命中测试复用
 let fcFocusDate=null; // 联动信号汇总小卡点击后，主图聚焦定位的日期（null=无）
+let fcSigWin=0;      // 信号统计条窗口：0=全部，否则近 N 个发布日（≈近 N 周）
 
 /* ====================== 内置演示数据生成 ====================== */
 function seeded(seed){ let s=seed%2147483647; if(s<=0)s+=2147483646;
@@ -4427,14 +4436,63 @@ function fcComputeSignals(){
   });
   return out;
 }
+// 信号预期方向：+1 看多 / -1 看空 / 0 中性（用于胜率回看）
+function fcExpectedDir(sig){
+  const t = sig.conf.tag || "";
+  if(t.indexOf("双多共振")>=0) return 1;
+  if(t.indexOf("双空共振")>=0) return -1;
+  if(t.indexOf("背离")>=0){
+    const txt = sig.conf.text || "";
+    if(txt.indexOf("价格偏高")>=0) return -1;  // 库存利多但价偏高 → 看空（警惕回落）
+    if(txt.indexOf("价格偏低")>=0) return 1;   // 库存利空但价偏低 → 看多（警惕反弹）
+  }
+  return 0;
+}
+// 统计条聚合：计数 + 胜率（信号日后下一真实交易日价格方向与信号预期一致占比）
+function fcSignalStats(sigs){
+  const data = window.__data || [];
+  let div=0, bull=0, bear=0, hit=0, tot=0;
+  sigs.forEach(s=>{
+    const t = s.conf.tag || "";
+    if(t.indexOf("双多共振")>=0) bull++;
+    else if(t.indexOf("双空共振")>=0) bear++;
+    else div++;
+    const exp = fcExpectedDir(s);
+    if(exp!==0 && s.idx+1 < data.length){
+      const cur = data[s.idx].close, nxt = data[s.idx+1] ? data[s.idx+1].close : null;
+      if(nxt!=null && cur!=null){ tot++; if((nxt-cur)*exp > 0) hit++; }
+    }
+  });
+  return { total:sigs.length, div, bull, bear, win: tot ? Math.round(hit/tot*100) : 0, tot };
+}
+// 窗口切片：近 N 个发布日（按日期倒序后取前 N）；win 可传参覆盖全局 fcSigWin
+function fcWindowSigs(sigs, win){
+  const w = (win==null) ? fcSigWin : win;
+  return (w && w>0) ? sigs.slice(0, w) : sigs;
+}
 // 渲染联动信号历史汇总小卡（点击某行 → 主图聚焦定位该发布日）
 function fcRenderSignalSummary(){
   const box = document.getElementById("fcSigSummary");
   if(!box) return;
-  const sigs = fcComputeSignals();
+  let sigs = fcComputeSignals();
   if(!sigs.length){ box.className="fcsigsum"; box.innerHTML=""; return; }
   sigs.sort((a,b)=> a.date<b.date ? 1 : -1);   // 最近在前
-  let html = '<h4>📡 联动信号历史汇总（' + sigs.length + ' 个发布日 · 点击定位主图）</h4>';
+  sigs = fcWindowSigs(sigs);  // 近 N 个发布日窗口（fcSigWin 全局，可传参覆盖）
+  const st = fcSignalStats(sigs);
+  const winLabel = fcSigWin>0 ? ("近 "+fcSigWin+" 周 · ") : "";
+  let html = '<h4>📡 联动信号历史汇总（'+winLabel+sigs.length+' 个发布日 · 点击定位主图）</h4>';
+  html += '<div class="fcstats" title="近N周≈最近N个库存发布日；背离/共振=信号类型计数；胜率=信号日后下一交易日价格方向与信号预期（背离看反向、共振看同向）一致占比">'
+    + '<span class="fcc tot">信号 '+st.total+'</span>'
+    + '<span class="fcc div">⚠背离 '+st.div+'</span>'
+    + '<span class="fcc bull">⚡双多 '+st.bull+'</span>'
+    + '<span class="fcc bear">⚡双空 '+st.bear+'</span>'
+    + '<span class="fcc win">胜率 '+st.win+'%<small>('+st.tot+'有验证)</small></span>'
+    + '<select id="fcSigWin" class="fcwin" title="切换统计窗口">'
+    +   '<option value="0"'+(fcSigWin===0?' selected':'')+'>全部</option>'
+    +   '<option value="4"'+(fcSigWin===4?' selected':'')+'>近4周</option>'
+    +   '<option value="8"'+(fcSigWin===8?' selected':'')+'>近8周</option>'
+    +   '<option value="12"'+(fcSigWin===12?' selected':'')+'>近12周</option>'
+    + '</select></div>';
   sigs.forEach(s=>{
     const isDiv = s.conf.tag.indexOf("背离")>=0;
     const col = isDiv ? "#ffa94d" : (s.conf.cls==="price-below" ? "#00d486" : "#ff4d4f");
@@ -4456,6 +4514,8 @@ function fcRenderSignalSummary(){
       if(typeof draw==="function") draw();
     });
   });
+  const winSel = box.querySelector("#fcSigWin");
+  if(winSel) winSel.addEventListener("change", ()=>{ fcSigWin = +winSel.value; fcRenderSignalSummary(); });
 }
 
 // 导出/分享：把当前推演(真实历史行 + 人工未来行)打包成 JSON 与 Markdown 摘要
