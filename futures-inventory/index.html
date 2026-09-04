@@ -118,6 +118,18 @@
   .fctitle{font-size:13px;color:var(--inv);font-weight:600;margin:6px 0}
   .fcpct{display:none;margin:8px 0;padding:8px 12px;border-radius:8px;font-size:12.5px;line-height:1.6;background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--sub)}
   .fcpct.on{display:block}
+  /* 联动信号历史汇总小卡 */
+  .fcsigsum{margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;display:none}
+  .fcsigsum.on{display:block}
+  .fcsigsum h4{margin:0 0 6px;font-size:12px;color:var(--sub);font-weight:600}
+  .fcsigsum .fcsrow{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer;line-height:1.4}
+  .fcsigsum .fcsrow:hover{background:rgba(255,255,255,.05)}
+  .fcsigsum .fcsrow.active{background:rgba(255,169,77,.16);box-shadow:inset 2px 0 0 #ffa94d}
+  .fcsigsum .fcsdot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  .fcsigsum .fcsdate{font-variant-numeric:tabular-nums;color:var(--txt);min-width:74px}
+  .fcsigsum .fcstag{font-weight:600;white-space:nowrap}
+  .fcsigsum .fcstxt{color:var(--sub);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fcsigsum .fcsempty{color:var(--sub);padding:4px 6px}
   .fcpct b{color:var(--txt)}
   .fcpct.sc-bull{border-color:var(--up);color:var(--up)}
   .fcpct.sc-bear{border-color:var(--down);color:var(--down)}
@@ -324,6 +336,7 @@
       <div id="fcPct" class="fcpct"></div>
       <div id="fcZone" ></div>
       <div id="fcLink" class="fcpct"></div>
+      <div id="fcSigSummary" class="fcsigsum"></div>
       <div id="fcTrigger" class="fctrigger"></div>
       <table class="fctbl" id="fcTable" style="margin-top:6px">
         <thead>
@@ -599,6 +612,7 @@ function updateFavBtn(){
 let curExch="SHFE", curRange=90, curTbl="price", curInvMode="single", curInvMetric="auto", curBasis=false;
 let customStart=null, customEnd=null;
 let chartGeom=null;   // draw() 写入，图表悬停命中测试复用
+let fcFocusDate=null; // 联动信号汇总小卡点击后，主图聚焦定位的日期（null=无）
 
 /* ====================== 内置演示数据生成 ====================== */
 function seeded(seed){ let s=seed%2147483647; if(s<=0)s+=2147483646;
@@ -1225,6 +1239,26 @@ function draw(){
     if(i>0&&prev!=null){ ctx.beginPath(); ctx.moveTo(X(i-1),Yc(prev)); ctx.lineTo(x,y); ctx.stroke(); }
     else { ctx.beginPath(); ctx.arc(x,y,1.5,0,7); ctx.fillStyle=ctx.strokeStyle; ctx.fill(); }
   });
+  // 联动信号汇总小卡聚焦：点击某发布日 → 主图粗竖线 + 顶部日期/信号标签定位
+  if(fcFocusDate){
+    let fi=-1; for(let i=0;i<data.length;i++){ if(data[i].date===fcFocusDate){ fi=i; break; } }
+    if(fi>=0){
+      const xf=X(fi);
+      const _store=(typeof fcLoadStore==="function")?fcLoadStore():{};
+      const _zk=(typeof fcKey==="function")?_store[fcKey()]:null;
+      const _zL=(_zk&&_zk.keyLow!=null&&_zk.keyLow!=="")?+_zk.keyLow:null;
+      const _zH=(_zk&&_zk.keyHigh!=null&&_zk.keyHigh!=="")?+_zk.keyHigh:null;
+      const bestKey=curInvMetric==="auto"?(window.__bestInvMetric||"inventory_total"):curInvMetric;
+      const _c=fcConfluenceAt(data,fi,bestKey,_zL,_zH);
+      const col=_c.conf?(_c.conf.tag.indexOf("背离")>=0?"#ffa94d":(_c.conf.cls==="price-below"?"#00d486":"#ff4d4f")):"#ffa94d";
+      ctx.save();
+      ctx.strokeStyle=col; ctx.lineWidth=2; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(xf,padT); ctx.lineTo(xf,padT+plotH); ctx.stroke();
+      ctx.fillStyle=col; ctx.font="bold 10px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="top";
+      ctx.fillText(fcFocusDate + (_c.conf ? " " + _c.conf.tag : ""), xf, padT+2);
+      ctx.restore();
+    }
+  }
   ctx.fillStyle="#9a9ab0"; ctx.textAlign="left"; ctx.textBaseline="top"; ctx.fillText("收盘价",padL-50,4);
   let rightLabel=hasInv?(metricName+"("+curInvUnit+")"):(metricName+"("+curInvUnit+") · 暂无数据");
   if(curBasis){
@@ -1455,6 +1489,7 @@ async function refresh(){
     draw(); renderTable(); renderTimeline();
     updateFavBtn(); renderFavorites(); renderSeasonal(); renderDQ();
     renderForecast();
+    if(typeof fcRenderSignalSummary==="function") fcRenderSignalSummary();
   }
   finally{ if(btn){ btn.disabled=false; btn.textContent="绘制透视"; } }
 }
@@ -4370,6 +4405,58 @@ function fcConfluenceAt(d, i, metricKey, keyLow, keyHigh){
   const conf = fcConfluence(invTag, zz ? zz.tag : null);
   return { ip, invTag, px, zz, conf };
 }
+// 联动信号历史汇总：扫描历史每个库存发布日，返回有信号(共振/背离)者；无价位带则返回空
+function fcComputeSignals(){
+  const data = window.__data || [];
+  if(!data.length) return [];
+  const code = (typeof document!=="undefined" && document.getElementById("symbol")) ? document.getElementById("symbol").value : "";
+  const rel = releaseInfo(curExch, code);
+  const _store = (typeof fcLoadStore==="function") ? fcLoadStore() : {};
+  const _zk = (typeof fcKey==="function") ? _store[fcKey()] : null;
+  const _zL = (_zk && _zk.keyLow!=null && _zk.keyLow!=="") ? +_zk.keyLow : null;
+  const _zH = (_zk && _zk.keyHigh!=null && _zk.keyHigh!=="") ? +_zk.keyHigh : null;
+  if(_zL==null || _zH==null) return [];
+  const bestKey = curInvMetric==="auto" ? (window.__bestInvMetric||"inventory_total") : curInvMetric;
+  const out = [];
+  data.forEach((d,i)=>{
+    if(d.close==null) return;
+    const dt = new Date(d.date+"T00:00:00Z");
+    if(dt.getUTCDay() !== rel.weekday) return;   // 仅库存发布日
+    const _c = fcConfluenceAt(data, i, bestKey, _zL, _zH);
+    if(_c.conf) out.push({ date:d.date, idx:i, conf:_c.conf, invTag:_c.invTag, zz:_c.zz });
+  });
+  return out;
+}
+// 渲染联动信号历史汇总小卡（点击某行 → 主图聚焦定位该发布日）
+function fcRenderSignalSummary(){
+  const box = document.getElementById("fcSigSummary");
+  if(!box) return;
+  const sigs = fcComputeSignals();
+  if(!sigs.length){ box.className="fcsigsum"; box.innerHTML=""; return; }
+  sigs.sort((a,b)=> a.date<b.date ? 1 : -1);   // 最近在前
+  let html = '<h4>📡 联动信号历史汇总（' + sigs.length + ' 个发布日 · 点击定位主图）</h4>';
+  sigs.forEach(s=>{
+    const isDiv = s.conf.tag.indexOf("背离")>=0;
+    const col = isDiv ? "#ffa94d" : (s.conf.cls==="price-below" ? "#00d486" : "#ff4d4f");
+    const active = (fcFocusDate===s.date) ? " active" : "";
+    html += '<div class="fcsrow'+active+'" data-date="'+s.date+'">'
+      + '<span class="fcsdot" style="background:'+col+'"></span>'
+      + '<span class="fcsdate">'+s.date+'</span>'
+      + '<span class="fcstag" style="color:'+col+'">'+s.conf.tag+'</span>'
+      + '<span class="fcstxt">'+fcEsc(s.conf.text)+'</span>'
+      + '</div>';
+  });
+  box.className = "fcsigsum on";
+  box.innerHTML = html;
+  Array.prototype.forEach.call(box.querySelectorAll(".fcsrow"), el=>{
+    el.addEventListener("click", ()=>{
+      const dt = el.getAttribute("data-date");
+      fcFocusDate = (fcFocusDate===dt) ? null : dt;   // 再点一次取消聚焦
+      fcRenderSignalSummary();
+      if(typeof draw==="function") draw();
+    });
+  });
+}
 
 // 导出/分享：把当前推演(真实历史行 + 人工未来行)打包成 JSON 与 Markdown 摘要
 function fcBuildExport(){
@@ -4760,6 +4847,7 @@ function initForecast(){
     fcSet(k, d);
     renderForecast();
     if(typeof draw==="function") draw(); // 主图关键价位带即时刷新
+    if(typeof fcRenderSignalSummary==="function") fcRenderSignalSummary(); // 汇总小卡即时刷新
   }
   const _klIn = document.getElementById("fcKeyLow"), _khIn = document.getElementById("fcKeyHigh");
   if(_klIn) _klIn.addEventListener("change", fcSaveZone);

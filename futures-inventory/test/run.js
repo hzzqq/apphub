@@ -619,6 +619,54 @@ if (typeof sandbox.fcInvPercentileAt === "function" && typeof sandbox.fcConfluen
   console.log("\n[Round 16] 联动信号历史回看 —— 函数不存在，跳过");
 }
 
+/* ============================================================
+ *  Round 17: 联动信号历史汇总小卡（扫描 + 渲染 + 聚焦定位）
+ * ============================================================ */
+console.log("\n[Round 17] 联动信号历史汇总小卡");
+if (typeof sandbox.fcComputeSignals === "function" && typeof sandbox.fcRenderSignalSummary === "function") {
+  // 周五发布日序列(上期所 SHFE 每周五库存周报)：设计成仅 08-07 背离、08-21 双空共振，其余价位区间内无信号
+  const dSig = [
+    {date:"2026-07-24",close:4580,inventory_total:200},
+    {date:"2026-07-31",close:4580,inventory_total:150},
+    {date:"2026-08-07",close:4700,inventory_total:100},
+    {date:"2026-08-14",close:4580,inventory_total:300},
+    {date:"2026-08-21",close:4700,inventory_total:350},
+    {date:"2026-08-26",close:4680,inventory_total:360}   // 周三(非发布日)，应被过滤
+  ];
+  sandbox.window.__data = dSig;
+  sandbox.window.__bestInvMetric = "inventory_total";
+  sandbox.document.getElementById("symbol").value = "SP";
+  sandbox.fcSet(sandbox.fcKey(), { keyLow:4500, keyHigh:4650 });
+
+  const sigs = sandbox.fcComputeSignals();
+  ok("汇总扫描：仅返回发布日有信号者（2 个）", sigs.length === 2, "len="+sigs.length);
+  ok("汇总扫描：含 08-07 ⚠背离(利多+偏高)", sigs.some(s=>s.date==="2026-08-07" && s.conf.tag==="⚠背离"));
+  ok("汇总扫描：含 08-21 ⚡双空共振(利空+偏高)", sigs.some(s=>s.date==="2026-08-21" && s.conf.tag==="⚡双空共振"));
+  ok("汇总扫描：非发布日(08-26)被过滤", !sigs.some(s=>s.date==="2026-08-26"));
+
+  // 无价位带 → 空
+  sandbox.fcSet(sandbox.fcKey(), { keyLow:null, keyHigh:null });
+  ok("无价位带时汇总为空", sandbox.fcComputeSignals().length === 0);
+  sandbox.fcSet(sandbox.fcKey(), { keyLow:4500, keyHigh:4650 });
+
+  // 渲染小卡
+  sandbox.fcFocusDate = null;
+  sandbox.fcRenderSignalSummary();
+  const sumHtml = sandbox.document.getElementById("fcSigSummary").innerHTML;
+  ok("小卡渲染：含标题与发布日数量", /联动信号历史汇总（2 个发布日/.test(sumHtml), sumHtml.slice(0,80));
+  ok("小卡渲染：含 08-07 / 08-21 两行", sumHtml.includes("2026-08-07") && sumHtml.includes("2026-08-21"));
+  ok("小卡渲染：容器显示(on)", /fcsigsum on/.test(sandbox.document.getElementById("fcSigSummary").className));
+
+  // 聚焦定位：设 fcFocusDate 后 draw 不抛错（主图粗竖线+标签路径）
+  sandbox.fcFocusDate = "2026-08-12";
+  let fok = true, ferr = "";
+  try { sandbox.draw(); } catch(e){ fok=false; ferr=e.message; }
+  ok("聚焦定位：draw() 主图聚焦路径不抛错", fok, ferr);
+  sandbox.fcFocusDate = null;
+} else {
+  console.log("\n[Round 17] 联动信号历史汇总小卡 —— 函数不存在，跳过");
+}
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }
