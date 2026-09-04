@@ -570,6 +570,55 @@ console.log("\n[Round 15] 联动信号行高亮 / 双轴库存线精修");
   ok("draw() 触发库存面积渐变(精修分支走通)", gradCalls > 0, "gradCalls=" + gradCalls);
 })();
 
+/* ============================================================
+ *  Round 16: 联动信号历史回看（滚动分位 + 发布日标记 + hover）
+ * ============================================================ */
+console.log("\n[Round 16] 联动信号历史回看");
+if (typeof sandbox.fcInvPercentileAt === "function" && typeof sandbox.fcConfluenceAt === "function") {
+  // 16.1 滚动分位：前缀序列分位（截至第 i 点）
+  const d1 = [
+    {date:"2026-08-01",inventory_total:100},
+    {date:"2026-08-08",inventory_total:120},
+    {date:"2026-08-15",inventory_total:140}
+  ];
+  ok("滚动分位 i=0(样本<2) 返回 null", sandbox.fcInvPercentileAt(d1,0,"inventory_total") === null);
+  const pa = sandbox.fcInvPercentileAt(d1,2,"inventory_total");
+  ok("滚动分位 i=2：分位=67% / n=3 / cur=140", pa && pa.pct===67 && pa.n===3 && pa.cur===140, JSON.stringify(pa));
+
+  // 16.2 历史日信号：无价位带 → null；设带后见共振/背离
+  const d5 = [
+    {date:"2026-07-22",close:4600,inventory_total:100},
+    {date:"2026-07-29",close:4700,inventory_total:110},
+    {date:"2026-08-05",close:4800,inventory_total:120},
+    {date:"2026-08-12",close:4850,inventory_total:130},
+    {date:"2026-08-19",close:4900,inventory_total:140}
+  ];
+  ok("fcConfluenceAt 无价位带 → 无信号", sandbox.fcConfluenceAt(d5,4,"inventory_total",null,null).conf === null);
+  // 末点最高 → 利空；4900>4700 → 偏高 → ⚡双空共振
+  const cBear = sandbox.fcConfluenceAt(d5,4,"inventory_total",4500,4700);
+  ok("fcConfluenceAt 双空共振：tag=⚡双空共振 / invTag=利空", cBear.conf && cBear.conf.tag==="⚡双空共振" && cBear.invTag==="利空", JSON.stringify(cBear.conf));
+  // 递减序列：末点最低 → 利多；价>高位 → 偏高 → ⚠背离
+  const dDown = [
+    {date:"2026-07-22",close:4900,inventory_total:140},
+    {date:"2026-07-29",close:4850,inventory_total:130},
+    {date:"2026-08-05",close:4800,inventory_total:120},
+    {date:"2026-08-12",close:4750,inventory_total:110},
+    {date:"2026-08-19",close:4700,inventory_total:100}
+  ];
+  const cDiv = sandbox.fcConfluenceAt(dDown,4,"inventory_total",4500,4650);
+  ok("fcConfluenceAt 背离：tag=⚠背离", cDiv.conf && cDiv.conf.tag==="⚠背离", JSON.stringify(cDiv.conf));
+
+  // 16.3 draw() 历史发布日标记路径：设价位带 + 周三发布日序列，确认不抛错
+  sandbox.window.__data = dDown;
+  sandbox.document.getElementById("symbol").value = "SP";
+  sandbox.fcSet(sandbox.fcKey(), { keyLow:4500, keyHigh:4650 });
+  let drawOk2 = true, drawErr2 = "";
+  try { sandbox.draw(); } catch(e){ drawOk2=false; drawErr2=e.message; }
+  ok("draw() 历史联动信号标记路径不抛错", drawOk2, drawErr2);
+} else {
+  console.log("\n[Round 16] 联动信号历史回看 —— 函数不存在，跳过");
+}
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }

@@ -225,6 +225,7 @@
       <span><i style="background:var(--up)"></i>期货收盘价(涨红)</span>
       <span><i style="background:var(--down)"></i>期货收盘价(跌绿)</span>
       <span><i style="background:var(--inv)"></i>库存(右轴 · 交易所仓单)</span>
+      <span><i style="background:#ffa94d;border-radius:50%;width:9px;height:9px;display:inline-block"></i>历史联动信号(发布日·虚线点)</span>
       <span><i style="background:#b39ddb"></i>基差(现货-期货)</span>
     </div>
     <div id="invKpi" class="stats"></div>
@@ -1180,6 +1181,33 @@ function draw(){
       ctx.fillStyle = delta>=0 ? "#ff7a7a" : "#00d486";
       ctx.fillText(txt, x, y - 8);
     });
+
+    // 联动信号历史回看：遍历每个库存发布日，计算该日联动信号；有信号才画细竖线 + 顶部圆点（避免视觉噪声）
+    {
+      const _store = (typeof fcLoadStore==="function") ? fcLoadStore() : {};
+      const _zk = (typeof fcKey==="function") ? _store[fcKey()] : null;
+      const _zL = (_zk && _zk.keyLow!=null && _zk.keyLow!=="") ? +_zk.keyLow : null;
+      const _zH = (_zk && _zk.keyHigh!=null && _zk.keyHigh!=="") ? +_zk.keyHigh : null;
+      if(_zL!=null && _zH!=null){
+        const rel = releaseInfo(curExch, code);
+        ctx.save(); ctx.textAlign="center"; ctx.textBaseline="bottom"; ctx.font="9px sans-serif";
+        for(let i=0;i<data.length-1;i++){            // 跳过当前真实日（粗竖线已标）
+          const d=data[i]; if(d.close==null) continue;
+          const dt=new Date(d.date+"T00:00:00Z");
+          if(dt.getUTCDay() !== rel.weekday) continue;   // 仅库存发布日
+          const _c=fcConfluenceAt(data,i,metricKey,_zL,_zH);
+          if(!_c.conf) continue;                          // 无信号不画
+          const xi=X(i);
+          const isDiv=_c.conf.tag.indexOf("背离")>=0;
+          const col=isDiv?"#ffa94d":(_c.conf.cls==="price-below"?"#00d486":"#ff4d4f");
+          ctx.strokeStyle=col; ctx.globalAlpha=0.5; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+          ctx.beginPath(); ctx.moveTo(xi,padT); ctx.lineTo(xi,padT+plotH); ctx.stroke();
+          ctx.setLineDash([]); ctx.globalAlpha=1;
+          ctx.beginPath(); ctx.arc(xi, padT+6, 3, 0, 7); ctx.fillStyle=col; ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
   } else {
     // 库存完全缺失时，在图表右区给出明显提示，避免右侧出现 -1/0/1 伪轴
     ctx.save();
@@ -1356,7 +1384,24 @@ function attachChartHover(){
     }
     let basisHtml = "";
     if(curBasis){ const b=computeBasis(d); if(b!=null) basisHtml = "<br>基差(现货-期货)：" + b + " 元/吨"; }
-    tip.innerHTML = `<b>${d.date}</b><br>收盘价：${d.close == null ? "-" : d.close}<br>${metricName}：${getInvValue(d,curInvMetric) == null ? "-" : getInvValue(d,curInvMetric)} 吨` + basisHtml + evHtml;
+    // 联动信号历史回看：悬停日展示该日库存×价格联动信号（滚动分位情景 × 当时收盘价价位状态）
+    let linkHtml = "";
+    {
+      const _store=(typeof fcLoadStore==="function")?fcLoadStore():{};
+      const _zk=(typeof fcKey==="function")?_store[fcKey()]:null;
+      const _zL=(_zk&&_zk.keyLow!=null&&_zk.keyLow!=="")?+_zk.keyLow:null;
+      const _zH=(_zk&&_zk.keyHigh!=null&&_zk.keyHigh!=="")?+_zk.keyHigh:null;
+      if(_zL!=null && _zH!=null){
+        const bestKey = curInvMetric==="auto"?(window.__bestInvMetric||"inventory_total"):curInvMetric;
+        const _c=fcConfluenceAt(view,i,bestKey,_zL,_zH);
+        if(_c.conf){
+          linkHtml='<hr style="border:none;border-top:1px solid rgba(255,255,255,.15);margin:4px 0">🔗 库存×价格联动：<b>'+fcEsc(_c.conf.tag)+'</b> · '+fcEsc(_c.conf.text);
+        } else if(_c.invTag){
+          linkHtml='<hr style="border:none;border-top:1px solid rgba(255,255,255,.15);margin:4px 0">🔗 库存×价格联动：库存情景「'+fcEsc(_c.invTag)+'」 × 价位「'+(_c.zz?fcEsc(_c.zz.tag):"—")+'」（无强共振）';
+        }
+      }
+    }
+    tip.innerHTML = `<b>${d.date}</b><br>收盘价：${d.close == null ? "-" : d.close}<br>${metricName}：${getInvValue(d,curInvMetric) == null ? "-" : getInvValue(d,curInvMetric)} 吨` + basisHtml + evHtml + linkHtml;
   });
   cv.addEventListener("mouseleave", () => { tip.style.display = "none"; });
 }
@@ -4301,6 +4346,29 @@ function fcConfluence(invTag, priceTag){
   if(invTag==="利多" && priceTag==="偏高") return {cls:"price-above", tag:"⚠背离", text:"库存利多但价格偏高：两透镜背离，警惕回落/反转"};
   if(invTag==="利空" && priceTag==="偏低") return {cls:"price-below", tag:"⚠背离", text:"库存利空但价格偏低：两透镜背离，警惕反弹/反转"};
   return null; // 中性 / 区间内等无特殊联动
+}
+// 滚动库存分位：截至第 i 个真实点（前缀序列）的库存分位 → 价格情景（供"联动信号历史回看"逐日发布日计算）
+function fcInvPercentileAt(d, i, metricKey){
+  const vals = [];
+  for(let k=0;k<=i;k++){ const v=getInvValue(d[k], metricKey); if(v!=null) vals.push(v); }
+  if(vals.length < 2) return null;
+  const cur = getInvValue(d[i], metricKey);
+  if(cur==null) return null;
+  const below = vals.filter(v=>v<cur).length;
+  return {
+    pct: Math.round(below/vals.length*100), cur, n: vals.length,
+    min: Math.min.apply(null, vals), max: Math.max.apply(null, vals),
+    avg: +(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2)
+  };
+}
+// 第 i 个历史发布日的联动信号（滚动分位情景 × 当时收盘价价位状态）
+function fcConfluenceAt(d, i, metricKey, keyLow, keyHigh){
+  const ip = fcInvPercentileAt(d, i, metricKey);
+  const invTag = ip ? fcInvScenario(ip.pct).tag : null;
+  const px = d[i] ? d[i].close : null;
+  const zz = (keyLow!=null && keyHigh!=null) ? fcPriceZoneCls(px, keyLow, keyHigh) : null;
+  const conf = fcConfluence(invTag, zz ? zz.tag : null);
+  return { ip, invTag, px, zz, conf };
 }
 
 // 导出/分享：把当前推演(真实历史行 + 人工未来行)打包成 JSON 与 Markdown 摘要
