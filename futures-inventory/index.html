@@ -137,6 +137,7 @@
   .fcsigsum .fcstats .fcc.bear{color:#ff4d4f}
   .fcsigsum .fcstats .fcc.win{color:var(--txt);font-weight:600}
   .fcsigsum .fcstats .fcwin{margin-left:auto;font-size:11px;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:2px 4px;cursor:pointer}
+  .fcsigsum .fcstats2{font-size:11px;color:var(--sub);margin:2px 0 8px;padding:3px 7px;border-radius:6px;background:rgba(255,255,255,.04)}
   .fcsigsum .fcsempty{color:var(--sub);padding:4px 6px}
   .fcpct b{color:var(--txt)}
   .fcpct.sc-bull{border-color:var(--up);color:var(--up)}
@@ -4436,6 +4437,28 @@ function fcComputeSignals(){
   });
   return out;
 }
+// 中位数工具
+function fcMedian(arr){
+  if(!arr || !arr.length) return null;
+  const a = arr.slice().sort((x,y)=>x-y);
+  const n = a.length, m = Math.floor(n/2);
+  return n%2 ? a[m] : (a[m-1]+a[m])/2;
+}
+// 信号日 → 下一库存发布日收盘价变动幅度(%)（回看验证窗口；无后续发布日则取到序列末点）
+function fcSignalMove(sig, data, rel){
+  const i = sig.idx;
+  if(i+1 >= data.length) return null;
+  let j = i+1;
+  for(; j<data.length; j++){
+    if(data[j].close==null) continue;
+    const dt = new Date(data[j].date+"T00:00:00Z");
+    if(dt.getUTCDay() === rel.weekday) break;
+  }
+  if(j >= data.length) j = data.length-1;
+  const cur = data[i].close, end = data[j].close;
+  if(cur==null || end==null) return null;
+  return (end-cur)/cur*100;
+}
 // 信号预期方向：+1 看多 / -1 看空 / 0 中性（用于胜率回看）
 function fcExpectedDir(sig){
   const t = sig.conf.tag || "";
@@ -4451,7 +4474,10 @@ function fcExpectedDir(sig){
 // 统计条聚合：计数 + 胜率（信号日后下一真实交易日价格方向与信号预期一致占比）
 function fcSignalStats(sigs){
   const data = window.__data || [];
+  const code = (typeof document!=="undefined" && document.getElementById("symbol")) ? document.getElementById("symbol").value : "";
+  const rel = releaseInfo(curExch, code);
   let div=0, bull=0, bear=0, hit=0, tot=0;
+  const downMoves=[], upMoves=[];  // 看空(exp<0) / 看多(exp>0) 信号的中位回看幅度
   sigs.forEach(s=>{
     const t = s.conf.tag || "";
     if(t.indexOf("双多共振")>=0) bull++;
@@ -4462,8 +4488,14 @@ function fcSignalStats(sigs){
       const cur = data[s.idx].close, nxt = data[s.idx+1] ? data[s.idx+1].close : null;
       if(nxt!=null && cur!=null){ tot++; if((nxt-cur)*exp > 0) hit++; }
     }
+    const mv = fcSignalMove(s, data, rel);
+    if(mv!=null){ if(exp<0) downMoves.push(mv); else if(exp>0) upMoves.push(mv); }
   });
-  return { total:sigs.length, div, bull, bear, win: tot ? Math.round(hit/tot*100) : 0, tot };
+  return {
+    total:sigs.length, div, bull, bear,
+    win: tot ? Math.round(hit/tot*100) : 0, tot,
+    downMove: fcMedian(downMoves), upMove: fcMedian(upMoves)
+  };
 }
 // 窗口切片：近 N 个发布日（按日期倒序后取前 N）；win 可传参覆盖全局 fcSigWin
 function fcWindowSigs(sigs, win){
@@ -4493,6 +4525,12 @@ function fcRenderSignalSummary(){
     +   '<option value="8"'+(fcSigWin===8?' selected':'')+'>近8周</option>'
     +   '<option value="12"'+(fcSigWin===12?' selected':'')+'>近12周</option>'
     + '</select></div>';
+  // 深度回看：按信号预期方向聚合的"信号日→下一发布日"中位变动幅度
+  const mvParts=[];
+  const fmtPct = v => (v>0?"+":"") + v.toFixed(1) + "%";
+  if(st.downMove!=null) mvParts.push('看空 <b style="color:#ff4d4f">'+fmtPct(st.downMove)+'</b>');
+  if(st.upMove!=null) mvParts.push('看多 <b style="color:#00d486">'+fmtPct(st.upMove)+'</b>');
+  if(mvParts.length) html += '<div class="fcstats2" title="深度回看：信号日→下一库存发布日收盘价的中位变动幅度（看空=双空+看空背离，看多=双多+看多背离）；负数=如期回落/下跌，正数=如期反弹/上涨">回看幅度(中位)：'+mvParts.join(' · ')+'</div>';
   sigs.forEach(s=>{
     const isDiv = s.conf.tag.indexOf("背离")>=0;
     const col = isDiv ? "#ffa94d" : (s.conf.cls==="price-below" ? "#00d486" : "#ff4d4f");

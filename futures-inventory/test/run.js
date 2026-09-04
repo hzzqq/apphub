@@ -696,6 +696,9 @@ if (typeof sandbox.fcSignalStats === "function" && typeof sandbox.fcExpectedDir 
   const st = sandbox.fcSignalStats(sigs);
   ok("统计条：背离=1 / 双多=1 / 双空=2", st.div===1 && st.bull===1 && st.bear===2, JSON.stringify(st));
   ok("统计条：胜率=75%（4 个有验证，3 命中）", st.win===75 && st.tot===4, JSON.stringify(st));
+  // 深度回看幅度：看空信号(双空+看空背离) → 下一发布日中位变动；看多信号(双多+看多背离) 同理
+  ok("回看幅度：看空信号中位 ≈ -3.2%", st.downMove!=null && Math.abs(st.downMove-(-3.20))<0.15, "down="+st.downMove);
+  ok("回看幅度：看多信号中位 ≈ +3.98%", st.upMove!=null && Math.abs(st.upMove-3.98)<0.15, "up="+st.upMove);
 
   // fcExpectedDir 方向单测
   const mk = (tag,text)=>({conf:{tag,text}});
