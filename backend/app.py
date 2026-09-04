@@ -1109,7 +1109,7 @@ def api_quote():
         prev = round(price / (1 + chg / 100.0), 2)
         return jsonify({"ok": True, "offline": True,
                         "name": code, "price": price, "prev": prev,
-                        "chg": chg,
+                        "chg": chg, "updated": None,
                         "note": "离线样本(确定性, 同代码价格稳定)。有网环境填新浪接口即真行情。"})
     try:
         # 真·StockSignal 风格: 新浪 + GBK + Referer
@@ -1124,7 +1124,8 @@ def api_quote():
         name, price, prev = parts[0], float(parts[3]), float(parts[2])
         chg = round((price - prev) / prev * 100, 2)
         return jsonify({"ok": True, "offline": False, "name": name,
-                        "price": price, "prev": prev, "chg": chg})
+                        "price": price, "prev": prev, "chg": chg,
+                        "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
     except Exception as e:
         logger.warning("新浪行情失败, 转 akshare 兜底: %s", str(e)[:120])
         # akshare 兜底
@@ -1134,7 +1135,8 @@ def api_quote():
             row = df[df["代码"] == code[2:]].iloc[0]
             return jsonify({"ok": True, "offline": False, "name": row["名称"],
                             "price": float(row["最新价"]), "prev": float(row["昨收"]),
-                            "chg": round(float(row["涨跌幅"]), 2)})
+                            "chg": round(float(row["涨跌幅"]), 2),
+                            "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
         except Exception as e2:
             logger.exception("quote 兜底也失败")
             return jsonify({"ok": False, "error": str(e2)[:200]}), 500

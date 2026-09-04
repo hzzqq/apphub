@@ -142,6 +142,7 @@ function showFresh(ts, label){
 }
 // 日期工具
 function _isoDate(d){ var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0"); return y+"-"+m+"-"+dd; }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
 function applyDaysRange(days){
   if(days === "all"){
     document.getElementById("from").value = "";

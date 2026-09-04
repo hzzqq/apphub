@@ -208,7 +208,7 @@ def check_frontend_runtime():
             continue
         if not os.path.isfile(os.path.join(d, "index.html")):
             continue
-        if name == "sector-matrix":
+        if name in ("sector-matrix", "shepherd-index", "futures-chain"):
             continue  # 已有专项覆盖，避免重复
         apps.append(name)
 

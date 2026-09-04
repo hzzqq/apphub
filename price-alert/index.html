@@ -187,7 +187,7 @@ async function fetchQuote(code){
     try{
       const base=srcUrl.replace(/\/api.*$/,"").replace(/\/$/,"");
       const r=await fetch(base+"/api/quote?code="+encodeURIComponent(c),{cache:"no-store"});
-      if(r.ok){ const j=await r.json(); if(j.ok&&j.price){ return {name:j.name, price:j.price, prev:j.prev, chg:j.chg, offline: !!j.offline}; } }
+      if(r.ok){ const j=await r.json(); if(j.ok&&j.price){ return {name:j.name, price:j.price, prev:j.prev, chg:j.chg, offline: !!j.offline, updated: j.updated||null}; } }
     }catch(e){ console.warn("后端行情失败，回退新浪",e); }
   }
   let url = "https://hq.sinajs.cn/list="+c;
@@ -212,14 +212,33 @@ async function fetchQuote(code){
   }
 }
 
+// 数据新鲜度徽标（行情时间）：自动挂到状态条/首屏；无 updated 时 no-op 不崩
+function showFresh(ts, label){
+  if(!ts) return;
+  label = label || "行情时间";
+  var el = document.getElementById("freshness");
+  if(!el){
+    el = document.createElement("div");
+    el.id = "freshness";
+    el.style.cssText = "margin-top:10px;padding:6px 12px;border-radius:10px;font-size:12px;background:rgba(0,212,134,.12);color:#00d486;border:1px solid rgba(0,212,134,.35);";
+    var anchor = document.getElementById("status") || document.getElementById("state") || document.getElementById("dataNote");
+    if(anchor && anchor.parentNode){ anchor.parentNode.insertBefore(el, anchor.nextSibling); }
+    else if(document.body){ document.body.insertBefore(el, document.body.firstChild); }
+    else { document.body.appendChild(el); }
+  }
+  el.style.display = "block";
+  el.innerHTML = "📅 " + (label ? label + " " : "") + "更新于 <b>" + ts + "</b>";
+}
+
 // ===== 检查触发 =====
 async function checkAll(){
-  let triggeredNow=false, usedOffline=false;
+  let triggeredNow=false, usedOffline=false, _lastUpd=null;
   for(const a of alerts){
     if(a.triggered) continue;
     const q=await fetchQuote(a.code);
     if(!q) continue;
     if(q.offline) usedOffline=true;
+    if(q.updated) _lastUpd=q.updated;
     a.last=q.price;
     if(q.name && !a.name) a.name=q.name;
     const hit = a.dir==="up" ? q.price>=a.target : q.price<=a.target;
@@ -231,6 +250,7 @@ async function checkAll(){
       beep();
     }
   }
+  if(_lastUpd) showFresh(_lastUpd, "行情时间");
   persist(); renderTable();
   if(triggeredNow){ renderStats(); }
   if(usedOffline && !window.__warnedOffline){

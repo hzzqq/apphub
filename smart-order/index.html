@@ -117,19 +117,39 @@ function render(){
 // 拉真实行情(akshare/新浪)填充每个条件单的现价, 用于真实校验触发
 async function fetchReal(){
   const API_ROOT = localStorage.getItem("hub_api")||"http://127.0.0.1:8787";
-  let okCount=0, offlineCount=0;
+  let okCount=0, offlineCount=0, _lastUpd=null;
   for(const o of ORDERS){
     try{
       const r=await fetch(API_ROOT+"/api/quote?code="+encodeURIComponent(o.code),{cache:"no-store"});
-      if(r.ok){ const j=await r.json(); if(j.ok && j.price!=null){ o.cur=j.price; o.realName=j.name||o.name; okCount++; if(j.offline) offlineCount++; check(o); } }
+      if(r.ok){ const j=await r.json(); if(j.ok && j.price!=null){ o.cur=j.price; o.realName=j.name||o.name; okCount++; if(j.offline) offlineCount++; if(j.updated) _lastUpd=j.updated; check(o); } }
     }catch(e){ console.warn("quote 失败",o.code,e); }
   }
+  if(_lastUpd) showFresh(_lastUpd, "行情时间");
   save(); render();
   if(offlineCount>0){
     pushLog(`⚠ 后端离线样本模式：${offlineCount}/${ORDERS.length} 只价格为模拟值（非真实行情），不可用于真实交易触发判断`);
   }
   pushLog(`拉取行情校验完成：${okCount}/${ORDERS.length} 只成功（真实 ${okCount-offlineCount} / 离线模拟 ${offlineCount}）`);
 }
+
+// 数据新鲜度徽标（行情时间）：自动挂到状态条/首屏；无 updated 时 no-op 不崩
+function showFresh(ts, label){
+  if(!ts) return;
+  label = label || "行情时间";
+  var el = document.getElementById("freshness");
+  if(!el){
+    el = document.createElement("div");
+    el.id = "freshness";
+    el.style.cssText = "margin-top:10px;padding:6px 12px;border-radius:10px;font-size:12px;background:rgba(0,212,134,.12);color:#00d486;border:1px solid rgba(0,212,134,.35);";
+    var anchor = document.getElementById("status") || document.getElementById("state") || document.getElementById("dataNote");
+    if(anchor && anchor.parentNode){ anchor.parentNode.insertBefore(el, anchor.nextSibling); }
+    else if(document.body){ document.body.insertBefore(el, document.body.firstChild); }
+    else { document.body.appendChild(el); }
+  }
+  el.style.display = "block";
+  el.innerHTML = "📅 " + (label ? label + " " : "") + "更新于 <b>" + ts + "</b>";
+}
+
 function simOnce(){
   if(Notification.permission==="default") Notification.requestPermission();
   ORDERS.forEach(o=>{
