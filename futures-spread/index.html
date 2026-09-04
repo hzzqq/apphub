@@ -313,6 +313,21 @@ function initControls(){
 function setState(html,cls){
   const s=el("state"); s.innerHTML=html; s.className="state "+(cls||"");
 }
+/* 数据新鲜度徽标：后端响应附带 updated 字段时显示（与其余 App 同款范式） */
+function showFresh(ts, label){
+  if(!ts) return;
+  var el = document.getElementById("freshness");
+  if(!el){
+    el = document.createElement("div");
+    el.id = "freshness";
+    el.className = "status";
+    var anchor = document.getElementById("status") || document.getElementById("state") || document.getElementById("dataNote") || document.body;
+    if(anchor && anchor.parentNode) anchor.parentNode.insertBefore(el, anchor.nextSibling);
+    else document.body.appendChild(el);
+  }
+  el.style.display = "block";
+  el.innerHTML = "📅 " + (label ? label + " " : "") + "数据更新于 <b>" + ts + "</b>";
+}
 
 async function fetchData(variety, monthA, monthB, ytype, start, end){
   const params=new URLSearchParams({variety,monthA,monthB,ytype,start,end});
@@ -533,6 +548,7 @@ async function run(){
   }
   setState("加载中…");
   const meta=await fetchData(variety,monthA,monthB,ytype,start,end);
+  if(meta.updated) showFresh(meta.updated,"价差数据源"); else if(meta.cached_at) showFresh(meta.cached_at,"本地真实缓存");
   const yLabelLeft="价差 A−B ("+monthA+"−"+monthB+")";
   const yLabelRight=meta.y_label||"价格/指数";
   metaCache={variety,monthA,monthB,y_label_left:yLabelLeft,y_label_right:yLabelRight,data:meta.data};

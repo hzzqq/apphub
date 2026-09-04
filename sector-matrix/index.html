@@ -155,6 +155,21 @@ function setStatus(msg, type){
   el.className = "status show " + (type||"info");
   el.innerHTML = msg;
 }
+/* 数据新鲜度徽标：后端响应附带 updated 字段时显示（与其余 App 同款范式） */
+function showFresh(ts, label){
+  if(!ts) return;
+  var el = document.getElementById("freshness");
+  if(!el){
+    el = document.createElement("div");
+    el.id = "freshness";
+    el.className = "status";
+    var anchor = document.getElementById("status") || document.getElementById("state") || document.getElementById("dataNote") || document.body;
+    if(anchor && anchor.parentNode) anchor.parentNode.insertBefore(el, anchor.nextSibling);
+    else document.body.appendChild(el);
+  }
+  el.style.display = "block";
+  el.innerHTML = "📅 " + (label ? label + " " : "") + "数据更新于 <b>" + ts + "</b>";
+}
 function esc(s){
   return String(s==null?"":s).replace(/[&<>"']/g, function(c){
     return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
@@ -242,6 +257,7 @@ function loadMatrix(symbols, retry){
       document.getElementById("matrixSummary").innerHTML = _matrixSummary(j);
       var rn = (j.from || j.to) ? (" · 区间 " + (j.from || "起始") + " ~ " + (j.to || "至今")) : " · 全量数据";
       setStatus("矩阵就绪 · " + j.rows.length + " 个品种 × " + j.sectors.length + " 个板块" + rn, "info");
+      if(j.updated) showFresh(j.updated,"板块矩阵数据");
     })
     .catch(function(e){
       // ⑩ 大厅预览健壮性：后端偶发无响应时自动重试一次，仍失败再明确提示

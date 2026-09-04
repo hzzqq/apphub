@@ -1063,6 +1063,7 @@ def api_futures_sector_matrix():
         res["default"] = ["%s:%s" % (s, e) for s, e in MATRIX_VARIETIES]
         res["from"] = from_d
         res["to"] = to_d
+        res["updated"] = _cache_newest_mtime()
         return jsonify(res)
     except Exception as e:
         logger.exception("futures_sector_matrix 处理异常")
@@ -1145,12 +1146,15 @@ def api_shepherd():
     离线: 返回内置演示快照 + 样本历史(供分位打分)。
     真网: akshare stock_market_activity_legu + stock_zt_pool_em + stock_zt_pool_previous_em。"""
     if OFFLINE_MODE:
-        return jsonify(_shepherd_offline())
-    try:
-        return jsonify(_shepherd_live())
-    except Exception as e:
-        logger.warning("shepherd 真抓取失败, 回退离线: %s", str(e)[:120])
-        return jsonify(_shepherd_offline(extra_note="真抓取失败:" + str(e)[:120]))
+        r = _shepherd_offline()
+    else:
+        try:
+            r = _shepherd_live()
+        except Exception as e:
+            logger.warning("shepherd 真抓取失败, 回退离线: %s", str(e)[:120])
+            r = _shepherd_offline(extra_note="真抓取失败:" + str(e)[:120])
+    r["updated"] = r.get("date") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return jsonify(r)
 
 
 # ───────── 牧羊人 8 项指标口径(与 StockSignal THRESHOLDS 一致) ─────────
@@ -1426,6 +1430,18 @@ def _file_mtime(fname):
     return None
 
 
+def _cache_newest_mtime():
+    """返回 data/ 下所有 futures_*.json 中最新的修改时间，代表期货价量数据集整体新鲜度。"""
+    newest = None
+    for fp in glob.glob(os.path.join(DATA_DIR, "futures_*.json")):
+        t = os.path.getmtime(fp)
+        if newest is None or t > newest:
+            newest = t
+    if newest is None:
+        return None
+    return datetime.fromtimestamp(newest).strftime("%Y-%m-%d %H:%M:%S")
+
+
 @app.route("/api/futures_spread", methods=["GET"])
 def api_futures_spread():
     """期货跨期价差与期限结构分析。
@@ -1483,6 +1499,7 @@ def api_futures_spread():
     return jsonify({
         "ok": True,
         "offline": offline,
+        "updated": (datetime.now().strftime("%Y-%m-%d %H:%M:%S") if not offline else _cache_newest_mtime()),
         "variety": variety,
         "monthA": monthA,
         "monthB": monthB,
@@ -1495,7 +1512,7 @@ def api_futures_spread():
 
 # 端点注册表: index 与 health 共用, 避免两处清单漂移(R3 DRY)
 ENDPOINTS = [
-    "/api/health", "/api/futures", "/api/refresh", "/api/inventory_overview", "/api/eia_crude", "/api/corr_top", "/api/quote", "/api/shepherd",
+    "/api/health", "/api/info", "/api/futures", "/api/refresh", "/api/inventory_overview", "/api/eia_crude", "/api/corr_top", "/api/quote", "/api/shepherd",
     "/api/search", "/api/etf", "/api/sector",
     "/api/data", "/api/futures_events", "/api/futures_spread",
     "/api/llm", "/api/data_status",

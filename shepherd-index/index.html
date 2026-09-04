@@ -304,6 +304,22 @@ function demoSnapshot(){
   renderIndicators(); renderEdit(); compute();
 }
 
+/* 数据新鲜度徽标：后端响应附带 updated 字段时显示（与其余 App 同款范式） */
+function showFresh(ts, label){
+  if(!ts) return;
+  var el = document.getElementById("freshness");
+  if(!el){
+    el = document.createElement("div");
+    el.id = "freshness";
+    el.className = "status";
+    var anchor = document.getElementById("status") || document.getElementById("state") || document.getElementById("dataNote") || document.body;
+    if(anchor && anchor.parentNode) anchor.parentNode.insertBefore(el, anchor.nextSibling);
+    else document.body.appendChild(el);
+  }
+  el.style.display = "block";
+  el.innerHTML = "📅 " + (label ? label + " " : "") + "数据更新于 <b>" + ts + "</b>";
+}
+
 // ===== 拉取真实快照 =====
 async function fetchLive(){
   if (!API_URL){ alert("请先在「数据接口配置」里填写后端地址"); return; }
@@ -317,6 +333,7 @@ async function fetchLive(){
         (j.offline ? "⚠️ 后端处于离线模式，返回演示数据。" : "✅ 已拉取真实 akshare 快照，日期：" + j.date)
         + " 温度：" + j.temperature;
       renderIndicators(); renderEdit(); compute();
+      if(j.updated) showFresh(j.updated,"市场情绪快照");
     } else {
       document.getElementById("dataNote").textContent = "拉取失败：" + (j.error||"未知错误");
     }

@@ -125,6 +125,21 @@ function setStatus(msg, type){
   el.className = "status show " + (type||"info");
   el.innerHTML = msg;
 }
+/* 数据新鲜度徽标：后端响应附带 updated 字段时显示（与其余 App 同款范式） */
+function showFresh(ts, label){
+  if(!ts) return;
+  var el = document.getElementById("freshness");
+  if(!el){
+    el = document.createElement("div");
+    el.id = "freshness";
+    el.className = "status";
+    var anchor = document.getElementById("status") || document.getElementById("state") || document.getElementById("dataNote") || document.body;
+    if(anchor && anchor.parentNode) anchor.parentNode.insertBefore(el, anchor.nextSibling);
+    else document.body.appendChild(el);
+  }
+  el.style.display = "block";
+  el.innerHTML = "📅 " + (label ? label + " " : "") + "数据更新于 <b>" + ts + "</b>";
+}
 // 日期工具
 function _isoDate(d){ var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0"); return y+"-"+m+"-"+dd; }
 function applyDaysRange(days){
@@ -223,6 +238,7 @@ function runAnalysis(){
     setStatus("分析完成 · " + (j.offline?"离线缓存模式（数据非实时）":"实时模式") + rangeNote + " · 报告已生成", "info");
     document.getElementById("report").innerHTML = j.html || "";
     initFolds();
+    if(j.updated) showFresh(j.updated,"产业链数据");
   }).catch(function(e){
     btn.disabled = false;
     setStatus("请求异常：" + e + "。请确认后端已启动且地址正确。", "err");
