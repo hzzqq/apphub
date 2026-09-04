@@ -80,9 +80,10 @@ _DENY_FILES = {
     "refresh_data.bat", "start.bat", "start.sh", "backend.log", ".gitignore",
     "package_for_share.py", "xss_patch.py",
 }
-# 根级(不含子目录)的脚本/日志/临时文件一律拒绝: 以后新增根级 .py/.bat/.sh 自动不暴露,
-# 无需逐个补进 _DENY_FILES
-_DENY_ROOT_SUFFIXES = (".py", ".bat", ".sh", ".log", ".tmp.js", ".pyc")
+# 任意路径(含子目录)的源码 / 敏感文件一律拒绝: 防通过前端托管泄露后端源码与凭据
+_DENY_SUFFIXES = (".py", ".pyc", ".pyo", ".bat", ".sh", ".ps1", ".env",
+                  ".db", ".sqlite", ".sqlite3", ".pem", ".key", ".log",
+                  ".tmp", ".bak", ".tmp.js")
 
 app = Flask(__name__, static_folder=None)
 # 允许跨域: 前端 HTML 可能从 file:// 或其他本地端口打开, 不放开 CORS 则浏览器会拦截真实数据请求
@@ -171,6 +172,8 @@ LLM_MODEL = (os.environ.get("LLM_MODEL") or "qwen2.5:3b").strip()
 
 _LLM_CACHE = {}
 _LLM_CACHE_TTL = int(os.environ.get("LLM_CACHE_TTL", "3600"))
+_LLM_CACHE_MAX = int(os.environ.get("LLM_CACHE_MAX", "256"))  # 容量上限: 防长时间运行 OOM
+_BOOT_DT = datetime.now()  # 进程启动时刻, 供 /api/health 计算 uptime
 
 
 def _llm_endpoint():
@@ -191,6 +194,9 @@ def _llm_cache_get(key):
 
 def _llm_cache_set(key, val):
     _LLM_CACHE[key] = (val, _t.time())
+    # FIFO 淘汰: dict 保序, 超出上限时弹出最早插入的 key
+    if len(_LLM_CACHE) > _LLM_CACHE_MAX:
+        _LLM_CACHE.pop(next(iter(_LLM_CACHE)), None)
 
 
 def _llm_messages(system, user):
@@ -288,7 +294,7 @@ LISTING_DATES = {
     "cu": "1991-03-01", "al": "1992-05-28", "zn": "2007-03-26", "pb": "2011-03-24",
     "ni": "2015-03-27", "sn": "2015-03-27", "au": "2008-01-09", "ag": "2012-05-10",
     "rb": "2009-03-27", "hc": "2014-03-21", "ss": "2019-09-25", "ao": "2023-06-19",
-    "bc": "2020-11-19", "ru": "1993-03-01", "nr": "2019-08-12", "bu": "2013-10-09",
+    "bc": "2020-11-19", "ru": "1993-03-01", "bu": "2013-10-09",
     "fu": "2004-08-25",
     # 大商所
     "a": "1993-11-18", "m": "2000-07-17", "y": "2006-01-09", "p": "2007-10-29",
@@ -786,7 +792,11 @@ def api_refresh():
         return jsonify({"ok": False, "error": "刷新模块未加载"}), 500
 
     def _run():
-        return _bake_inv_em.refresh_one(exchange, symbol, verbose=False)
+        try:
+            return _bake_inv_em.refresh_one(exchange, symbol, verbose=False)
+        except Exception as e:
+            logger.warning("刷新 %s:%s 失败: %s", exchange, symbol, str(e)[:160])
+            return {"ok": False, "error": str(e)[:200]}
 
     box = {}
     t = threading.Thread(target=lambda: box.update({"r": _run()}), daemon=True)
@@ -1120,7 +1130,12 @@ def api_quote():
             "User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=8) as resp:
             raw = resp.read().decode("gbk")
-        parts = raw.split('"')[1].split(",")
+        seg = raw.split('"')
+        if len(seg) < 2:
+            raise ValueError("新浪返回格式异常: 缺少引号数据段")
+        parts = seg[1].split(",")
+        if len(parts) < 4:
+            raise ValueError("新浪返回字段不足: %r" % parts[:8])
         name, price, prev = parts[0], float(parts[3]), float(parts[2])
         chg = round((price - prev) / prev * 100, 2)
         return jsonify({"ok": True, "offline": False, "name": name,
@@ -1372,7 +1387,7 @@ def api_data():
         "holdings.json", "stocknote.json", "trip.json", "desktop_pet.json",
         "health_check.json", "smart_order.json", "market_brief.json",
         "kpattern.json", "etf.json", "sector.json",
-        "trading_agents.json", "code_teacher.json", "theme.json",
+        "theme.json",
         "futures_events.json", "spread_cache.json",
         "futures_SHFE_SP.json", "futures_SHFE_CU.json",
         "futures_CZCE_FG.json", "futures_CZCE_SA.json", "futures_CZCE_SR.json",
@@ -1404,7 +1419,8 @@ def api_futures_events():
         events = data.get(key, [])
     except FileNotFoundError:
         events = []
-    except Exception:
+    except Exception as e:
+        logger.warning("futures_events 读取失败, 回退空: %s", str(e)[:120])
         events = []
     return jsonify({"ok": True, "offline": OFFLINE_MODE, "key": key, "events": events})
 
@@ -1529,10 +1545,13 @@ def api_health():
     data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
     data_files = sorted(f for f in os.listdir(data_dir)
                         if f.endswith(".json")) if os.path.isdir(data_dir) else []
+    cached = _tracked_futures_symbols()
     return jsonify({
         "ok": True, "offline": OFFLINE_MODE, "status": "up",
         "service": "flask-data-hub",
         "endpoints": len(ENDPOINTS),
+        "cached_varieties": len(cached),
+        "uptime_sec": int((datetime.now() - _BOOT_DT).total_seconds()),
         "data_files": data_files,
         "auto_refresh": REFRESH_STATE,
         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -1589,7 +1608,7 @@ def api_data_status():
 def api_info():
     """后端服务信息(原 / 端点, 现迁移到 /api/info 以免与前端托管冲突)。"""
     return jsonify({
-        "service": "期库镜/价格预警/牧羊人/黑天鹅/ETF/板块/期货价差/TradingAgents/主题/代码老师 统一后端",
+        "service": "期库镜/价格预警/牧羊人/黑天鹅/ETF/板块/期货价差/产业链/行程/搜索/行情 统一后端",
         "offline": OFFLINE_MODE,
         "endpoints": ENDPOINTS,
         "frontend_served": True,
@@ -1602,13 +1621,15 @@ def api_info():
 @app.route("/<path:path>")
 def serve_frontend(path):
     norm = (path or "").replace("\\", "/")
-    # 安全: 拒绝目录穿越 / 隐藏文件 / 后端源码 / 版本库 / 构建脚本
-    if ".." in norm or norm.startswith(".") or "/." in norm:
+    # 安全: 拒绝绝对路径(Windows 下 os.path.join(APP_ROOT,"C:/x") 会逃逸根目录)
+    #       / 目录穿越 / 隐藏文件 / 后端源码 / 版本库 / 构建脚本
+    if os.path.isabs(norm) or norm.startswith("/") or norm.startswith(".") \
+       or ".." in norm or "/." in norm:
         return abort(403)
     if norm in _DENY_FILES or any(norm.startswith(p) for p in _DENY_PREFIXES):
         return abort(403)
-    # 根级脚本 / 日志 / 临时文件一律不托管(见 _DENY_ROOT_SUFFIXES 注释)
-    if "/" not in norm and norm.endswith(_DENY_ROOT_SUFFIXES):
+    # 源码 / 敏感文件(任意路径)一律不托管, 防通过前端托管泄露后端源码与凭据
+    if norm.endswith(_DENY_SUFFIXES):
         return abort(403)
     if not norm:
         return send_from_directory(APP_ROOT, "index.html")
@@ -2106,7 +2127,8 @@ def api_search():
                 sub = fdf[fdf["_k"].str.lower().str.contains(ql, na=False)].head(20)
                 results = [{"code": r["代码"], "name": r["名称"],
                             "exchange": r.get("交易所", "")} for _, r in sub.iterrows()]
-            except Exception:
+            except Exception as e:
+                logger.warning("期货真实搜索失败, 回退离线: %s", str(e)[:120])
                 for r in SEARCH_SAMPLE["futures"]:
                     if ql in str(r["code"]).lower() or ql in str(r["name"]).lower():
                         results.append(r)
@@ -2122,7 +2144,8 @@ def api_search():
                     if ql in str(r["code"]).lower() or ql in str(r["name"]).lower():
                         if not any(x["code"] == r["code"] for x in results):
                             results.append(r)
-            except Exception:
+            except Exception as e:
+                logger.warning("指数真实搜索失败, 回退离线: %s", str(e)[:120])
                 for r in SEARCH_SAMPLE["index"]:
                     if ql in str(r["code"]).lower() or ql in str(r["name"]).lower():
                         results.append(r)
@@ -2159,8 +2182,8 @@ def _tracked_futures_symbols():
             m = re.match(r"futures_(SHFE|DCE|CZCE|INE)_(.+)\.json", base)
             if m:
                 out.append((m.group(1), m.group(2)))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("扫描 futures 缓存失败: %s", str(e)[:120])
     seen, uniq = set(), []
     for ex, sy in out:
         k = (ex, sy.upper())
