@@ -16,12 +16,15 @@ if (!m) throw new Error("index.html 中未找到 <script>");
 const src = m[1] + "\n;globalThis.REAL_DATA = (typeof REAL_DATA !== 'undefined') ? REAL_DATA : null;";
 
 /* ---------- 最小 DOM / canvas 桩 ---------- */
+let gradCalls = 0;   // 统计 createLinearGradient 调用次数（验证库存面积渐变分支）
 function makeCtx() {
   const c = {};
   ["clearRect","scale","beginPath","moveTo","lineTo","stroke","fill","arc",
    "fillText","fillRect","save","restore","setTransform","closePath","rect",
-   "strokeRect","quadraticCurveTo","bezierCurveTo"].forEach(fn => c[fn] = () => {});
+   "strokeRect","quadraticCurveTo","bezierCurveTo","setLineDash"].forEach(fn => c[fn] = () => {});
   c.measureText = () => ({ width: 0 });
+  // 库存面积渐变用（真实浏览器原生支持；此处补桩以便 draw() 走通渐变分支）
+  c.createLinearGradient = () => { gradCalls++; return { addColorStop(){} }; };
   return c;
 }
 function makeEl(id) {
@@ -516,6 +519,56 @@ if (typeof sandbox.fcBuildCSV === "function") {
 } else {
   console.log("\n[Round 14] 推演表 CSV 导出 —— fcBuildCSV 不存在，跳过");
 }
+
+/* ============================================================
+ *  Round 15: 联动信号行自动高亮 + 双轴库存线精修
+ * ============================================================ */
+console.log("\n[Round 15] 联动信号行高亮 / 双轴库存线精修");
+(function(){
+  const DATES = ["2026-07-18","2026-07-25","2026-08-01","2026-08-08","2026-08-15"];
+  // 用给定库存序列 + 收盘价 + 关键价位带渲染推演表，返回 tbody HTML
+  function renderSig(invs, closes, zLow, zHigh){
+    sandbox.window.__data = DATES.map((d,i)=>({ date:d, close:closes[i], inventory_total:invs[i] }));
+    sandbox.document.getElementById("symbol").value = "SP";
+    sandbox.fcSet(sandbox.fcKey(), {
+      title:"", source:"交易所周报", baseline_inventory: 9999,
+      keyLow:zLow, keyHigh:zHigh,
+      rows: DATES.map((d,i)=>({ report:d, stat:d, inv:+(invs[i]/1000).toFixed(1), change:-10, dir:"去库", driver:"驱动"+i }))
+    });
+    sandbox.renderForecast();
+    return sandbox.document.getElementById("fcBody").innerHTML;
+  }
+  const INV_DOWN = [140000,130000,120000,110000,100000];  // 末点最低 → 分位 0% → 利多
+  const INV_UP   = [100000,110000,120000,130000,140000];  // 末点最高 → 分位 80% → 利空
+  const PX_DOWN  = [4900,4850,4800,4750,4700];            // 末收盘 4700
+  const PX_UP    = [4600,4650,4700,4750,4800];            // 末收盘 4800
+
+  // ① 利多 + 价格偏高(4700>4650) → ⚠背离 → fc-sig-div（琥珀）
+  const hDiv = renderSig(INV_DOWN, PX_DOWN, 4500, 4650);
+  ok("背离：命中行高亮 fc-sig-div", /class="fc-sig fc-sig-div"/.test(hDiv), hDiv.slice(0,150));
+  ok("背离：仅高亮 1 行(信号行)", (hDiv.match(/fc-sig fc-sig-div/g)||[]).length === 1);
+  ok("背离：行带 title 悬浮说明", /title="库存×价格联动：⚠背离/.test(hDiv));
+
+  // ② 利多 + 价格偏低(4700<4750) → ⚡双多共振 → fc-sig-bull（绿，与主图竖线同色系）
+  const hBull = renderSig(INV_DOWN, PX_DOWN, 4750, 4900);
+  ok("双多共振：命中行高亮 fc-sig-bull", /class="fc-sig fc-sig-bull"/.test(hBull), hBull.slice(0,150));
+  ok("双多共振：仅高亮 1 行", (hBull.match(/fc-sig fc-sig-bull/g)||[]).length === 1);
+
+  // ③ 利空 + 价格偏高(4800>4700) → ⚡双空共振 → fc-sig-bear（红）
+  const hBear = renderSig(INV_UP, PX_UP, 4500, 4700);
+  ok("双空共振：命中行高亮 fc-sig-bear", /class="fc-sig fc-sig-bear"/.test(hBear), hBear.slice(0,150));
+
+  // ④ 价格在区间内(4800 ∈ [4700,4850]) → 无强共振 → 不应高亮
+  const hNone = renderSig(INV_UP, PX_UP, 4700, 4850);
+  ok("无共振(区间内)：不产生高亮行", !/class="fc-sig /.test(hNone), hNone.slice(0,150));
+
+  // ⑤ 双轴库存线精修：draw() 走通面积渐变分支（draw 首次进入单测覆盖）
+  gradCalls = 0;
+  let drawOk = true, drawErr = "";
+  try { sandbox.draw(); } catch(e){ drawOk = false; drawErr = e.message; }
+  ok("draw() 双轴渲染不抛错(含 setLineDash/渐变等 canvas API)", drawOk, drawErr);
+  ok("draw() 触发库存面积渐变(精修分支走通)", gradCalls > 0, "gradCalls=" + gradCalls);
+})();
 
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);

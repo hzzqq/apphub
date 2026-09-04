@@ -99,6 +99,14 @@
   .fctbl[contenteditable="true"] td{outline:1px dashed rgba(102,126,234,.45);outline-offset:-1px;cursor:text}
   .fctbl[contenteditable="true"] td:focus{outline:1px solid var(--g1);background:rgba(102,126,234,.08)}
   .fctbl .baseline td{color:var(--sub);font-style:italic}
+  /* 联动信号行自动高亮：背离=琥珀警示 / 双多共振=绿 / 双空共振=红（与主图联动竖线同色系） */
+  .fctbl tr.fc-sig td{font-weight:600}
+  .fctbl tr.fc-sig-div{background:rgba(255,169,77,.15)}
+  .fctbl tr.fc-sig-div td:first-child{box-shadow:inset 3px 0 0 #ffa94d}
+  .fctbl tr.fc-sig-bull{background:rgba(0,212,134,.13)}
+  .fctbl tr.fc-sig-bull td:first-child{box-shadow:inset 3px 0 0 #00d486}
+  .fctbl tr.fc-sig-bear{background:rgba(255,77,79,.13)}
+  .fctbl tr.fc-sig-bear td:first-child{box-shadow:inset 3px 0 0 #ff4d4f}
   .fctrigger{display:none;margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(255,77,79,.12);border:1px solid rgba(255,77,79,.4);color:var(--up);font-size:12.5px;line-height:1.6}
   .fctrigger.on{display:block}
   .fctrigger b{color:#fff}
@@ -216,7 +224,7 @@
     <div class="legend">
       <span><i style="background:var(--up)"></i>期货收盘价(涨红)</span>
       <span><i style="background:var(--down)"></i>期货收盘价(跌绿)</span>
-      <span><i style="background:var(--inv)"></i>库存(交易所仓单)</span>
+      <span><i style="background:var(--inv)"></i>库存(右轴 · 交易所仓单)</span>
       <span><i style="background:#b39ddb"></i>基差(现货-期货)</span>
     </div>
     <div id="invKpi" class="stats"></div>
@@ -1107,10 +1115,46 @@ function draw(){
   for(let g=0;g<=ticks;g++){ const i=Math.round((data.length-1)*g/ticks); const x=X(i); ctx.fillText(data[i].date.slice(5),x,padT+plotH+8); }
 
   if(hasInv){
-    // 库存线性图（黄色实线），缺失点自动断开
-    ctx.strokeStyle="#f6c453"; ctx.lineWidth=2; ctx.beginPath(); let started=false;
-    data.forEach((d,i)=>{ const v=getInvValue(d,metricKey); if(v==null){started=false;return;} const x=X(i),y=Yi(v); if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y); });
-    ctx.stroke();
+    // 收集有效库存点并按缺失点分段（保持"缺失点断开"语义，不跨空缺连线）
+    const invSegs=[]; let _seg=null;
+    data.forEach((d,i)=>{
+      const v=getInvValue(d,metricKey);
+      if(v==null){ if(_seg){ invSegs.push(_seg); _seg=null; } return; }
+      if(!_seg) _seg=[];
+      _seg.push({x:X(i), y:Yi(v)});
+    });
+    if(_seg) invSegs.push(_seg);
+    if(invSegs.length){
+      // 右轴轴线：锚定右侧库存刻度，明确"价格左轴 / 库存右轴"的双轴归属
+      ctx.save();
+      ctx.strokeStyle="rgba(246,196,83,.20)"; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(W-padR, padT); ctx.lineTo(W-padR, padT+plotH); ctx.stroke();
+      ctx.restore();
+      invSegs.forEach(seg=>{
+        // 库存面积渐变：作背景层（压在网格之上、价格线之下），避免与K线抢视觉
+        if(seg.length>1 && typeof ctx.createLinearGradient==="function"){
+          ctx.save();
+          const ig=ctx.createLinearGradient(0,padT,0,padT+plotH);
+          ig.addColorStop(0,"rgba(246,196,83,.20)");
+          ig.addColorStop(1,"rgba(246,196,83,0)");
+          ctx.beginPath();
+          ctx.moveTo(seg[0].x, padT+plotH);
+          seg.forEach(p=>ctx.lineTo(p.x,p.y));
+          ctx.lineTo(seg[seg.length-1].x, padT+plotH);
+          ctx.closePath(); ctx.fillStyle=ig; ctx.fill();
+          ctx.restore();
+        }
+        // 库存折线：略细于价格线（价格为主角、库存为副轴），逐段绘制
+        ctx.save();
+        ctx.strokeStyle="rgba(246,196,83,.9)"; ctx.lineWidth=1.6; ctx.beginPath();
+        seg.forEach((p,k)=>{ if(k===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+        ctx.stroke();
+        // 库存数据点：小圆点，便于逐点对齐右轴读数
+        ctx.fillStyle="rgba(246,196,83,.7)";
+        seg.forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,1.6,0,7); ctx.fill(); });
+        ctx.restore();
+      });
+    }
 
     // 库存发布节点标注：在发布日绘制增库/减库 + 吨数 + 星期
     const rel = releaseInfo(curExch, code);
@@ -4464,7 +4508,14 @@ function renderForecast(){
     const _zcR = fcPriceZoneCls(_px, zoneLow, zoneHigh);
     const _pxTxt = (_px==null) ? "—" : fcFmtPx(_px);
     const _confBadge = (r.report === _lastDate && _conf) ? (' <span class="ztag '+_conf.cls+'">'+_conf.tag+'</span>') : '';
-    return '<tr data-idx="'+i+'">'
+    // 联动信号行：当前真实日命中共振/背离时整行高亮（背离琥珀警示、共振同色），并给出悬浮说明
+    const _isSigRow = !!(_conf && r.report === _lastDate);
+    const _sigCls = _isSigRow
+      ? (_conf.tag.indexOf("背离")>=0 ? "fc-sig fc-sig-div"
+         : (_conf.cls==="price-below" ? "fc-sig fc-sig-bull" : "fc-sig fc-sig-bear"))
+      : "";
+    const _sigTitle = _isSigRow ? (' title="库存×价格联动：'+fcEsc(_conf.tag)+' · '+fcEsc(_conf.text)+'"') : '';
+    return '<tr data-idx="'+i+'"'+(_sigCls?(' class="'+_sigCls+'"'):'')+_sigTitle+'>'
       +'<td data-k="report">'+fcEsc(r.report||"")+'</td>'
       +'<td data-k="stat">'+fcEsc(r.stat||"")+'</td>'
       +'<td class="num" data-k="inv">'+fcFmt(r.inv)+'</td>'
