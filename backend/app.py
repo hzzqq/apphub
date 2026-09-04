@@ -63,6 +63,8 @@ import logging
 
 # 本地真实缓存目录 (fetch_real_futures.py 产出): backend/data/futures_<exch>_<symbol>.json
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+# 静态数据进程内缓存 {fname: (mtime, data)}，文件不变则不重复读盘+json.load
+_static_cache = {}
 
 # 前端根目录 (app 项目根, 即 backend/ 的上一级): 部署时后端顺带托管前端单文件 App
 APP_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1288,7 +1290,7 @@ def api_etf():
             if typ:
                 data = [x for x in data if x.get("type") == typ]
             return jsonify({"ok": True, "offline": True, "rows": data,
-                            "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "updated": _file_mtime("etf.json"),
                             "note": "离线静态样本(沙箱禁网)。有网环境 OFFLINE_MODE=False 即真实 ETF 行情。"})
         except Exception:
             return jsonify({"ok": True, "offline": True, "rows": [], "note": "本地 etf.json 缺失"})
@@ -1326,7 +1328,7 @@ def api_sector():
         try:
             data = _load_static("sector.json")
             return jsonify({"ok": True, "offline": True, "rows": data,
-                            "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "updated": _file_mtime("sector.json"),
                             "note": "离线静态样本。有网环境 OFFLINE_MODE=False 即真实板块行情。"})
         except Exception:
             return jsonify({"ok": True, "offline": True, "rows": [], "note": "本地 sector.json 缺失"})
@@ -1360,7 +1362,6 @@ def api_data():
     """通用静态数据托管: 工具类 app 读本地真实结构化 JSON/CSV, 避免 file:// 跨域。
        参数 file=文件名(限 data/ 目录下白名单)。"""
     fname = request.args.get("file", "").strip()
-    import os
     allowed = {
         "holdings.json", "stocknote.json", "trip.json", "desktop_pet.json",
         "health_check.json", "smart_order.json", "market_brief.json",
@@ -1375,7 +1376,7 @@ def api_data():
         return jsonify({"ok": False, "error": "文件不在白名单: %s" % fname}), 400
     try:
         fpath = os.path.join(DATA_DIR, fname)
-        mtime = datetime.now().strftime("%Y-%m-%d %H:%M:%S") if os.path.isfile(fpath) else None
+        mtime = _file_mtime(fname)
         data = _load_static(fname)
         return jsonify({"ok": True, "rows": data, "updated": mtime})
     except FileNotFoundError:
@@ -1403,11 +1404,26 @@ def api_futures_events():
 
 
 def _load_static(fname):
-    """从 backend/data/ 读 JSON 文件(项目内真实结构化数据)。"""
-    import os
-    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", fname)
+    """从 backend/data/ 读 JSON 文件(项目内真实结构化数据)，进程内带 mtime 失效缓存。"""
+    cached = _static_cache.get(fname)
+    if cached is not None:
+        mtime, data = cached
+        p = os.path.join(DATA_DIR, fname)
+        if os.path.isfile(p) and os.path.getmtime(p) == mtime:
+            return data
+    p = os.path.join(DATA_DIR, fname)
     with open(p, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    _static_cache[fname] = (os.path.getmtime(p), data)
+    return data
+
+
+def _file_mtime(fname):
+    """返回 data/ 下文件的真实修改时间(用作数据新鲜度 updated)，无则返回 None。"""
+    p = os.path.join(DATA_DIR, fname)
+    if os.path.isfile(p):
+        return datetime.fromtimestamp(os.path.getmtime(p)).strftime("%Y-%m-%d %H:%M:%S")
+    return None
 
 
 @app.route("/api/futures_spread", methods=["GET"])
@@ -1480,9 +1496,9 @@ def api_futures_spread():
 # 端点注册表: index 与 health 共用, 避免两处清单漂移(R3 DRY)
 ENDPOINTS = [
     "/api/health", "/api/futures", "/api/refresh", "/api/inventory_overview", "/api/eia_crude", "/api/corr_top", "/api/quote", "/api/shepherd",
-    "/api/blackswan", "/api/earnings", "/api/search", "/api/etf", "/api/sector",
-    "/api/data", "/api/futures_events", "/api/futures_spread", "/api/trading_agents",
-    "/api/llm", "/api/code_teacher", "/api/theme", "/api/data_status",
+    "/api/search", "/api/etf", "/api/sector",
+    "/api/data", "/api/futures_events", "/api/futures_spread",
+    "/api/llm", "/api/data_status",
     "/api/futures_chain",
 ]
 
@@ -1491,7 +1507,6 @@ ENDPOINTS = [
 def api_health():
     """轻量存活检查: 前端/监控可轮询确认后端在线与模式。
        返回 offline 标志、端点数、data 目录静态文件清单(供排查数据源是否就绪)。"""
-    import os
     data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
     data_files = sorted(f for f in os.listdir(data_dir)
                         if f.endswith(".json")) if os.path.isdir(data_dir) else []
@@ -1800,23 +1815,6 @@ def _blackswan_scan(code):
 
 
 # ───────── 新 App 数据端点: TradingAgents / 小狐狸讲代码 / 主题工坊 ─────────
-@app.route("/api/trading_agents", methods=["GET"])
-def api_trading_agents():
-    """TradingAgents 多智能体投研：返回智能体角色与示例报告。
-       有网时可接入真实 LLM/数据做推理；离线降级 data/trading_agents.json。"""
-    symbol = safe_code(request.args.get("symbol", "")) or "600519"
-    if OFFLINE_MODE:
-        data = _load_static("trading_agents.json")
-        return jsonify({"ok": True, "offline": True, "symbol": symbol,
-                        "agents": data.get("agents"), "report": data.get("sample_report"),
-                        "note": "离线演示样本。有网环境 OFFLINE_MODE=False 可接真实 LLM。"})
-    # 真网环境占位：未来可调用本地 LLM 或 agent 推理服务
-    data = _load_static("trading_agents.json")
-    return jsonify({"ok": True, "offline": False, "symbol": symbol,
-                    "agents": data.get("agents"), "report": data.get("sample_report"),
-                    "note": "真实推理接口待接入 LLM。"})
-
-
 @app.route("/api/llm", methods=["POST"])
 def api_llm():
     """统一 LLM 调用网关(供所有前端 App 复用)。
@@ -1864,25 +1862,6 @@ def api_llm():
             yield "data: " + json.dumps({"error": str(e)[:200]}, ensure_ascii=False) + "\n\n"
     return Response(stream_with_context(gen()), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
-
-
-@app.route("/api/code_teacher", methods=["GET"])
-def api_code_teacher():
-    """小狐狸讲代码：返回代码解释样本。
-       真网可接 LLM 做自然语言翻译；离线用 data/code_teacher.json。"""
-    code = safe_code(request.args.get("code", ""))
-    mode = cap_len(request.args.get("mode", "mom"), 8)
-    if mode not in ("mom", "brother", "plain"):
-        mode = "mom"
-    # 当前优先走本地样本, LLM 接入后再改; 离线/真网均先返回演示解释
-    data = _load_static("code_teacher.json")["examples"]
-    key = "loop" if "for" in code and "range" in code else (
-          "cond" if "if" in code and "else" in code else (
-          "func" if "def " in code else (
-          "list" if "[" in code and "]" in code else "default")))
-    return jsonify({"ok": True, "offline": True, "mode": mode,
-                    "text": data[key][mode],
-                    "note": "离线演示样本。有网环境可接 LLM 生成更生动解释。"})
 
 
 # ───────── 搜索: 股票/基金/期货/指数 ─────────

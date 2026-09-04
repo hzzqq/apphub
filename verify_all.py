@@ -114,8 +114,6 @@ def check_backend():
         ("/api/etf", 200),
         ("/api/sector", 200),
         ("/api/data?file=theme.json", 200),
-        ("/api/trading_agents", 200),
-        ("/api/code_teacher", 200),
         # 越权/参数错误应正确拒绝
         ("/api/data?file=../../etc/passwd", 400),
         ("/api/futures?mode=bogus", 400),
