@@ -54,7 +54,8 @@
   window.withCache=function(url){
     var p=window.cacheParams();
     if(!p) return url;
-    return url+(url.indexOf("?")>=0?"&":"")+p.slice(1);
+    // p 形如 "?ttl=60" / "?refresh=1"：原 URL 无 ? 时补 ?, 已有 ? 时用 &
+    return url+(url.indexOf("?")>=0?"&":"?")+p.slice(1);
   };
   function build(){
     if(document.getElementById("cacheBar"))return;
