@@ -1381,6 +1381,11 @@ def api_sector():
 @app.route("/api/market_cube", methods=["GET"])
 def api_market_cube():
     """市场数据魔方: 24 板块 × 近 8 周 × 5 指标 真实数据(akshare 行业板块)。
+    数据真实性说明:
+      - 涨跌幅/成交额/换手率: stock_board_industry_hist_em(period="w") 逐周真实
+      - 主力净流入: stock_sector_fund_flow_hist 每日主力净流入 按周聚合求和 -> 逐周真实
+      - 市盈率TTM: 免费 akshare 无行业逐周 PE(仅国证分类单日快照且不与东财板块名对齐),
+        故取 stock_board_industry_name_em 的当前真实快照, metric_meta 标 "snapshot"
     离线降级: 返回 offline=True, 前端用内置样本。"""
     # 与前端 market-cube 对齐的 24 板块: (前端名, 风格, 东方财富行业板块名)
     SECTOR_MAP = [
@@ -1398,6 +1403,7 @@ def api_market_cube():
                         "note": "离线模式(OFFLINE_MODE=True)，前端用内置样本。有网环境 OFFLINE_MODE=False 即真实板块行情。"})
     try:
         import akshare as ak
+        import pandas as pd
         def _num(v):
             try:
                 return float(v)
@@ -1409,9 +1415,13 @@ def api_market_cube():
             snap_recs[str(r.get("板块名称", "")).strip()] = r.to_dict()
         cube = []
         weeks_labels = []
+        metric_meta = {"chg": "weekly", "amt": "weekly", "turn": "weekly",
+                       "pe": "snapshot", "net": "weekly"}
         for _fname, _group, akname in SECTOR_MAP:
+            # --- 逐周真实: 周线行情(涨跌幅/成交额/换手率) ---
             row = []
             wlabels = []
+            week_ends = []
             try:
                 wk = ak.stock_board_industry_hist_em(symbol=akname, period="w")
                 wk = wk.tail(8)
@@ -1421,17 +1431,34 @@ def api_market_cube():
                     turn = _num(wr.get("换手率", 0))
                     row.append({"chg": round(chg, 2), "amt": round(amt, 0), "turn": round(turn, 2)})
                 wlabels = [str(d)[:10] for d in wk["日期"].tolist()]
+                week_ends = [pd.to_datetime(d) for d in wk["日期"].tolist()]
             except Exception:
                 row = []
             if not row:
                 row = [{"chg": 0, "amt": 0, "turn": 0} for _ in range(8)]
                 wlabels = weeks_labels or ["W-7", "W-6", "W-5", "W-4", "W-3", "W-2", "W-1", "本周"]
+                week_ends = [None] * 8
+            # --- 逐周真实: 主力净流入(每日资金流按周聚合求和) ---
+            net_weekly = [None] * len(row)
+            try:
+                ff = ak.stock_sector_fund_flow_hist(symbol=akname)
+                ff["日期"] = pd.to_datetime(ff["日期"])
+                for wi, we in enumerate(week_ends):
+                    if we is None:
+                        continue
+                    prev = week_ends[wi - 1] if wi > 0 else we - pd.Timedelta(days=7)
+                    mask = (ff["日期"] > prev) & (ff["日期"] <= we)
+                    net_weekly[wi] = ff.loc[mask, "主力净流入-净额"].sum() / 1e8
+            except Exception:
+                net_weekly = [None] * len(row)
+            # --- 市盈率: 当前真实快照(TTM), 免费 akshare 无行业逐周 PE ---
             rec = snap_recs.get(akname) or {}
             pe = _num(rec.get("市盈率", rec.get("市盈率-动态", 0))) if rec else 0
-            net = _num(rec.get("主力净流入-净额", rec.get("主力净流入", 0))) / 1e8 if rec else 0
-            for c in row:
+            snap_net = _num(rec.get("主力净流入-净额", rec.get("主力净流入", 0))) / 1e8 if rec else 0
+            for wi, c in enumerate(row):
                 c["pe"] = round(pe, 1)
-                c["net"] = round(net, 1)
+                nv = net_weekly[wi]
+                c["net"] = round(nv, 1) if nv is not None else round(snap_net, 1)
             cube.append(row)
             if not weeks_labels:
                 weeks_labels = wlabels
@@ -1439,7 +1466,7 @@ def api_market_cube():
             weeks_labels = ["W-7", "W-6", "W-5", "W-4", "W-3", "W-2", "W-1", "本周"]
         sectors = [{"n": n, "g": g} for n, g, _ in SECTOR_MAP]
         return jsonify({"ok": True, "offline": False, "sectors": sectors,
-                        "weeks": weeks_labels, "cube": cube,
+                        "weeks": weeks_labels, "cube": cube, "metric_meta": metric_meta,
                         "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
     except Exception as e:
         logger.warning("市场数据魔方真抓取失败, 前端用内置样本: %s", str(e)[:160])

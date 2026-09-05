@@ -47,6 +47,11 @@ a{color:var(--txt);text-decoration:none}
 .src b{color:var(--txt)}
 .src.live{border-color:rgba(0,212,134,.5)}
 .src.live b{color:#00d486}
+.metaLegend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;color:var(--sub);line-height:1.6}
+.metaLegend .tag{display:inline-flex;align-items:center;gap:5px;background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:4px 11px}
+.metaLegend .dot{width:8px;height:8px;border-radius:50%}
+.metaLegend .dot.wk{background:#00d486}
+.metaLegend .dot.snap{background:#f0a020}
 
 .tablewrap{overflow:auto;max-height:62vh}
 table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
@@ -106,6 +111,7 @@ td.cell:hover{filter:brightness(1.25)}
       <button class="btn ghost" id="csvBtn">导出 CSV</button>
     </div>
     <div class="summary" id="summary"></div>
+    <div class="metaLegend" id="metaLegend"></div>
     <div class="tablewrap"><table id="pivot"></table></div>
     <div class="hint">点单元格下钻看该板块×该周的全部指标；「旋转魔方」互换行列；切片按风格过滤板块。</div>
     <div class="detail" id="detail"></div>
@@ -185,6 +191,24 @@ function getVal(si,wi,mk){ return DATA[si][wi][mk]; }
 
 /* ============ 状态 ============ */
 var cfg = {rowDim:"sector", colDim:"week", metric:"chg", slice:"全部"};
+var METRIC_META = null;   // 真实接口返回的逐周/快照标记; null=离线模拟样本
+
+function renderMeta(){
+  var el=document.getElementById("metaLegend");
+  if(!el) return;
+  if(!METRIC_META){
+    el.innerHTML="<span class='tag'><span class='dot snap'></span>离线模拟样本（确定性生成，非真实行情）</span>";
+    return;
+  }
+  var wk=[], snap=[];
+  ["chg","amt","turn","pe","net"].forEach(function(mk){
+    (METRIC_META[mk]==="weekly"?wk:snap).push(METRICS[mk].n);
+  });
+  var h="";
+  if(wk.length) h+="<span class='tag'><span class='dot wk'></span>逐周真实："+wk.join(" · ")+"</span>";
+  if(snap.length) h+="<span class='tag'><span class='dot snap'></span>当前快照(非逐周)："+snap.join(" · ")+"（免费行情无行业逐周PE）</span>";
+  el.innerHTML=h;
+}
 
 /* ============ 维度成员 ============ */
 function sectorIdxs(){
@@ -323,6 +347,8 @@ function applyServer(j){
   DATA = j.cube.map(function(row){ return row.map(function(c){
     return {chg:c.chg, amt:c.amt, turn:c.turn, pe:c.pe, net:c.net};
   }); });
+  METRIC_META = j.metric_meta || null;
+  renderMeta();
 }
 function loadReal(){
   return new Promise(function(resolve){
@@ -332,12 +358,12 @@ function loadReal(){
     if(hub) urls.push(hub+"/api/market_cube");
     urls.push("/api/market_cube");
     (function next(i){
-      if(i>=urls.length || typeof fetch!=="function"){ setSource("离线样本", false); resolve(false); return; }
+      if(i>=urls.length || typeof fetch!=="function"){ METRIC_META=null; renderMeta(); setSource("离线样本", false); resolve(false); return; }
       fetch(urls[i], {cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error("bad"); return r.json(); })
         .then(function(j){
           if(j && j.ok && !j.offline && j.cube && j.cube.length){
             applyServer(j); setSource("实时 · "+(j.updated||""), true); resolve(true);
-          } else { setSource("离线样本", false); resolve(false); }
+          } else { METRIC_META=null; renderMeta(); setSource("离线样本", false); resolve(false); }
         })
         .catch(function(){ next(i+1); });
     })(0);
@@ -365,6 +391,7 @@ function init(){
   });
   document.getElementById("csvBtn").addEventListener("click", exportCSV);
 
+  renderMeta();   // 初始化图例(默认离线模拟样本)
   loadReal().then(function(){ render(); });
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);});}
