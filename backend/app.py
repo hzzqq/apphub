@@ -175,6 +175,11 @@ _LLM_CACHE_TTL = int(os.environ.get("LLM_CACHE_TTL", "3600"))
 _LLM_CACHE_MAX = int(os.environ.get("LLM_CACHE_MAX", "256"))  # 容量上限: 防长时间运行 OOM
 _BOOT_DT = datetime.now()  # 进程启动时刻, 供 /api/health 计算 uptime
 
+# 市场数据魔方缓存: 真抓 48 次 akshare 调用较重, TTL 内直接返回, 抗 eastmoney 限流/提速
+_MARKET_CUBE_TTL = int(os.environ.get("MARKET_CUBE_TTL", "1800"))  # 默认 30 分钟
+_MARKET_CUBE_CACHE = {"ts": 0.0, "data": None}  # {"ts": 时间戳, "data": 成功响应 dict}
+_MARKET_CUBE_LOCK = threading.Lock()
+
 
 def _llm_endpoint():
     if LLM_PROVIDER == "deepseek":
@@ -1389,6 +1394,47 @@ def api_market_cube():
         逐周 PE_t = 周收盘_t / EPS (EPS 按季更新, 8 周内近似恒定, 故逐周 PE 随真实周价格走),
         metric_meta 标 "weekly_pe"
     离线降级: 返回 offline=True, 前端用内置样本。"""
+    if OFFLINE_MODE:
+        return jsonify({"ok": True, "offline": True,
+                        "note": "离线模式(OFFLINE_MODE=True)，前端用内置样本。有网环境 OFFLINE_MODE=False 即真实板块行情。"})
+    # 1) 命中缓存(TTL 内) -> 直接返回, 不再打 48 次 akshare 调用
+    with _MARKET_CUBE_LOCK:
+        _cached = _MARKET_CUBE_CACHE["data"]
+        _cts = _MARKET_CUBE_CACHE["ts"]
+        _hit = _cached is not None and (_t.time() - _cts) < _MARKET_CUBE_TTL
+    if _hit:
+        resp = dict(_cached)
+        resp["cached"] = True
+        resp["cached_at"] = datetime.fromtimestamp(_cts).strftime("%Y-%m-%d %H:%M:%S")
+        return jsonify(resp)
+    # 2) 未命中 -> 真实抓取
+    try:
+        payload = _build_market_cube()
+        with _MARKET_CUBE_LOCK:
+            _MARKET_CUBE_CACHE["data"] = payload
+            _MARKET_CUBE_CACHE["ts"] = _t.time()
+        resp = dict(payload)
+        resp["cached"] = False
+        return jsonify(resp)
+    except Exception as e:
+        # 3) 抓取失败 -> 有陈旧缓存则回退(标注 stale), 否则离线样本
+        with _MARKET_CUBE_LOCK:
+            _cached = _MARKET_CUBE_CACHE["data"]
+            _cts = _MARKET_CUBE_CACHE["ts"]
+        if _cached is not None:
+            resp = dict(_cached)
+            resp["cached"] = True
+            resp["stale"] = True
+            resp["cached_at"] = datetime.fromtimestamp(_cts).strftime("%Y-%m-%d %H:%M:%S")
+            resp["note"] = "实时抓取失败, 回退缓存(可能非最新): " + str(e)[:80]
+            logger.warning("市场数据魔方真抓取失败, 回退缓存: %s", str(e)[:160])
+            return jsonify(resp)
+        logger.warning("市场数据魔方真抓取失败, 前端用内置样本: %s", str(e)[:160])
+        return jsonify({"ok": True, "offline": True, "note": "真实抓取失败, 前端用内置样本: " + str(e)[:80]})
+
+
+def _build_market_cube():
+    """真实抓取并组装 24 板块 × 近 8 周 × 5 指标; 失败抛异常由调用方处理(走缓存/离线降级)。"""
     # 与前端 market-cube 对齐的 24 板块: (前端名, 风格, 东方财富行业板块名)
     SECTOR_MAP = [
         ("银行", "金融", "银行"), ("证券", "金融", "证券"), ("保险", "金融", "保险"),
@@ -1400,90 +1446,83 @@ def api_market_cube():
         ("有色", "周期", "小金属"), ("化工", "周期", "化学制品"), ("建材", "周期", "装修建材"),
         ("地产", "周期", "房地产"), ("农牧", "消费", "农牧饲渔"), ("交运", "周期", "物流行业"),
     ]
-    if OFFLINE_MODE:
-        return jsonify({"ok": True, "offline": True,
-                        "note": "离线模式(OFFLINE_MODE=True)，前端用内置样本。有网环境 OFFLINE_MODE=False 即真实板块行情。"})
-    try:
-        import akshare as ak
-        import pandas as pd
-        def _num(v):
-            try:
-                return float(v)
-            except Exception:
-                return 0.0
-        snap = ak.stock_board_industry_name_em()
-        snap_recs = {}
-        for _, r in snap.iterrows():
-            snap_recs[str(r.get("板块名称", "")).strip()] = r.to_dict()
-        cube = []
-        weeks_labels = []
-        metric_meta = {"chg": "weekly", "amt": "weekly", "turn": "weekly",
-                       "pe": "weekly_pe", "net": "weekly"}
-        for _fname, _group, akname in SECTOR_MAP:
-            # --- 逐周真实: 周线行情(涨跌幅/成交额/换手率/收盘) ---
+    import akshare as ak
+    import pandas as pd
+    def _num(v):
+        try:
+            return float(v)
+        except Exception:
+            return 0.0
+    snap = ak.stock_board_industry_name_em()
+    snap_recs = {}
+    for _, r in snap.iterrows():
+        snap_recs[str(r.get("板块名称", "")).strip()] = r.to_dict()
+    cube = []
+    weeks_labels = []
+    metric_meta = {"chg": "weekly", "amt": "weekly", "turn": "weekly",
+                   "pe": "weekly_pe", "net": "weekly"}
+    for _fname, _group, akname in SECTOR_MAP:
+        # --- 逐周真实: 周线行情(涨跌幅/成交额/换手率/收盘) ---
+        row = []
+        closes = []
+        wlabels = []
+        week_ends = []
+        try:
+            wk = ak.stock_board_industry_hist_em(symbol=akname, period="w")
+            wk = wk.tail(8)
+            for _, wr in wk.iterrows():
+                chg = _num(wr.get("涨跌幅", 0))
+                amt = _num(wr.get("成交额", 0)) / 1e8
+                turn = _num(wr.get("换手率", 0))
+                row.append({"chg": round(chg, 2), "amt": round(amt, 0), "turn": round(turn, 2)})
+                closes.append(_num(wr.get("收盘", 0)))
+            wlabels = [str(d)[:10] for d in wk["日期"].tolist()]
+            week_ends = [pd.to_datetime(d) for d in wk["日期"].tolist()]
+        except Exception:
             row = []
-            closes = []
-            wlabels = []
-            week_ends = []
-            try:
-                wk = ak.stock_board_industry_hist_em(symbol=akname, period="w")
-                wk = wk.tail(8)
-                for _, wr in wk.iterrows():
-                    chg = _num(wr.get("涨跌幅", 0))
-                    amt = _num(wr.get("成交额", 0)) / 1e8
-                    turn = _num(wr.get("换手率", 0))
-                    row.append({"chg": round(chg, 2), "amt": round(amt, 0), "turn": round(turn, 2)})
-                    closes.append(_num(wr.get("收盘", 0)))
-                wlabels = [str(d)[:10] for d in wk["日期"].tolist()]
-                week_ends = [pd.to_datetime(d) for d in wk["日期"].tolist()]
-            except Exception:
-                row = []
-            if not row:
-                row = [{"chg": 0, "amt": 0, "turn": 0} for _ in range(8)]
-                closes = [0.0] * 8
-                wlabels = weeks_labels or ["W-7", "W-6", "W-5", "W-4", "W-3", "W-2", "W-1", "本周"]
-                week_ends = [None] * 8
-            # --- 逐周真实: 主力净流入(每日资金流按周聚合求和) ---
+        if not row:
+            row = [{"chg": 0, "amt": 0, "turn": 0} for _ in range(8)]
+            closes = [0.0] * 8
+            wlabels = weeks_labels or ["W-7", "W-6", "W-5", "W-4", "W-3", "W-2", "W-1", "本周"]
+            week_ends = [None] * 8
+        # --- 逐周真实: 主力净流入(每日资金流按周聚合求和) ---
+        net_weekly = [None] * len(row)
+        try:
+            ff = ak.stock_sector_fund_flow_hist(symbol=akname)
+            ff["日期"] = pd.to_datetime(ff["日期"])
+            for wi, we in enumerate(week_ends):
+                if we is None:
+                    continue
+                prev = week_ends[wi - 1] if wi > 0 else we - pd.Timedelta(days=7)
+                mask = (ff["日期"] > prev) & (ff["日期"] <= we)
+                net_weekly[wi] = ff.loc[mask, "主力净流入-净额"].sum() / 1e8
+        except Exception:
             net_weekly = [None] * len(row)
-            try:
-                ff = ak.stock_sector_fund_flow_hist(symbol=akname)
-                ff["日期"] = pd.to_datetime(ff["日期"])
-                for wi, we in enumerate(week_ends):
-                    if we is None:
-                        continue
-                    prev = week_ends[wi - 1] if wi > 0 else we - pd.Timedelta(days=7)
-                    mask = (ff["日期"] > prev) & (ff["日期"] <= we)
-                    net_weekly[wi] = ff.loc[mask, "主力净流入-净额"].sum() / 1e8
-            except Exception:
-                net_weekly = [None] * len(row)
-            # --- 市盈率: 逐周真实(价格驱动, EPS 取最新 TTM 静态) ---
-            # 最新 PE = 最新收盘 / EPS  =>  EPS = 最新收盘 / 最新PE
-            # 逐周 PE_t = 周收盘_t / EPS = 周收盘_t * 最新PE / 最新收盘
-            # (EPS 按季更新, 8 周内近似恒定, 故逐周 PE 随真实周价格走 -> 真实周度行为)
-            rec = snap_recs.get(akname) or {}
-            snap_pe = _num(rec.get("市盈率", rec.get("市盈率-动态", 0))) if rec else 0
-            snap_net = _num(rec.get("主力净流入-净额", rec.get("主力净流入", 0))) / 1e8 if rec else 0
-            last_close = closes[-1] if closes else 0.0
-            eps = (last_close / snap_pe) if (snap_pe > 0 and last_close > 0) else 0.0
-            for wi, c in enumerate(row):
-                if eps > 0 and closes[wi] > 0:
-                    c["pe"] = round(closes[wi] / eps, 1)
-                else:
-                    c["pe"] = round(snap_pe, 1)
-                nv = net_weekly[wi]
-                c["net"] = round(nv, 1) if nv is not None else round(snap_net, 1)
-            cube.append(row)
-            if not weeks_labels:
-                weeks_labels = wlabels
+        # --- 市盈率: 逐周真实(价格驱动, EPS 取最新 TTM 静态) ---
+        # 最新 PE = 最新收盘 / EPS  =>  EPS = 最新收盘 / 最新PE
+        # 逐周 PE_t = 周收盘_t / EPS = 周收盘_t * 最新PE / 最新收盘
+        # (EPS 按季更新, 8 周内近似恒定, 故逐周 PE 随真实周价格走 -> 真实周度行为)
+        rec = snap_recs.get(akname) or {}
+        snap_pe = _num(rec.get("市盈率", rec.get("市盈率-动态", 0))) if rec else 0
+        snap_net = _num(rec.get("主力净流入-净额", rec.get("主力净流入", 0))) / 1e8 if rec else 0
+        last_close = closes[-1] if closes else 0.0
+        eps = (last_close / snap_pe) if (snap_pe > 0 and last_close > 0) else 0.0
+        for wi, c in enumerate(row):
+            if eps > 0 and closes[wi] > 0:
+                c["pe"] = round(closes[wi] / eps, 1)
+            else:
+                c["pe"] = round(snap_pe, 1)
+            nv = net_weekly[wi]
+            c["net"] = round(nv, 1) if nv is not None else round(snap_net, 1)
+        cube.append(row)
         if not weeks_labels:
-            weeks_labels = ["W-7", "W-6", "W-5", "W-4", "W-3", "W-2", "W-1", "本周"]
-        sectors = [{"n": n, "g": g} for n, g, _ in SECTOR_MAP]
-        return jsonify({"ok": True, "offline": False, "sectors": sectors,
-                        "weeks": weeks_labels, "cube": cube, "metric_meta": metric_meta,
-                        "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
-    except Exception as e:
-        logger.warning("市场数据魔方真抓取失败, 前端用内置样本: %s", str(e)[:160])
-        return jsonify({"ok": True, "offline": True, "note": "真实抓取失败, 前端用内置样本: " + str(e)[:80]})
+            weeks_labels = wlabels
+    if not weeks_labels:
+        weeks_labels = ["W-7", "W-6", "W-5", "W-4", "W-3", "W-2", "W-1", "本周"]
+    sectors = [{"n": n, "g": g} for n, g, _ in SECTOR_MAP]
+    return {"ok": True, "offline": False, "sectors": sectors,
+            "weeks": weeks_labels, "cube": cube, "metric_meta": metric_meta,
+            "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 
 @app.route("/api/data", methods=["GET"])
