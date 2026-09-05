@@ -1385,7 +1385,9 @@ def api_market_cube():
       - 涨跌幅/成交额/换手率: stock_board_industry_hist_em(period="w") 逐周真实
       - 主力净流入: stock_sector_fund_flow_hist 每日主力净流入 按周聚合求和 -> 逐周真实
       - 市盈率TTM: 免费 akshare 无行业逐周 PE(仅国证分类单日快照且不与东财板块名对齐),
-        故取 stock_board_industry_name_em 的当前真实快照, metric_meta 标 "snapshot"
+        逐周真实改用"价格驱动"法: 用周线 收盘 + 快照 市盈率TTM 反推最新 EPS,
+        逐周 PE_t = 周收盘_t / EPS (EPS 按季更新, 8 周内近似恒定, 故逐周 PE 随真实周价格走),
+        metric_meta 标 "weekly_pe"
     离线降级: 返回 offline=True, 前端用内置样本。"""
     # 与前端 market-cube 对齐的 24 板块: (前端名, 风格, 东方财富行业板块名)
     SECTOR_MAP = [
@@ -1416,10 +1418,11 @@ def api_market_cube():
         cube = []
         weeks_labels = []
         metric_meta = {"chg": "weekly", "amt": "weekly", "turn": "weekly",
-                       "pe": "snapshot", "net": "weekly"}
+                       "pe": "weekly_pe", "net": "weekly"}
         for _fname, _group, akname in SECTOR_MAP:
-            # --- 逐周真实: 周线行情(涨跌幅/成交额/换手率) ---
+            # --- 逐周真实: 周线行情(涨跌幅/成交额/换手率/收盘) ---
             row = []
+            closes = []
             wlabels = []
             week_ends = []
             try:
@@ -1430,12 +1433,14 @@ def api_market_cube():
                     amt = _num(wr.get("成交额", 0)) / 1e8
                     turn = _num(wr.get("换手率", 0))
                     row.append({"chg": round(chg, 2), "amt": round(amt, 0), "turn": round(turn, 2)})
+                    closes.append(_num(wr.get("收盘", 0)))
                 wlabels = [str(d)[:10] for d in wk["日期"].tolist()]
                 week_ends = [pd.to_datetime(d) for d in wk["日期"].tolist()]
             except Exception:
                 row = []
             if not row:
                 row = [{"chg": 0, "amt": 0, "turn": 0} for _ in range(8)]
+                closes = [0.0] * 8
                 wlabels = weeks_labels or ["W-7", "W-6", "W-5", "W-4", "W-3", "W-2", "W-1", "本周"]
                 week_ends = [None] * 8
             # --- 逐周真实: 主力净流入(每日资金流按周聚合求和) ---
@@ -1451,12 +1456,20 @@ def api_market_cube():
                     net_weekly[wi] = ff.loc[mask, "主力净流入-净额"].sum() / 1e8
             except Exception:
                 net_weekly = [None] * len(row)
-            # --- 市盈率: 当前真实快照(TTM), 免费 akshare 无行业逐周 PE ---
+            # --- 市盈率: 逐周真实(价格驱动, EPS 取最新 TTM 静态) ---
+            # 最新 PE = 最新收盘 / EPS  =>  EPS = 最新收盘 / 最新PE
+            # 逐周 PE_t = 周收盘_t / EPS = 周收盘_t * 最新PE / 最新收盘
+            # (EPS 按季更新, 8 周内近似恒定, 故逐周 PE 随真实周价格走 -> 真实周度行为)
             rec = snap_recs.get(akname) or {}
-            pe = _num(rec.get("市盈率", rec.get("市盈率-动态", 0))) if rec else 0
+            snap_pe = _num(rec.get("市盈率", rec.get("市盈率-动态", 0))) if rec else 0
             snap_net = _num(rec.get("主力净流入-净额", rec.get("主力净流入", 0))) / 1e8 if rec else 0
+            last_close = closes[-1] if closes else 0.0
+            eps = (last_close / snap_pe) if (snap_pe > 0 and last_close > 0) else 0.0
             for wi, c in enumerate(row):
-                c["pe"] = round(pe, 1)
+                if eps > 0 and closes[wi] > 0:
+                    c["pe"] = round(closes[wi] / eps, 1)
+                else:
+                    c["pe"] = round(snap_pe, 1)
                 nv = net_weekly[wi]
                 c["net"] = round(nv, 1) if nv is not None else round(snap_net, 1)
             cube.append(row)

@@ -202,11 +202,17 @@ function renderMeta(){
   }
   var wk=[], snap=[];
   ["chg","amt","turn","pe","net"].forEach(function(mk){
-    (METRIC_META[mk]==="weekly"?wk:snap).push(METRICS[mk].n);
+    var m=METRIC_META[mk]||"";
+    if(m.indexOf("weekly")===0){
+      var label = mk==="pe" ? "市盈率TTM(逐周·价驱EPS静态)" : METRICS[mk].n;
+      wk.push(label);
+    } else {
+      snap.push(METRICS[mk].n);
+    }
   });
   var h="";
   if(wk.length) h+="<span class='tag'><span class='dot wk'></span>逐周真实："+wk.join(" · ")+"</span>";
-  if(snap.length) h+="<span class='tag'><span class='dot snap'></span>当前快照(非逐周)："+snap.join(" · ")+"（免费行情无行业逐周PE）</span>";
+  if(snap.length) h+="<span class='tag'><span class='dot snap'></span>当前快照(非逐周)："+snap.join(" · ")+"</span>";
   el.innerHTML=h;
 }
 
