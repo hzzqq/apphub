@@ -39,6 +39,33 @@
 </style>
 </head>
 <body>
+<script type="text/javascript">
+(function(){
+  window.cacheParams=function(){
+    try{
+      var ref=document.getElementById("refreshChk");
+      if(ref&&ref.checked) return "?refresh=1";
+      var t=document.getElementById("ttlSel");
+      if(t&&t.value!=="") return "?ttl="+encodeURIComponent(t.value);
+    }catch(e){}
+    return "";
+  };
+  window.withCache=function(url){
+    var p=window.cacheParams();
+    if(!p) return url;
+    return url+(url.indexOf("?")>=0?"&":"")+p.slice(1);
+  };
+  function build(){
+    if(document.getElementById("cacheBar"))return;
+    var bar=document.createElement("div");
+    bar.id="cacheBar";
+    bar.innerHTML='<span style="opacity:.8">缓存</span><select id="ttlSel" style="background:#222;color:#eee;border:1px solid #555;border-radius:5px;padding:2px 4px;font-size:12px"><option value="">默认</option><option value="0">强制刷新</option><option value="15">15秒</option><option value="60">1分钟</option><option value="300">5分钟</option><option value="1800">30分钟</option><option value="3600">1小时</option></select><label style="display:flex;align-items:center;gap:3px;font-size:12px"><input type="checkbox" id="refreshChk"> 绕过缓存</label>';
+    bar.style.cssText="position:fixed;right:10px;bottom:10px;z-index:9999;background:rgba(18,18,28,.92);color:#ddd;border:1px solid #444;border-radius:9px;padding:6px 9px;font:12px/1.4 system-ui;display:flex;gap:8px;align-items:center;box-shadow:0 3px 10px rgba(0,0,0,.45)";
+    document.body.appendChild(bar);
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",build);else build();
+})();
+</script>
   <a class="hubhome" aria-label="返回 App 大厅" href="../index.html" title="返回 App 大厅">🏠 大厅</a>
 
 <h1>🤖 智能条件单</h1>
@@ -120,7 +147,8 @@ async function fetchReal(){
   let okCount=0, offlineCount=0, _lastUpd=null;
   for(const o of ORDERS){
     try{
-      const r=await fetch(API_ROOT+"/api/quote?code="+encodeURIComponent(o.code),{cache:"no-store"});
+      const _u=API_ROOT+"/api/quote?code="+encodeURIComponent(o.code);
+      const r=await fetch((typeof withCache==='function'?withCache(_u):_u),{cache:"no-store"});
       if(r.ok){ const j=await r.json(); if(j.ok && j.price!=null){ o.cur=j.price; o.realName=j.name||o.name; okCount++; if(j.offline) offlineCount++; if(j.updated) _lastUpd=j.updated; check(o); } }
     }catch(e){ console.warn("quote 失败",o.code,e); }
   }

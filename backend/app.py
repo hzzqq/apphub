@@ -229,6 +229,25 @@ _ETF_TTL = int(os.environ.get("ETF_TTL", "60"))                    # ETF 行情 
 _QUOTE_TTL = int(os.environ.get("QUOTE_TTL", "15"))                # 个股实时价 15s(近实时)
 _CHAIN_TTL = int(os.environ.get("CHAIN_TTL", "600"))               # 产业链/矩阵 10min(日频数据)
 
+def _req_ttl(default_ttl):
+    """从请求参数读取可选 ttl(秒), 覆盖该次请求的命中窗口; 越界/非法回退默认。
+    - ttl=0 或 refresh=1 -> 强制绕过缓存(每次真抓), 等价于"强制刷新"
+    - 上限 86400(1天), 防滥用把进程缓存窗口拉爆"""
+    try:
+        if (request.args.get("refresh") or "") in ("1", "true", "yes"):
+            return 0
+        raw = request.args.get("ttl")
+        if raw is None or raw == "":
+            return default_ttl
+        v = int(raw)
+        if v < 0:
+            v = 0
+        if v > 86400:
+            v = 86400
+        return v
+    except Exception:
+        return default_ttl
+
 
 def _llm_endpoint():
     if LLM_PROVIDER == "deepseek":
@@ -1030,7 +1049,7 @@ def api_futures_chain():
         return jsonify({"ok": False, "error": "分析引擎 futures_chain 未加载"}), 500
     key = "chain:%s:%s:%s:%s" % (symbol, exchange, from_d or "", to_d or "")
     data, ts = _cache_get(key)
-    if data is not None and (_t.time() - ts) < _CHAIN_TTL:
+    if data is not None and (_t.time() - ts) < _req_ttl(_CHAIN_TTL):
         return jsonify(dict(data))
     try:
         res = futures_chain.api_chain(symbol, exchange, from_date=from_d, to_date=to_d)
@@ -1115,7 +1134,7 @@ def api_futures_sector_matrix():
     to_d = (request.args.get("to") or "").strip() or None
     key = "matrix:" + syms
     data, ts = _cache_get(key)
-    if data is not None and (_t.time() - ts) < _CHAIN_TTL:
+    if data is not None and (_t.time() - ts) < _req_ttl(_CHAIN_TTL):
         return jsonify(dict(data))
     if syms:
         varieties = []
@@ -1198,7 +1217,7 @@ def api_quote():
                         "name": code, "price": price, "prev": prev,
                         "chg": chg, "updated": None,
                         "note": "离线样本(确定性, 同代码价格稳定)。有网环境填新浪接口即真行情。"})
-    resp, stale = _cached_build("quote:" + code, _QUOTE_TTL, lambda: _build_quote_live(code))
+    resp, stale = _cached_build("quote:" + code, _req_ttl(_QUOTE_TTL), lambda: _build_quote_live(code))
     if resp is None:
         logger.exception("quote 真抓取全失败(无缓存)")
         return jsonify({"ok": False, "error": "行情抓取失败"}), 500
@@ -1245,7 +1264,7 @@ def api_shepherd():
     if OFFLINE_MODE:
         r = _shepherd_offline()
     else:
-        resp, stale = _cached_build("shepherd", _SHEP_TTL, _shepherd_live)
+        resp, stale = _cached_build("shepherd", _req_ttl(_SHEP_TTL), _shepherd_live)
         if resp is None:
             r = _shepherd_offline(extra_note="真抓取失败且无缓存")
         else:
@@ -1395,7 +1414,7 @@ def api_etf():
                             "note": "离线静态样本(沙箱禁网)。有网环境 OFFLINE_MODE=False 即真实 ETF 行情。"})
         except Exception:
             return jsonify({"ok": True, "offline": True, "rows": [], "note": "本地 etf.json 缺失"})
-    resp, stale = _cached_build("etf", _ETF_TTL, lambda: _build_etf_live(typ))
+    resp, stale = _cached_build("etf", _req_ttl(_ETF_TTL), lambda: _build_etf_live(typ))
     if resp is None:
         try:
             data = _load_static("etf.json")
@@ -1437,7 +1456,7 @@ def api_sector():
                             "note": "离线静态样本。有网环境 OFFLINE_MODE=False 即真实板块行情。"})
         except Exception:
             return jsonify({"ok": True, "offline": True, "rows": [], "note": "本地 sector.json 缺失"})
-    resp, stale = _cached_build("sector", _SECTOR_TTL, _build_sector_live)
+    resp, stale = _cached_build("sector", _req_ttl(_SECTOR_TTL), _build_sector_live)
     if resp is None:
         try:
             data = _load_static("sector.json")
@@ -1481,7 +1500,7 @@ def api_market_cube():
         return jsonify({"ok": True, "offline": True,
                         "note": "离线模式(OFFLINE_MODE=True)，前端用内置样本。有网环境 OFFLINE_MODE=False 即真实板块行情。"})
     # TTL 缓存壳: 命中直返 / 未命中真抓 / 失败回退陈旧缓存(标 stale) 或离线样本
-    resp, stale = _cached_build("market_cube", _MARKET_CUBE_TTL, _build_market_cube)
+    resp, stale = _cached_build("market_cube", _req_ttl(_MARKET_CUBE_TTL), _build_market_cube)
     if resp is None:
         return jsonify({"ok": True, "offline": True,
                         "note": "真实抓取失败且无缓存, 前端用内置样本。"})
