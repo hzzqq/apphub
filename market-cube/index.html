@@ -43,6 +43,10 @@ a{color:var(--txt);text-decoration:none}
 .summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .summary .b{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:8px 14px;font-size:12.5px;color:var(--sub)}
 .summary .b b{color:var(--txt);font-size:17px;margin-right:4px}
+.src{display:inline-block;background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:5px 13px;font-size:12px;color:var(--sub);margin-bottom:12px}
+.src b{color:var(--txt)}
+.src.live{border-color:rgba(0,212,134,.5)}
+.src.live b{color:#00d486}
 
 .tablewrap{overflow:auto;max-height:62vh}
 table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
@@ -79,6 +83,7 @@ td.cell:hover{filter:brightness(1.25)}
 
   <div class="card">
     <h2>魔方配置（选维度即可旋转/切片）</h2>
+    <div class="src" id="src">数据来源：<b>离线样本</b></div>
     <div class="toolbar">
       <div class="field"><label>行维度</label><select id="rowDim">
         <option value="sector">板块</option><option value="week">时间(周)</option>
@@ -305,6 +310,40 @@ function exportCSV(){
   }catch(e){ alert("导出失败："+e); }
 }
 
+/* ============ 真实行情接入（三级降级） ============ */
+function setSource(txt, live){
+  var el=document.getElementById("src");
+  if(!el) return;
+  el.className = "src" + (live ? " live" : "");
+  el.innerHTML = "数据来源：<b>"+esc(txt)+"</b>";
+}
+function applyServer(j){
+  SECTORS = j.sectors.map(function(s){ return {n:s.n, g:s.g}; });
+  WEEKS = j.weeks.slice();
+  DATA = j.cube.map(function(row){ return row.map(function(c){
+    return {chg:c.chg, amt:c.amt, turn:c.turn, pe:c.pe, net:c.net};
+  }); });
+}
+function loadReal(){
+  return new Promise(function(resolve){
+    var hub="";
+    try{ hub=(localStorage.getItem("hub_api")||"").replace(/\/$/,""); }catch(e){ hub=""; }
+    var urls=[];
+    if(hub) urls.push(hub+"/api/market_cube");
+    urls.push("/api/market_cube");
+    (function next(i){
+      if(i>=urls.length || typeof fetch!=="function"){ setSource("离线样本", false); resolve(false); return; }
+      fetch(urls[i], {cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error("bad"); return r.json(); })
+        .then(function(j){
+          if(j && j.ok && !j.offline && j.cube && j.cube.length){
+            applyServer(j); setSource("实时 · "+(j.updated||""), true); resolve(true);
+          } else { setSource("离线样本", false); resolve(false); }
+        })
+        .catch(function(){ next(i+1); });
+    })(0);
+  });
+}
+
 /* ============ 持久化 ============ */
 function saveCfg(){ try{ localStorage.setItem("market_cube_cfg_v1", JSON.stringify(cfg)); }catch(e){} }
 function loadCfg(){ try{ var c=JSON.parse(localStorage.getItem("market_cube_cfg_v1")); if(c) cfg=c; }catch(e){} }
@@ -326,7 +365,7 @@ function init(){
   });
   document.getElementById("csvBtn").addEventListener("click", exportCSV);
 
-  render();
+  loadReal().then(function(){ render(); });
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);});}
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init);

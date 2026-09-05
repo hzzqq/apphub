@@ -1378,6 +1378,74 @@ def api_sector():
             return jsonify({"ok": False, "error": str(e)[:200]}), 500
 
 
+@app.route("/api/market_cube", methods=["GET"])
+def api_market_cube():
+    """市场数据魔方: 24 板块 × 近 8 周 × 5 指标 真实数据(akshare 行业板块)。
+    离线降级: 返回 offline=True, 前端用内置样本。"""
+    # 与前端 market-cube 对齐的 24 板块: (前端名, 风格, 东方财富行业板块名)
+    SECTOR_MAP = [
+        ("银行", "金融", "银行"), ("证券", "金融", "证券"), ("保险", "金融", "保险"),
+        ("白酒", "消费", "白酒"), ("食品饮料", "消费", "食品饮料"), ("家电", "消费", "家电行业"),
+        ("医药", "消费", "医药"), ("半导体", "科技", "半导体"), ("计算机", "科技", "软件开发"),
+        ("通信", "科技", "通信设备"), ("传媒", "科技", "文化传媒"), ("新能源", "制造", "电池"),
+        ("汽车", "制造", "汽车整车"), ("机械", "制造", "通用设备"), ("军工", "制造", "军工"),
+        ("电力", "周期", "电力"), ("煤炭", "周期", "煤炭行业"), ("钢铁", "周期", "钢铁行业"),
+        ("有色", "周期", "小金属"), ("化工", "周期", "化学制品"), ("建材", "周期", "装修建材"),
+        ("地产", "周期", "房地产"), ("农牧", "消费", "农牧饲渔"), ("交运", "周期", "物流行业"),
+    ]
+    if OFFLINE_MODE:
+        return jsonify({"ok": True, "offline": True,
+                        "note": "离线模式(OFFLINE_MODE=True)，前端用内置样本。有网环境 OFFLINE_MODE=False 即真实板块行情。"})
+    try:
+        import akshare as ak
+        def _num(v):
+            try:
+                return float(v)
+            except Exception:
+                return 0.0
+        snap = ak.stock_board_industry_name_em()
+        snap_recs = {}
+        for _, r in snap.iterrows():
+            snap_recs[str(r.get("板块名称", "")).strip()] = r.to_dict()
+        cube = []
+        weeks_labels = []
+        for _fname, _group, akname in SECTOR_MAP:
+            row = []
+            wlabels = []
+            try:
+                wk = ak.stock_board_industry_hist_em(symbol=akname, period="w")
+                wk = wk.tail(8)
+                for _, wr in wk.iterrows():
+                    chg = _num(wr.get("涨跌幅", 0))
+                    amt = _num(wr.get("成交额", 0)) / 1e8
+                    turn = _num(wr.get("换手率", 0))
+                    row.append({"chg": round(chg, 2), "amt": round(amt, 0), "turn": round(turn, 2)})
+                wlabels = [str(d)[:10] for d in wk["日期"].tolist()]
+            except Exception:
+                row = []
+            if not row:
+                row = [{"chg": 0, "amt": 0, "turn": 0} for _ in range(8)]
+                wlabels = weeks_labels or ["W-7", "W-6", "W-5", "W-4", "W-3", "W-2", "W-1", "本周"]
+            rec = snap_recs.get(akname) or {}
+            pe = _num(rec.get("市盈率", rec.get("市盈率-动态", 0))) if rec else 0
+            net = _num(rec.get("主力净流入-净额", rec.get("主力净流入", 0))) / 1e8 if rec else 0
+            for c in row:
+                c["pe"] = round(pe, 1)
+                c["net"] = round(net, 1)
+            cube.append(row)
+            if not weeks_labels:
+                weeks_labels = wlabels
+        if not weeks_labels:
+            weeks_labels = ["W-7", "W-6", "W-5", "W-4", "W-3", "W-2", "W-1", "本周"]
+        sectors = [{"n": n, "g": g} for n, g, _ in SECTOR_MAP]
+        return jsonify({"ok": True, "offline": False, "sectors": sectors,
+                        "weeks": weeks_labels, "cube": cube,
+                        "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+    except Exception as e:
+        logger.warning("市场数据魔方真抓取失败, 前端用内置样本: %s", str(e)[:160])
+        return jsonify({"ok": True, "offline": True, "note": "真实抓取失败, 前端用内置样本: " + str(e)[:80]})
+
+
 @app.route("/api/data", methods=["GET"])
 def api_data():
     """通用静态数据托管: 工具类 app 读本地真实结构化 JSON/CSV, 避免 file:// 跨域。
@@ -1531,7 +1599,7 @@ def api_futures_spread():
 # 端点注册表: index 与 health 共用, 避免两处清单漂移(R3 DRY)
 ENDPOINTS = [
     "/api/health", "/api/info", "/api/futures", "/api/refresh", "/api/inventory_overview", "/api/eia_crude", "/api/corr_top", "/api/quote", "/api/shepherd",
-    "/api/search", "/api/etf", "/api/sector",
+    "/api/search", "/api/etf", "/api/sector", "/api/market_cube",
     "/api/data", "/api/futures_events", "/api/futures_spread",
     "/api/llm", "/api/data_status",
     "/api/futures_chain",
