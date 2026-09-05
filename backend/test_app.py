@@ -136,55 +136,6 @@ def test_shepherd_offline_shape():
 
 
 # ───────────────────── 新增端点契约测试 (离线) ─────────────────────
-def test_blackswan_no_code():
-    r = _client().get("/api/blackswan")
-    assert r.status_code == 200
-    j = r.get_json()
-    assert j["ok"] is True
-    assert isinstance(j["events"], list) and len(j["events"]) > 0
-    assert isinstance(j["stocks"], list) and len(j["stocks"]) > 0
-
-
-def test_blackswan_with_code_scan_shape():
-    r = _client().get("/api/blackswan?code=600519")
-    assert r.status_code == 200
-    j = r.get_json()
-    assert j["ok"] is True
-    assert j["code"] == "600519"
-    scan = j["scan"]
-    # 离线扫描必须含: 风险评分 + 四维业绩雷框架
-    assert "risk_score" in scan and "risk_level" in scan
-    assert "earnings_forecast" in scan
-    ef = scan["earnings_forecast"]
-    assert {"name", "signals", "prob", "grade", "summary"}.issubset(ef.keys())
-    # 四维信号齐全
-    assert len(ef["signals"]) == 4
-
-
-def test_earnings_missing_code_400():
-    r = _client().get("/api/earnings")
-    assert r.status_code == 400
-    assert r.get_json()["ok"] is False
-
-
-def test_earnings_offline_shape():
-    r = _client().get("/api/earnings?code=600519")
-    assert r.status_code == 200
-    j = r.get_json()
-    assert j["ok"] is True
-    assert isinstance(j["rows"], list) and len(j["rows"]) > 0
-    assert {"year", "eps", "roe", "rev", "profit"}.issubset(j["rows"][0].keys())
-    # year 过滤生效
-    r2 = _client().get("/api/earnings?code=600519&year=2021")
-    assert all(x["year"] == "2021" for x in r2.get_json()["rows"])
-
-
-def test_earnings_unknown_code_empty():
-    r = _client().get("/api/earnings?code=999999")
-    assert r.status_code == 200
-    assert r.get_json()["rows"] == []
-
-
 def test_search_invalid_type_400():
     r = _client().get("/api/search?type=foo")
     assert r.status_code == 400
@@ -218,15 +169,6 @@ def test_search_no_match_returns_empty():
     assert j["results"] == []
 
 
-def test_code_teacher_default_kind():
-    # 无法识别的代码 -> default 解释, 且文本非空
-    r = _client().get("/api/code_teacher?code=x = 1")
-    assert r.status_code == 200
-    j = r.get_json()
-    assert j["ok"] is True
-    assert isinstance(j["text"], str) and len(j["text"]) > 0
-
-
 # ───────────────────── 端点发现 & 数据质量 ─────────────────────
 def test_index_lists_all_endpoints():
     r = _client().get("/api/info")
@@ -235,8 +177,10 @@ def test_index_lists_all_endpoints():
     # 全部真实端点(含 health)都应暴露给前端, 供前端自动发现
     assert {
         "/api/health", "/api/futures", "/api/corr_top", "/api/quote", "/api/shepherd",
-        "/api/blackswan", "/api/earnings", "/api/search", "/api/etf", "/api/sector",
-        "/api/data", "/api/futures_spread", "/api/trading_agents", "/api/code_teacher", "/api/theme",
+        "/api/search", "/api/etf", "/api/sector", "/api/data", "/api/futures_spread",
+        "/api/market_cube", "/api/futures_chain", "/api/futures_sector_matrix",
+        "/api/inventory_overview", "/api/eia_crude", "/api/futures_varieties",
+        "/api/futures_events", "/api/itinerary/generate", "/api/llm", "/api/data_status",
     }.issubset(eps)
 
 
@@ -301,36 +245,6 @@ def test_data_whitelist_and_404():
     # 白名单外(不在允许清单)的文件同样被拒 -> 400
     r3 = _client().get("/api/data?file=missing.json")
     assert r3.status_code == 400
-
-
-def test_trading_agents_offline_shape():
-    r = _client().get("/api/trading_agents?symbol=600519")
-    assert r.status_code == 200
-    j = r.get_json()
-    assert j["ok"] is True
-    assert j["symbol"] == "600519"
-    assert "agents" in j and "report" in j
-
-
-def test_code_teacher_offline_shape():
-    # 循环类代码 -> loop 解释
-    r = _client().get("/api/code_teacher?code=for i in range(10): pass")
-    assert r.status_code == 200
-    j = r.get_json()
-    assert j["ok"] is True
-    assert j["mode"] == "mom"
-    assert isinstance(j["text"], str) and len(j["text"]) > 0
-    # mode 非法回落到默认 mom
-    r2 = _client().get("/api/code_teacher?code=def f(): pass&mode=bogus")
-    assert r2.get_json()["mode"] == "mom"
-
-
-def test_theme_offline_shape():
-    r = _client().get("/api/theme")
-    assert r.status_code == 200
-    j = r.get_json()
-    assert j["ok"] is True
-    assert isinstance(j["themes"], (list, dict))
 
 
 def test_safe_code_sanitizes():

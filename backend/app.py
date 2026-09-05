@@ -1755,7 +1755,7 @@ ENDPOINTS = [
     "/api/search", "/api/etf", "/api/sector", "/api/market_cube",
     "/api/data", "/api/futures_events", "/api/futures_spread",
     "/api/llm", "/api/data_status",
-    "/api/futures_chain",
+    "/api/futures_chain", "/api/futures_sector_matrix", "/api/futures_varieties", "/api/itinerary/generate",
 ]
 
 
