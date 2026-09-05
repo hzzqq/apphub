@@ -175,10 +175,59 @@ _LLM_CACHE_TTL = int(os.environ.get("LLM_CACHE_TTL", "3600"))
 _LLM_CACHE_MAX = int(os.environ.get("LLM_CACHE_MAX", "256"))  # 容量上限: 防长时间运行 OOM
 _BOOT_DT = datetime.now()  # 进程启动时刻, 供 /api/health 计算 uptime
 
-# 市场数据魔方缓存: 真抓 48 次 akshare 调用较重, TTL 内直接返回, 抗 eastmoney 限流/提速
-_MARKET_CUBE_TTL = int(os.environ.get("MARKET_CUBE_TTL", "1800"))  # 默认 30 分钟
-_MARKET_CUBE_CACHE = {"ts": 0.0, "data": None}  # {"ts": 时间戳, "data": 成功响应 dict}
-_MARKET_CUBE_LOCK = threading.Lock()
+# ───────────────────────── 通用 TTL 缓存壳 (多端点复用) ─────────────────────────
+# 多个"真抓/重计算"端点共用: TTL 内直返 / 未命中真抓 / 抓取失败回退陈旧(标 stale)。
+# 既抗 eastmoney 限流, 又避免每次请求重复打 akshare 或重算。
+_CACHE_STORE = {}                       # key -> {"ts": float, "data": dict}
+_CACHE_LOCK = threading.Lock()
+
+def _cache_get(key):
+    with _CACHE_LOCK:
+        e = _CACHE_STORE.get(key)
+        if e is None:
+            return None, 0.0
+        return e["data"], e["ts"]
+
+def _cache_put(key, data):
+    with _CACHE_LOCK:
+        _CACHE_STORE[key] = {"ts": _t.time(), "data": data}
+
+def _cached_build(key, ttl, builder):
+    """返回 (resp_dict_or_None, stale_bool)。
+    - 命中(TTL内): 返回缓存副本(带 cached/cached_at), stale=False
+    - 未命中: 跑 builder() 成功 -> (新数据, False); 抛异常 -> 有陈旧则 (陈旧副本, True 带 stale/note), 否则 (None, False)
+    builder 异常绝不向上冒泡(由陈旧/None 处理), 调用方据此决定离线兜底或报错。"""
+    data, ts = _cache_get(key)
+    if data is not None and (_t.time() - ts) < ttl:
+        r = dict(data)
+        r["cached"] = True
+        r["cached_at"] = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+        return r, False
+    try:
+        payload = builder()
+        _cache_put(key, payload)
+        r = dict(payload)
+        r["cached"] = False
+        return r, False
+    except Exception as e:
+        if data is not None:
+            r = dict(data)
+            r["cached"] = True
+            r["stale"] = True
+            r["cached_at"] = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+            r["note"] = (r.get("note") or "") + " | 实时抓取失败, 回退缓存(可能非最新): " + str(e)[:80]
+            logger.warning("%s 真抓取失败, 回退缓存: %s", key, str(e)[:160])
+            return r, True
+        logger.warning("%s 真抓取失败, 无可用缓存: %s", key, str(e)[:160])
+        return None, False
+
+# 各端点 TTL(秒, 均可环境变量覆盖): 快照/情绪类长, 实时价短
+_MARKET_CUBE_TTL = int(os.environ.get("MARKET_CUBE_TTL", "1800"))  # 市场魔方 30min
+_SHEP_TTL = int(os.environ.get("SHEP_TTL", "1800"))                # 牧羊人情绪 30min(日频)
+_SECTOR_TTL = int(os.environ.get("SECTOR_TTL", "1800"))            # 行业板块 30min
+_ETF_TTL = int(os.environ.get("ETF_TTL", "60"))                    # ETF 行情 60s
+_QUOTE_TTL = int(os.environ.get("QUOTE_TTL", "15"))                # 个股实时价 15s(近实时)
+_CHAIN_TTL = int(os.environ.get("CHAIN_TTL", "600"))               # 产业链/矩阵 10min(日频数据)
 
 
 def _llm_endpoint():
@@ -957,7 +1006,8 @@ def api_corr_top():
 def api_futures_chain():
     """期货产业链联动分析：给定品种代码+交易所，返回跨品种相关性 + 产业链传导报告(HTML)。
     参数: symbol(代码, 如 sp) exchange(SHFE/DCE/CZCE/INE) [from(YYYY-MM-DD)] [to(YYYY-MM-DD)]
-    exchange 缺省或非法时，自动按 backend/data 缓存的品种-交易所映射推断，推断不到才报错。"""
+    exchange 缺省或非法时，自动按 backend/data 缓存的品种-交易所映射推断，推断不到才报错。
+    结果缓存 _CHAIN_TTL 秒(日频数据), 计算异常回退陈旧缓存(标 stale)。"""
     symbol = safe_code(request.args.get("symbol", "sp"))
     req_ex = (request.args.get("exchange") or "").strip().upper()
     from_d = (request.args.get("from") or "").strip() or None
@@ -978,15 +1028,25 @@ def api_futures_chain():
                             "error": "无法识别品种 %s 的交易所（传入 exchange=%r 非法，且 data/ 缓存未找到对应 futures_*.json）。请显式传 exchange=SHFE/DCE/CZCE/INE" % (symbol, req_ex)}), 400
     if not _HAS_FUTURES_CHAIN:
         return jsonify({"ok": False, "error": "分析引擎 futures_chain 未加载"}), 500
+    key = "chain:%s:%s:%s:%s" % (symbol, exchange, from_d or "", to_d or "")
+    data, ts = _cache_get(key)
+    if data is not None and (_t.time() - ts) < _CHAIN_TTL:
+        return jsonify(dict(data))
     try:
         res = futures_chain.api_chain(symbol, exchange, from_date=from_d, to_date=to_d)
-        if not res.get("ok"):
-            err = res.get("data", {}).get("error") or res.get("error") or "分析失败"
-            return jsonify({"ok": False, "error": err}), 404
-        return jsonify(res)
     except Exception as e:
+        if data is not None:
+            r = dict(data); r["cached"] = True; r["stale"] = True
+            r["cached_at"] = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+            logger.warning("futures_chain 计算异常, 回退缓存: %s", str(e)[:160])
+            return jsonify(r)
         logger.exception("futures_chain 处理异常")
         return jsonify({"ok": False, "error": "分析异常: %s" % e}), 500
+    if not res.get("ok"):
+        err = res.get("data", {}).get("error") or res.get("error") or "分析失败"
+        return jsonify({"ok": False, "error": err}), 404
+    _cache_put(key, res)
+    return jsonify(res)
 
 
 # 板块共振全景矩阵的默认品种组合：老板 6 实盘打头 + 覆盖全部 11 板块的代表品种（共 24 个），
@@ -1046,12 +1106,17 @@ def api_futures_sector_matrix():
     """板块共振全景矩阵：给定一组品种（默认覆盖 15 个代表品种），返回 品种 × 板块 的共振强度矩阵。
     参数 symbols 可选，格式 "rb:SHFE,cu:SHFE"（SYM:EX 显式）或 "rb,cu"（自动推断交易所）。
     返回 {"ok", "rows":[{symbol,exchange,name,vol,beta,cells:{sector:{raw,partial}}}], "sectors":[...]}。
-    可选 from/to（YYYY-MM-DD）限定时间区间，看特定窗口的板块共振结构。"""
+    可选 from/to（YYYY-MM-DD）限定时间区间，看特定窗口的板块共振结构。
+    结果缓存 _CHAIN_TTL 秒(日频数据), 计算异常回退陈旧缓存(标 stale)。"""
     if not _HAS_FUTURES_CHAIN:
         return jsonify({"ok": False, "error": "分析引擎 futures_chain 未加载"}), 500
     syms = (request.args.get("symbols") or "").strip()
     from_d = (request.args.get("from") or "").strip() or None
     to_d = (request.args.get("to") or "").strip() or None
+    key = "matrix:" + syms
+    data, ts = _cache_get(key)
+    if data is not None and (_t.time() - ts) < _CHAIN_TTL:
+        return jsonify(dict(data))
     if syms:
         varieties = []
         for part in syms.split(","):
@@ -1072,17 +1137,23 @@ def api_futures_sector_matrix():
         return jsonify({"ok": False, "error": "无有效品种（symbols 解析为空或全部交易所推断失败）"}), 400
     try:
         res = futures_chain._sector_matrix(varieties, from_date=from_d, to_date=to_d)
-        if not res.get("ok"):
-            return jsonify({"ok": False, "error": res.get("error", "矩阵计算失败")}), 404
-        res["available"] = _list_available_varieties()
-        res["default"] = ["%s:%s" % (s, e) for s, e in MATRIX_VARIETIES]
-        res["from"] = from_d
-        res["to"] = to_d
-        res["updated"] = _cache_newest_mtime()
-        return jsonify(res)
     except Exception as e:
+        if data is not None:
+            r = dict(data); r["cached"] = True; r["stale"] = True
+            r["cached_at"] = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+            logger.warning("futures_sector_matrix 计算异常, 回退缓存: %s", str(e)[:160])
+            return jsonify(r)
         logger.exception("futures_sector_matrix 处理异常")
         return jsonify({"ok": False, "error": "矩阵异常: %s" % e}), 500
+    if not res.get("ok"):
+        return jsonify({"ok": False, "error": res.get("error", "矩阵计算失败")}), 404
+    res["available"] = _list_available_varieties()
+    res["default"] = ["%s:%s" % (s, e) for s, e in MATRIX_VARIETIES]
+    res["from"] = from_d
+    res["to"] = to_d
+    res["updated"] = _cache_newest_mtime()
+    _cache_put(key, res)
+    return jsonify(res)
 
 
 @app.route("/api/itinerary/generate", methods=["POST"])
@@ -1113,7 +1184,8 @@ def api_itinerary_generate():
 
 @app.route("/api/quote", methods=["GET"])
 def api_quote():
-    """股票实时行情, 模仿 StockSignal: 新浪 hq.sinajs.cn + akshare 兜底。"""
+    """股票实时行情, 模仿 StockSignal: 新浪 hq.sinajs.cn + akshare 兜底。
+    结果按 code 缓存 _QUOTE_TTL 秒(近实时), 抗新浪/东财限流。"""
     code = safe_code(request.args.get("code", "sh600519"))  # 带交易所前缀
     if OFFLINE_MODE:
         # 离线样本: 基于 code 的确定性伪随机(同 code 同价, 演示稳定不抖动)
@@ -1126,14 +1198,21 @@ def api_quote():
                         "name": code, "price": price, "prev": prev,
                         "chg": chg, "updated": None,
                         "note": "离线样本(确定性, 同代码价格稳定)。有网环境填新浪接口即真行情。"})
+    resp, stale = _cached_build("quote:" + code, _QUOTE_TTL, lambda: _build_quote_live(code))
+    if resp is None:
+        logger.exception("quote 真抓取全失败(无缓存)")
+        return jsonify({"ok": False, "error": "行情抓取失败"}), 500
+    return jsonify(resp)
+
+
+def _build_quote_live(code):
+    """真·StockSignal 风格: 新浪 + GBK + Referer; 失败转 akshare 全市场快照兜底。"""
     try:
-        # 真·StockSignal 风格: 新浪 + GBK + Referer
-        import urllib.request
         url = f"https://hq.sinajs.cn/list={code}"
-        req = urllib.request.Request(url, headers={
+        req = _ureq.Request(url, headers={
             "Referer": "https://finance.sina.com.cn",
             "User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=8) as resp:
+        with _ureq.urlopen(req, timeout=8) as resp:
             raw = resp.read().decode("gbk")
         seg = raw.split('"')
         if len(seg) < 2:
@@ -1143,38 +1222,34 @@ def api_quote():
             raise ValueError("新浪返回字段不足: %r" % parts[:8])
         name, price, prev = parts[0], float(parts[3]), float(parts[2])
         chg = round((price - prev) / prev * 100, 2)
-        return jsonify({"ok": True, "offline": False, "name": name,
-                        "price": price, "prev": prev, "chg": chg,
-                        "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+        return {"ok": True, "offline": False, "name": name, "price": price,
+                "prev": prev, "chg": chg,
+                "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
     except Exception as e:
         logger.warning("新浪行情失败, 转 akshare 兜底: %s", str(e)[:120])
-        # akshare 兜底
-        try:
-            import akshare as ak
-            df = ak.stock_zh_a_spot_em()
-            row = df[df["代码"] == code[2:]].iloc[0]
-            return jsonify({"ok": True, "offline": False, "name": row["名称"],
-                            "price": float(row["最新价"]), "prev": float(row["昨收"]),
-                            "chg": round(float(row["涨跌幅"]), 2),
-                            "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
-        except Exception as e2:
-            logger.exception("quote 兜底也失败")
-            return jsonify({"ok": False, "error": str(e2)[:200]}), 500
+        import akshare as ak
+        df = ak.stock_zh_a_spot_em()
+        row = df[df["代码"] == code[2:]].iloc[0]
+        return {"ok": True, "offline": False, "name": row["名称"],
+                "price": float(row["最新价"]), "prev": float(row["昨收"]),
+                "chg": round(float(row["涨跌幅"]), 2),
+                "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 
 @app.route("/api/shepherd", methods=["GET"])
 def api_shepherd():
     """牧羊人8项情绪指标 + 综合温度(0-100)。模仿 StockSignal modules/shepherd.py。
     离线: 返回内置演示快照 + 样本历史(供分位打分)。
-    真网: akshare stock_market_activity_legu + stock_zt_pool_em + stock_zt_pool_previous_em。"""
+    真网: akshare stock_market_activity_legu + stock_zt_pool_em + stock_zt_pool_previous_em。
+    结果缓存 _SHEP_TTL 秒(日频数据), 抓取失败回退陈旧缓存或离线快照。"""
     if OFFLINE_MODE:
         r = _shepherd_offline()
     else:
-        try:
-            r = _shepherd_live()
-        except Exception as e:
-            logger.warning("shepherd 真抓取失败, 回退离线: %s", str(e)[:120])
-            r = _shepherd_offline(extra_note="真抓取失败:" + str(e)[:120])
+        resp, stale = _cached_build("shepherd", _SHEP_TTL, _shepherd_live)
+        if resp is None:
+            r = _shepherd_offline(extra_note="真抓取失败且无缓存")
+        else:
+            r = resp
     r["updated"] = r.get("date") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return jsonify(r)
 
@@ -1308,7 +1383,7 @@ def _shepherd_live():
 @app.route("/api/etf", methods=["GET"])
 def api_etf():
     """ETF 实时行情 + 规模 + 费率的真实数据(akshare)。
-       离线降级到 data/etf.json 静态真实样本(非随机, 取自公开披露快照)。"""
+       离线降级到 data/etf.json 静态真实样本(非随机, 取自公开披露快照)。结果缓存 _ETF_TTL 秒。"""
     typ = request.args.get("type", "")
     if OFFLINE_MODE:
         try:
@@ -1320,36 +1395,40 @@ def api_etf():
                             "note": "离线静态样本(沙箱禁网)。有网环境 OFFLINE_MODE=False 即真实 ETF 行情。"})
         except Exception:
             return jsonify({"ok": True, "offline": True, "rows": [], "note": "本地 etf.json 缺失"})
-    try:
-        import akshare as ak
-        df = ak.fund_etf_spot_em()
-        rows = []
-        for _, r in df.iterrows():
-            rows.append({
-                "code": str(r["代码"]), "name": str(r["名称"]),
-                "type": str(r.get("类型", "")),
-                "price": float(r.get("最新价", 0) or 0),
-                "chg": float(r.get("涨跌幅", 0) or 0),
-                "amount": float(r.get("成交额", 0) or 0),
-                "turnover": float(r.get("换手率", 0) or 0),
-            })
-        if typ:
-            rows = [x for x in rows if x["type"] == typ]
-        return jsonify({"ok": True, "offline": False, "rows": rows[:200],
-                        "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
-    except Exception as e:
-        logger.warning("ETF 真抓取失败, 回退静态: %s", str(e)[:120])
+    resp, stale = _cached_build("etf", _ETF_TTL, lambda: _build_etf_live(typ))
+    if resp is None:
         try:
             data = _load_static("etf.json")
             return jsonify({"ok": True, "offline": True, "rows": data,
-                            "note": "真实抓取失败, 回退静态样本: " + str(e)[:80]})
+                            "note": "真实抓取失败, 回退静态样本"})
         except Exception:
-            return jsonify({"ok": False, "error": str(e)[:200]}), 500
+            return jsonify({"ok": False, "error": "ETF 抓取与静态均失败"}), 500
+    resp["updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return jsonify(resp)
+
+
+def _build_etf_live(typ):
+    import akshare as ak
+    df = ak.fund_etf_spot_em()
+    rows = []
+    for _, r in df.iterrows():
+        rows.append({
+            "code": str(r["代码"]), "name": str(r["名称"]),
+            "type": str(r.get("类型", "")),
+            "price": float(r.get("最新价", 0) or 0),
+            "chg": float(r.get("涨跌幅", 0) or 0),
+            "amount": float(r.get("成交额", 0) or 0),
+            "turnover": float(r.get("换手率", 0) or 0),
+        })
+    if typ:
+        rows = [x for x in rows if x["type"] == typ]
+    return {"ok": True, "offline": False, "rows": rows[:200],
+            "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 
 @app.route("/api/sector", methods=["GET"])
 def api_sector():
-    """板块实时涨跌幅(akshare 行业板块)。离线降级 data/sector.json。"""
+    """板块实时涨跌幅(akshare 行业板块)。离线降级 data/sector.json。结果缓存 _SECTOR_TTL 秒。"""
     if OFFLINE_MODE:
         try:
             data = _load_static("sector.json")
@@ -1358,29 +1437,33 @@ def api_sector():
                             "note": "离线静态样本。有网环境 OFFLINE_MODE=False 即真实板块行情。"})
         except Exception:
             return jsonify({"ok": True, "offline": True, "rows": [], "note": "本地 sector.json 缺失"})
-    try:
-        import akshare as ak
-        df = ak.stock_board_industry_name_em()
-        rows = []
-        for _, r in df.iterrows():
-            chg = float(r.get("涨跌幅", 0) or 0)
-            rows.append({
-                "name": str(r["板块名称"]),
-                "chg": chg,
-                "strength5": round(chg / 10.0, 3),  # 粗略 5 日强度代理(真网可换 5 日数据)
-                "turnover": float(r.get("换手率", 0) or 0),
-                "leader": str(r.get("领涨股", "")),
-            })
-        return jsonify({"ok": True, "offline": False, "rows": rows,
-                        "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
-    except Exception as e:
-        logger.warning("板块真抓取失败, 回退静态: %s", str(e)[:120])
+    resp, stale = _cached_build("sector", _SECTOR_TTL, _build_sector_live)
+    if resp is None:
         try:
             data = _load_static("sector.json")
             return jsonify({"ok": True, "offline": True, "rows": data,
-                            "note": "真实抓取失败, 回退静态样本: " + str(e)[:80]})
+                            "note": "真实抓取失败, 回退静态样本"})
         except Exception:
-            return jsonify({"ok": False, "error": str(e)[:200]}), 500
+            return jsonify({"ok": False, "error": "板块抓取与静态均失败"}), 500
+    resp["updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return jsonify(resp)
+
+
+def _build_sector_live():
+    import akshare as ak
+    df = ak.stock_board_industry_name_em()
+    rows = []
+    for _, r in df.iterrows():
+        chg = float(r.get("涨跌幅", 0) or 0)
+        rows.append({
+            "name": str(r["板块名称"]),
+            "chg": chg,
+            "strength5": round(chg / 10.0, 3),  # 粗略 5 日强度代理(真网可换 5 日数据)
+            "turnover": float(r.get("换手率", 0) or 0),
+            "leader": str(r.get("领涨股", "")),
+        })
+    return {"ok": True, "offline": False, "rows": rows,
+            "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 
 @app.route("/api/market_cube", methods=["GET"])
@@ -1397,40 +1480,12 @@ def api_market_cube():
     if OFFLINE_MODE:
         return jsonify({"ok": True, "offline": True,
                         "note": "离线模式(OFFLINE_MODE=True)，前端用内置样本。有网环境 OFFLINE_MODE=False 即真实板块行情。"})
-    # 1) 命中缓存(TTL 内) -> 直接返回, 不再打 48 次 akshare 调用
-    with _MARKET_CUBE_LOCK:
-        _cached = _MARKET_CUBE_CACHE["data"]
-        _cts = _MARKET_CUBE_CACHE["ts"]
-        _hit = _cached is not None and (_t.time() - _cts) < _MARKET_CUBE_TTL
-    if _hit:
-        resp = dict(_cached)
-        resp["cached"] = True
-        resp["cached_at"] = datetime.fromtimestamp(_cts).strftime("%Y-%m-%d %H:%M:%S")
-        return jsonify(resp)
-    # 2) 未命中 -> 真实抓取
-    try:
-        payload = _build_market_cube()
-        with _MARKET_CUBE_LOCK:
-            _MARKET_CUBE_CACHE["data"] = payload
-            _MARKET_CUBE_CACHE["ts"] = _t.time()
-        resp = dict(payload)
-        resp["cached"] = False
-        return jsonify(resp)
-    except Exception as e:
-        # 3) 抓取失败 -> 有陈旧缓存则回退(标注 stale), 否则离线样本
-        with _MARKET_CUBE_LOCK:
-            _cached = _MARKET_CUBE_CACHE["data"]
-            _cts = _MARKET_CUBE_CACHE["ts"]
-        if _cached is not None:
-            resp = dict(_cached)
-            resp["cached"] = True
-            resp["stale"] = True
-            resp["cached_at"] = datetime.fromtimestamp(_cts).strftime("%Y-%m-%d %H:%M:%S")
-            resp["note"] = "实时抓取失败, 回退缓存(可能非最新): " + str(e)[:80]
-            logger.warning("市场数据魔方真抓取失败, 回退缓存: %s", str(e)[:160])
-            return jsonify(resp)
-        logger.warning("市场数据魔方真抓取失败, 前端用内置样本: %s", str(e)[:160])
-        return jsonify({"ok": True, "offline": True, "note": "真实抓取失败, 前端用内置样本: " + str(e)[:80]})
+    # TTL 缓存壳: 命中直返 / 未命中真抓 / 失败回退陈旧缓存(标 stale) 或离线样本
+    resp, stale = _cached_build("market_cube", _MARKET_CUBE_TTL, _build_market_cube)
+    if resp is None:
+        return jsonify({"ok": True, "offline": True,
+                        "note": "真实抓取失败且无缓存, 前端用内置样本。"})
+    return jsonify(resp)
 
 
 def _build_market_cube():
