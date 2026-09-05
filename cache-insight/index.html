@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>缓存洞察 · CacheInsight</title>
+<style>
+  :root{
+    --bg:#0f1020; --panel:#1a1b2e; --panel2:#23243a; --line:#2e2f4a;
+    --text:#e8e9f3; --sub:#9aa0c0; --accent:#7c8cff; --green:#00d486;
+    --red:#ff6b6b; --amber:#ffb454; --chip:#2a2c46;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;padding:22px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--sub);margin:0 0 16px;font-size:13px}
+  a.hubhome{position:fixed;left:12px;top:12px;z-index:50;text-decoration:none;
+    background:var(--chip);color:var(--text);padding:5px 10px;border-radius:8px;font-size:12px}
+  .status{display:inline-flex;align-items:center;gap:7px;font-size:13px;margin-bottom:16px;
+    padding:6px 12px;border-radius:9px;background:var(--panel);border:1px solid var(--line)}
+  .dot{width:9px;height:9px;border-radius:50%}
+  .dot.ok{background:var(--green)} .dot.bad{background:var(--red)}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card .k{color:var(--sub);font-size:12px;letter-spacing:.3px}
+  .card .v{font-size:26px;font-weight:700;margin-top:4px}
+  .v.green{color:var(--green)} .v.red{color:var(--red)} .v.amber{color:var(--amber)} .v.accent{color:var(--accent)}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  button{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:8px 14px;
+    font-size:13px;cursor:pointer;font-weight:600}
+  button.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+  button.danger{background:transparent;color:var(--red);border:1px solid var(--red)}
+  label.tog{display:inline-flex;align-items:center;gap:6px;color:var(--sub);font-size:13px;cursor:pointer}
+  .tbl{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;overflow:hidden}
+  .tbl th,.tbl td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:13px}
+  .tbl th{color:var(--sub);font-weight:600;background:var(--panel2)}
+  .tbl tr:last-child td{border-bottom:0}
+  .tbl td.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--accent)}
+  .bar{height:6px;border-radius:3px;background:var(--accent);display:inline-block;vertical-align:middle}
+  .empty{color:var(--sub);padding:24px;text-align:center}
+  .note{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--panel);
+    border:1px solid var(--line);color:var(--sub);font-size:13px;line-height:1.6}
+  .note code{background:var(--chip);padding:1px 6px;border-radius:5px;color:var(--text)}
+</style>
+</head>
+<body>
+<a class="hubhome" href="../index.html">🏠 大厅</a>
+<h1>🔍 缓存洞察 · CacheInsight</h1>
+<p class="sub">后端进程内缓存可观测面板 —— 命中 / 未命中 / 陈旧回退 / 构建错误，以及每个缓存键的年龄与体积。</p>
+
+<div class="status"><span id="dot" class="dot bad"></span><span id="statusTxt">未连接</span></div>
+
+<div class="cards">
+  <div class="card"><div class="k">缓存命中</div><div id="vHits" class="v green">–</div></div>
+  <div class="card"><div class="k">未命中(真抓)</div><div id="vMiss" class="v amber">–</div></div>
+  <div class="card"><div class="k">陈旧回退</div><div id="vStale" class="v red">–</div></div>
+  <div class="card"><div class="k">构建错误</div><div id="vErr" class="v red">–</div></div>
+</div>
+
+<div class="toolbar">
+  <button id="refreshBtn">↻ 刷新</button>
+  <button id="clearBtn" class="danger">🗑 清空缓存</button>
+  <label class="tog"><input type="checkbox" id="autoChk"> 自动刷新(5s)</label>
+</div>
+
+<table class="tbl" id="tbl">
+  <thead><tr><th>缓存键</th><th>年龄(s)</th><th>体积(B)</th><th>命中</th><th>未命中</th><th>新鲜度</th></tr></thead>
+  <tbody id="tbody"><tr><td colspan="6" class="empty">暂无数据</td></tr></tbody>
+</table>
+
+<div class="note" id="note">
+  提示：本面板需要经<b>后端</b>访问（经 <code>http://&lt;host&gt;:8787/cache-insight/</code> 打开）。
+  若以 <code>file://</code> 双击打开则无法读取缓存统计。点「清空缓存」会清空后端进程内全部缓存，
+  下次请求将重新真实抓取（不删除磁盘数据）。
+</div>
+
+<script>
+(function(){
+  // 仅当经后端(http/https)托管时, /api 才可用
+  function apiBase(){
+    if(location.protocol === "file:") return null;
+    return location.origin;
+  }
+  var base = apiBase();
+  var dot = document.getElementById("dot");
+  var statusTxt = document.getElementById("statusTxt");
+  var autoTimer = null;
+
+  function fmt(n){ return (n==null?0:n).toLocaleString("en-US"); }
+  function freshness(ageSec){
+    // 仅作直观指示: <60s 绿, <600s 黄, 否则红
+    if(ageSec < 60)  return {c:"var(--green)", w:100};
+    if(ageSec < 600) return {c:"var(--amber)", w:60};
+    return {c:"var(--red)", w:25};
+  }
+
+  function render(j){
+    if(!j || j.ok !== true){
+      setStatus(false, "后端返回异常");
+      return;
+    }
+    setStatus(true, "已连接 · 缓存键 " + j.store_keys);
+    document.getElementById("vHits").textContent  = fmt(j.hits);
+    document.getElementById("vMiss").textContent  = fmt(j.misses);
+    document.getElementById("vStale").textContent = fmt(j.stale_hits);
+    document.getElementById("vErr").textContent   = fmt(j.build_errors);
+
+    var keys = j.keys || {};
+    var names = Object.keys(keys);
+    var tbody = document.getElementById("tbody");
+    if(names.length === 0){
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">缓存为空（尚未有请求命中缓存）</td></tr>';
+      return;
+    }
+    names.sort();
+    var rows = names.map(function(k){
+      var s = keys[k];
+      var f = freshness(s.age_seconds);
+      return '<tr>'+
+        '<td class="mono">'+escapeHtml(k)+'</td>'+
+        '<td>'+fmt(s.age_seconds)+'</td>'+
+        '<td>'+fmt(s.size_bytes)+'</td>'+
+        '<td>'+fmt(s.hits)+'</td>'+
+        '<td>'+fmt(s.misses)+'</td>'+
+        '<td><span class="bar" style="width:'+f.w+'px;background:'+f.c+'"></span></td>'+
+      '</tr>';
+    }).join("");
+    tbody.innerHTML = rows;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function setStatus(ok, txt){
+    dot.className = "dot " + (ok ? "ok" : "bad");
+    statusTxt.textContent = txt;
+  }
+
+  function load(){
+    if(!base){
+      setStatus(false, "请以 http 方式通过后端访问本面板");
+      document.getElementById("tbody").innerHTML =
+        '<tr><td colspan="6" class="empty">未连接到后端（file:// 模式）。请通过 http://&lt;host&gt;:8787/cache-insight/ 打开。</td></tr>';
+      return;
+    }
+    fetch(base + "/api/cache/stats", {cache:"no-store"}).then(function(r){
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return r.json();
+    }).then(render).catch(function(e){
+      setStatus(false, "无法读取统计: " + e.message);
+    });
+  }
+
+  function clearCache(){
+    if(!base){ alert("未连接到后端，无法清空缓存。"); return; }
+    if(!confirm("确认清空后端全部进程内缓存？下次请求将重新真实抓取。")) return;
+    fetch(base + "/api/cache/clear", {method:"POST"}).then(function(r){
+      return r.json();
+    }).then(function(j){
+      load();
+      alert("已清空 " + (j.cleared!=null?j.cleared:"?") + " 个缓存键。");
+    }).catch(function(e){
+      alert("清空失败: " + e.message);
+    });
+  }
+
+  document.getElementById("refreshBtn").addEventListener("click", load);
+  document.getElementById("clearBtn").addEventListener("click", clearCache);
+  document.getElementById("autoChk").addEventListener("change", function(e){
+    if(autoTimer){ clearInterval(autoTimer); autoTimer = null; }
+    if(e.target.checked){ autoTimer = setInterval(load, 5000); }
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>
