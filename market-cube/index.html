@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>市场数据魔方</title>
+<style>
+:root{
+  --bg:#0B0B0F; --card:#14141B; --card2:#1B1B24; --line:rgba(255,255,255,.09);
+  --txt:#F5F5F7; --sub:#A1A1AA; --accent:#7c5cff; --accent2:#667eea;
+  --up:#ff4d4f; --down:#00d486;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--txt);line-height:1.5;min-height:100vh;-webkit-font-smoothing:antialiased}
+a{color:var(--txt);text-decoration:none}
+.hubhome{position:fixed;top:14px;left:14px;z-index:50;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 16px 48px}
+.head{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.cube3d{width:46px;height:46px;perspective:160px;flex-shrink:0}
+.cube3d .c{width:46px;height:46px;position:relative;transform-style:preserve-3d;animation:spin 9s linear infinite}
+.cube3d .f{position:absolute;width:46px;height:46px;border-radius:7px;opacity:.82;
+  border:1px solid rgba(255,255,255,.35);background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.cube3d .f1{transform:translateZ(23px)} .cube3d .f2{transform:rotateY(180deg) translateZ(23px)}
+.cube3d .f3{transform:rotateY(90deg) translateZ(23px)} .cube3d .f4{transform:rotateY(-90deg) translateZ(23px)}
+.cube3d .f5{transform:rotateX(90deg) translateZ(23px)} .cube3d .f6{transform:rotateX(-90deg) translateZ(23px)}
+@keyframes spin{from{transform:rotateX(-22deg) rotateY(0)}to{transform:rotateX(-22deg) rotateY(360deg)}}
+.head h1{font-size:24px;margin:0;background:linear-gradient(90deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.head p{margin:4px 0 0;color:var(--sub);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.card h2{font-size:14px;margin:0 0 12px;color:var(--sub);letter-spacing:.04em;font-weight:600}
+
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;color:var(--sub)}
+.field select{background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:8px 10px;outline:none;min-width:120px}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff;
+  padding:9px 14px;border-radius:10px;cursor:pointer;font-weight:600;font-size:13px}
+.btn.ghost{background:var(--card2);border:1px solid var(--line);color:var(--txt)}
+
+.summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.summary .b{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:8px 14px;font-size:12.5px;color:var(--sub)}
+.summary .b b{color:var(--txt);font-size:17px;margin-right:4px}
+
+.tablewrap{overflow:auto;max-height:62vh}
+table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:center;white-space:nowrap}
+th{position:sticky;top:0;background:var(--card2);color:var(--sub);font-weight:600;z-index:2}
+th.rowh,td.rowh{position:sticky;left:0;background:var(--card2);text-align:left;font-weight:600;color:var(--txt);z-index:1}
+td.cell{cursor:pointer;transition:filter .1s}
+td.cell:hover{filter:brightness(1.25)}
+.vpos{color:#fff} .vneg{color:#fff} .vneu{color:var(--txt)}
+
+.detail{margin-top:12px;font-size:13px}
+.detail .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:8px}
+.detail .it{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px}
+.detail .it .k{font-size:11px;color:var(--sub)} .detail .it .v{font-size:18px;font-weight:700;margin-top:3px}
+.hint{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.6}
+.hubfoot{margin-top:24px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;
+  font-size:12px;color:var(--sub);flex-wrap:wrap;gap:8px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+</style>
+</head>
+<body>
+<a class="hubhome" aria-label="返回 App 大厅" href="../index.html">🏠 大厅</a>
+<div class="wrap">
+  <div class="head">
+    <div class="cube3d"><div class="c">
+      <div class="f f1"></div><div class="f f2"></div><div class="f f3"></div>
+      <div class="f f4"></div><div class="f f5"></div><div class="f f6"></div>
+    </div></div>
+    <div>
+      <h1>🧊 市场数据魔方</h1>
+      <p>板块 × 时间 × 多指标 多维交叉透视 ｜ 离线样本 ｜ 红涨绿跌</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>魔方配置（选维度即可旋转/切片）</h2>
+    <div class="toolbar">
+      <div class="field"><label>行维度</label><select id="rowDim">
+        <option value="sector">板块</option><option value="week">时间(周)</option>
+      </select></div>
+      <div class="field"><label>列维度</label><select id="colDim">
+        <option value="week">时间(周)</option><option value="sector">板块</option>
+      </select></div>
+      <div class="field"><label>值指标</label><select id="metric">
+        <option value="chg">周涨跌幅(%)</option>
+        <option value="amt">周成交额(亿)</option>
+        <option value="turn">换手率(%)</option>
+        <option value="pe">市盈率TTM</option>
+        <option value="net">主力净流入(亿)</option>
+      </select></div>
+      <div class="field"><label>切片（风格）</label><select id="slice">
+        <option value="全部">全部</option><option value="金融">金融</option><option value="消费">消费</option>
+        <option value="科技">科技</option><option value="制造">制造</option><option value="周期">周期</option>
+      </select></div>
+      <button class="btn" id="swapBtn">🔄 旋转魔方</button>
+      <button class="btn ghost" id="csvBtn">导出 CSV</button>
+    </div>
+    <div class="summary" id="summary"></div>
+    <div class="tablewrap"><table id="pivot"></table></div>
+    <div class="hint">点单元格下钻看该板块×该周的全部指标；「旋转魔方」互换行列；切片按风格过滤板块。</div>
+    <div class="detail" id="detail"></div>
+  </div>
+
+  <div class="hubfoot">
+    <a href="../index.html">← 返回应用大厅</a>
+    <span>数据存 localStorage · 纯前端离线</span>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============ 数据与维度 ============ */
+var SECTORS = [
+  {n:"银行",g:"金融",bias:0.2,pe:5.5,turn:1.2,amt:3000},
+  {n:"证券",g:"金融",bias:0.6,pe:18,turn:4.0,amt:2200},
+  {n:"保险",g:"金融",bias:0.3,pe:9,turn:1.5,amt:1200},
+  {n:"白酒",g:"消费",bias:0.4,pe:28,turn:2.5,amt:1500},
+  {n:"食品饮料",g:"消费",bias:0.3,pe:24,turn:2.0,amt:1800},
+  {n:"家电",g:"消费",bias:0.2,pe:14,turn:2.2,amt:1100},
+  {n:"医药",g:"消费",bias:-0.1,pe:26,turn:2.6,amt:2000},
+  {n:"半导体",g:"科技",bias:0.8,pe:55,turn:6.0,amt:3500},
+  {n:"计算机",g:"科技",bias:0.5,pe:45,turn:5.0,amt:2600},
+  {n:"通信",g:"科技",bias:0.3,pe:22,turn:3.0,amt:1400},
+  {n:"传媒",g:"科技",bias:0.1,pe:30,turn:4.0,amt:900},
+  {n:"新能源",g:"制造",bias:0.4,pe:24,turn:4.5,amt:4000},
+  {n:"汽车",g:"制造",bias:0.3,pe:20,turn:3.0,amt:3000},
+  {n:"机械",g:"制造",bias:0.2,pe:18,turn:3.2,amt:1900},
+  {n:"军工",g:"制造",bias:0.5,pe:50,turn:3.8,amt:1500},
+  {n:"电力",g:"周期",bias:0.1,pe:16,turn:1.8,amt:1300},
+  {n:"煤炭",g:"周期",bias:0.0,pe:8,turn:2.0,amt:1000},
+  {n:"钢铁",g:"周期",bias:-0.2,pe:11,turn:2.4,amt:1100},
+  {n:"有色",g:"周期",bias:0.3,pe:19,turn:3.5,amt:2400},
+  {n:"化工",g:"周期",bias:0.0,pe:17,turn:3.0,amt:2100},
+  {n:"建材",g:"周期",bias:-0.3,pe:13,turn:2.6,amt:800},
+  {n:"地产",g:"周期",bias:-0.6,pe:12,turn:2.8,amt:1200},
+  {n:"农牧",g:"消费",bias:-0.1,pe:30,turn:3.0,amt:900},
+  {n:"交运",g:"周期",bias:0.0,pe:15,turn:1.6,amt:1000}
+];
+var NWEEKS = 8;
+var WEEKS = (function(){ var a=[]; for(var i=0;i<NWEEKS-1;i++) a.push("W-"+(NWEEKS-1-i)); a.push("本周"); return a; })();
+var METRICS = {
+  chg:{n:"周涨跌幅(%)",unit:"%",signed:true,dec:2},
+  amt:{n:"周成交额(亿)",unit:"亿",signed:false,dec:0},
+  turn:{n:"换手率(%)",unit:"%",signed:false,dec:2},
+  pe:{n:"市盈率TTM",unit:"",signed:false,dec:1},
+  net:{n:"主力净流入(亿)",unit:"亿",signed:true,dec:1}
+};
+function rng(seed){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; var t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function r1(v,d){ var p=Math.pow(10,d); return Math.round(v*p)/p; }
+
+/* 预生成 DATA[si][wi][mk] */
+var DATA=[];
+(function build(){
+  for(var si=0;si<SECTORS.length;si++){
+    DATA[si]=[];
+    for(var wi=0;wi<NWEEKS;wi++){
+      DATA[si][wi]={};
+      var s=SECTORS[si];
+      var rc=rng(si*131+wi*17+1);
+      DATA[si][wi].chg = r1(s.bias*2.2 + (rc()-0.5)*9, 2);
+      var ra=rng(si*131+wi*17+2);
+      DATA[si][wi].amt = Math.round(s.amt*(0.7+ra()*0.6));
+      var rt=rng(si*131+wi*17+3);
+      DATA[si][wi].turn = r1(s.turn*(0.7+rt()*0.6), 2);
+      var rp=rng(si*131+wi*17+4);
+      DATA[si][wi].pe = r1(s.pe*(0.85+rp()*0.3), 1);
+      var rn=rng(si*131+wi*17+5);
+      var c = s.bias*2.2 + (rn()-0.5)*9;
+      DATA[si][wi].net = r1(c*18 + (rn()-0.5)*40, 1);
+    }
+  }
+})();
+
+function getVal(si,wi,mk){ return DATA[si][wi][mk]; }
+
+/* ============ 状态 ============ */
+var cfg = {rowDim:"sector", colDim:"week", metric:"chg", slice:"全部"};
+
+/* ============ 维度成员 ============ */
+function sectorIdxs(){
+  var out=[];
+  for(var i=0;i<SECTORS.length;i++){ if(cfg.slice==="全部"||SECTORS[i].g===cfg.slice) out.push(i); }
+  return out;
+}
+function weekIdxs(){ var a=[]; for(var i=0;i<NWEEKS;i++) a.push(i); return a; }
+function membersOf(dim){
+  if(dim==="sector") return sectorIdxs();
+  return weekIdxs();
+}
+function dimLabel(dim, idx){
+  return dim==="sector" ? SECTORS[idx].n : WEEKS[idx];
+}
+
+/* ============ 渲染 ============ */
+function cellColor(v, m, st){
+  if(v==null) return "transparent";
+  if(m.signed){
+    var t = st.maxAbs>0 ? Math.min(1, Math.abs(v)/st.maxAbs) : 0;
+    return v>0 ? "rgba(255,77,79,"+(0.15+0.6*t).toFixed(3)+")"
+               : "rgba(0,212,134,"+(0.15+0.6*t).toFixed(3)+")";
+  } else {
+    var t2 = st.max>st.min ? (v-st.min)/(st.max-st.min) : 0.5;
+    return "rgba(124,92,255,"+(0.12+0.6*t2).toFixed(3)+")";
+  }
+}
+function fmtVal(v, m){ return v.toFixed(m.dec); }
+
+function render(){
+  var m = METRICS[cfg.metric];
+  var rows = membersOf(cfg.rowDim);
+  var cols = membersOf(cfg.colDim);
+  // 行排序：按每行最后一个可见列的值（signed 用它，unsigned 用均值）降序
+  var sortKey = {};
+  rows.forEach(function(ri){
+    var last = cfg.colDim==="sector" ? cols[cols.length-1] : cols[cols.length-1];
+    var v = pairVal(ri, last);
+    sortKey[ri] = v;
+  });
+  rows.sort(function(a,b){ return sortKey[b]-sortKey[a]; });
+
+  // 统计
+  var vals=[];
+  rows.forEach(function(ri){ cols.forEach(function(ci){ vals.push(pairVal(ri,ci)); }); });
+  var st={min:Infinity,max:-Infinity,maxAbs:0,sum:0,up:0,n:0};
+  vals.forEach(function(v){ if(v<st.min)st.min=v; if(v>st.max)st.max=v; if(Math.abs(v)>st.maxAbs)st.maxAbs=Math.abs(v); st.sum+=v; st.n++; if(v>0)st.up++; });
+  var avg=st.n?st.sum/st.n:0;
+
+  // 表
+  var corner = cfg.rowDim==="sector" ? "板块" : "时间(周)";
+  var html="<tr><th class='rowh'>"+corner+" ＼ "+esc(m.n)+"</th>";
+  cols.forEach(function(ci){ html+="<th>"+esc(dimLabel(cfg.colDim,ci))+"</th>"; });
+  html+="</tr>";
+  rows.forEach(function(ri){
+    html+="<tr><td class='rowh'>"+esc(dimLabel(cfg.rowDim,ri))+"</td>";
+    cols.forEach(function(ci){
+      var v=pairVal(ri,ci);
+      var col=cellColor(v,m,st);
+      var cls = m.signed ? (v>0?"vpos":(v<0?"vneg":"vneu")) : "vneu";
+      var si = cfg.rowDim==="sector"?ri:ci;
+      var wi = cfg.rowDim==="sector"?ci:ri;
+      html+="<td class='cell' style='background:"+col+"' data-si='"+si+"' data-wi='"+wi+"'>"
+          + "<span class='"+cls+"'>"+fmtVal(v,m)+(m.unit&&m.unit!=="%"?m.unit:"")+"</span></td>";
+    });
+    html+="</tr>";
+  });
+  document.getElementById("pivot").innerHTML=html;
+
+  // 汇总条
+  var sumHtml="";
+  sumHtml+="<div class='b'><b>"+rows.length+"</b>行 · "+cols.length+" 列</div>";
+  sumHtml+="<div class='b'><b>"+fmtVal(avg,m)+"</b>均值</div>";
+  sumHtml+="<div class='b'><b>"+fmtVal(st.max,m)+"</b>最大</div>";
+  sumHtml+="<div class='b'><b>"+fmtVal(st.min,m)+"</b>最小</div>";
+  if(m.signed) sumHtml+="<div class='b'><b>"+(st.n?Math.round(st.up/st.n*100):0)+"%</b>上涨占比</div>";
+  document.getElementById("summary").innerHTML=sumHtml;
+
+  // 绑定下钻
+  var tbl=document.getElementById("pivot");
+  tbl.querySelectorAll("td.cell").forEach(function(td){
+    td.addEventListener("click", function(){
+      showDetail(parseInt(td.getAttribute("data-si"),10), parseInt(td.getAttribute("data-wi"),10));
+    });
+  });
+}
+function pairVal(ri, ci){
+  var si = cfg.rowDim==="sector"?ri:ci;
+  var wi = cfg.rowDim==="sector"?ci:ri;
+  return getVal(si, wi, cfg.metric);
+}
+function showDetail(si, wi){
+  var box=document.getElementById("detail");
+  var html="<h2>下钻："+esc(SECTORS[si].n)+" × "+esc(WEEKS[wi])+"（"+esc(SECTORS[si].g)+"）</h2><div class='grid'>";
+  ["chg","amt","turn","pe","net"].forEach(function(mk){
+    var m=METRICS[mk]; var v=getVal(si,wi,mk);
+    var cls = m.signed ? (v>0?"vpos":(v<0?"vneg":"vneu")) : "vneu";
+    html+="<div class='it'><div class='k'>"+m.n+"</div><div class='v "+cls+"'>"+fmtVal(v,m)+(m.unit&&m.unit!=="%"?m.unit:"")+"</div></div>";
+  });
+  html+="</div>";
+  box.innerHTML=html;
+}
+function exportCSV(){
+  var m=METRICS[cfg.metric];
+  var rows=membersOf(cfg.rowDim), cols=membersOf(cfg.colDim);
+  var lines=[];
+  var head=[cfg.rowDim==="sector"?"板块":"周"];
+  cols.forEach(function(ci){ head.push(dimLabel(cfg.colDim,ci)); });
+  lines.push(head.join(","));
+  rows.forEach(function(ri){
+    var line=[dimLabel(cfg.rowDim,ri)];
+    cols.forEach(function(ci){ line.push(String(pairVal(ri,ci))); });
+    lines.push(line.join(","));
+  });
+  var csv=lines.join("\n");
+  try{
+    var blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a"); a.href=url; a.download="market_cube_"+cfg.metric+".csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  }catch(e){ alert("导出失败："+e); }
+}
+
+/* ============ 持久化 ============ */
+function saveCfg(){ try{ localStorage.setItem("market_cube_cfg_v1", JSON.stringify(cfg)); }catch(e){} }
+function loadCfg(){ try{ var c=JSON.parse(localStorage.getItem("market_cube_cfg_v1")); if(c) cfg=c; }catch(e){} }
+
+/* ============ 初始化 ============ */
+function init(){
+  loadCfg();
+  var rd=document.getElementById("rowDim"), cd=document.getElementById("colDim"),
+      mt=document.getElementById("metric"), sl=document.getElementById("slice");
+  rd.value=cfg.rowDim; cd.value=cfg.colDim; mt.value=cfg.metric; sl.value=cfg.slice;
+
+  function sync(){ cfg.rowDim=rd.value; cfg.colDim=cd.value; cfg.metric=mt.value; cfg.slice=sl.value; saveCfg(); render(); }
+  rd.addEventListener("change", sync); cd.addEventListener("change", sync);
+  mt.addEventListener("change", sync); sl.addEventListener("change", sync);
+
+  document.getElementById("swapBtn").addEventListener("click", function(){
+    var t=cfg.rowDim; cfg.rowDim=cfg.colDim; cfg.colDim=t;
+    rd.value=cfg.rowDim; cd.value=cfg.colDim; saveCfg(); render();
+  });
+  document.getElementById("csvBtn").addEventListener("click", exportCSV);
+
+  render();
+}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);});}
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init);
+else init();
+</script>
+</body>
+</html>
