@@ -121,3 +121,28 @@ def test_endpoint_ttl_out_of_range_clamped(monkeypatch):
     _patch_builder(monkeypatch)
     r = _client().get("/api/market_cube?ttl=999999").get_json()
     assert r.get("ok") is True
+
+
+def test_cache_stats_counts_misses_and_clear(monkeypatch):
+    _patch_builder(monkeypatch)
+    for k in list(backend._CACHE_STATS):
+        backend._CACHE_STATS[k] = 0
+    backend._CACHE_KEY_STATS.clear()
+    # 第一次真抓 -> miss
+    r = _client().get("/api/market_cube").get_json()
+    assert r.get("cached") is False
+    s = _client().get("/api/cache/stats").get_json()
+    assert s["misses"] >= 1
+    assert "market_cube" in s["keys"]
+    assert s["keys"]["market_cube"]["hits"] + s["keys"]["market_cube"]["misses"] >= 1
+    # 清空
+    cl = _client().post("/api/cache/clear").get_json()
+    assert cl["ok"] is True and cl["cleared"] >= 1
+    s2 = _client().get("/api/cache/stats").get_json()
+    assert s2["store_keys"] == 0
+
+
+def test_cache_endpoint_registered():
+    # /api/info 自动发现应包含缓存可观测端点
+    eps = set(_client().get("/api/info").get_json()["endpoints"])
+    assert "/api/cache/stats" in eps and "/api/cache/clear" in eps

@@ -180,12 +180,20 @@ _BOOT_DT = datetime.now()  # 进程启动时刻, 供 /api/health 计算 uptime
 # 既抗 eastmoney 限流, 又避免每次请求重复打 akshare 或重算。
 _CACHE_STORE = {}                       # key -> {"ts": float, "data": dict}
 _CACHE_LOCK = threading.Lock()
+# 缓存可观测性: 全局命中/未命中/陈旧回退/构建错误计数 + 每 key 命中分布
+_CACHE_STATS = {"hits": 0, "misses": 0, "stale_hits": 0, "build_errors": 0}
+_CACHE_KEY_STATS = {}                     # key -> {"hits": int, "misses": int}
 
 def _cache_get(key):
     with _CACHE_LOCK:
         e = _CACHE_STORE.get(key)
+        ks = _CACHE_KEY_STATS.setdefault(key, {"hits": 0, "misses": 0})
         if e is None:
+            _CACHE_STATS["misses"] += 1
+            ks["misses"] += 1
             return None, 0.0
+        _CACHE_STATS["hits"] += 1
+        ks["hits"] += 1
         return e["data"], e["ts"]
 
 def _cache_put(key, data):
@@ -217,8 +225,10 @@ def _cached_build(key, ttl, builder):
             r["cached_at"] = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
             r["note"] = (r.get("note") or "") + " | 实时抓取失败, 回退缓存(可能非最新): " + str(e)[:80]
             logger.warning("%s 真抓取失败, 回退缓存: %s", key, str(e)[:160])
+            _CACHE_STATS["stale_hits"] += 1
             return r, True
         logger.warning("%s 真抓取失败, 无可用缓存: %s", key, str(e)[:160])
+        _CACHE_STATS["build_errors"] += 1
         return None, False
 
 # 各端点 TTL(秒, 均可环境变量覆盖): 快照/情绪类长, 实时价短
@@ -1756,6 +1766,7 @@ ENDPOINTS = [
     "/api/data", "/api/futures_events", "/api/futures_spread",
     "/api/llm", "/api/data_status",
     "/api/futures_chain", "/api/futures_sector_matrix", "/api/futures_varieties", "/api/itinerary/generate",
+    "/api/cache/stats", "/api/cache/clear",
 ]
 
 
@@ -1823,6 +1834,40 @@ def api_data_status():
         "items": items,
         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     })
+
+
+@app.route("/api/cache/stats", methods=["GET"])
+def api_cache_stats():
+    """缓存可观测性: 全局命中/未命中/陈旧回退计数 + 各 key 年龄/体积/命中分布。"""
+    with _CACHE_LOCK:
+        keys = {}
+        for k, v in _CACHE_STORE.items():
+            age = _t.time() - v["ts"]
+            try:
+                size = len(json.dumps(v["data"], ensure_ascii=False).encode("utf-8"))
+            except Exception:
+                size = -1
+            ks = _CACHE_KEY_STATS.get(k, {})
+            keys[k] = {
+                "age_seconds": round(age, 1),
+                "size_bytes": size,
+                "hits": ks.get("hits", 0),
+                "misses": ks.get("misses", 0),
+            }
+        total = dict(_CACHE_STATS)
+    total["store_keys"] = len(keys)
+    total["keys"] = keys
+    return jsonify({"ok": True, **total})
+
+
+@app.route("/api/cache/clear", methods=["POST"])
+def api_cache_clear():
+    """清空进程内缓存(强制下次全量真抓)。运维/调试用, 不删磁盘数据。"""
+    with _CACHE_LOCK:
+        n = len(_CACHE_STORE)
+        _CACHE_STORE.clear()
+        _CACHE_KEY_STATS.clear()
+    return jsonify({"ok": True, "cleared": n})
 
 
 @app.route("/api/info", methods=["GET"])
