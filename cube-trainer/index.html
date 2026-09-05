@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>魔方训练助手</title>
+<style>
+:root{
+  --bg:#0B0B0F; --card:#14141B; --card2:#1B1B24; --line:rgba(255,255,255,.09);
+  --txt:#F5F5F7; --sub:#A1A1AA; --accent:#7c5cff; --accent2:#667eea;
+  --up:#ff4d4f; --down:#00d486;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--txt);line-height:1.5;min-height:100vh;-webkit-font-smoothing:antialiased}
+a{color:var(--txt);text-decoration:none}
+.hubhome{position:fixed;top:14px;left:14px;z-index:50;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.wrap{max-width:1080px;margin:0 auto;padding:64px 16px 48px}
+.head{text-align:center;margin-bottom:18px}
+.head h1{font-size:26px;margin:0;background:linear-gradient(90deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.head p{color:var(--sub);margin:6px 0 0;font-size:13px}
+.layout{display:grid;grid-template-columns:minmax(280px,1fr) minmax(300px,380px);gap:18px;align-items:start}
+@media(max-width:820px){.layout{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.card h2{font-size:14px;margin:0 0 12px;color:var(--sub);letter-spacing:.04em;font-weight:600}
+
+/* 控制条 */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff;
+  padding:9px 14px;border-radius:10px;cursor:pointer;font-weight:600;font-size:13px}
+.btn.ghost{background:var(--card2);border:1px solid var(--line);color:var(--txt)}
+.btn.sm{padding:6px 10px;font-size:12px}
+select{background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:8px 10px;outline:none}
+
+/* 魔方十字展开 */
+.cube-cross{display:grid;grid-template-columns:repeat(4,auto);grid-template-rows:repeat(3,auto);
+  gap:12px;justify-content:center;justify-items:center;user-select:none}
+.face{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:8px}
+.face .flabel{font-size:12px;color:var(--sub);text-align:center;margin-bottom:6px;font-weight:700;letter-spacing:.1em}
+.face.U{grid-column:2;grid-row:1}.face.L{grid-column:1;grid-row:2}
+.face.F{grid-column:2;grid-row:2}.face.R{grid-column:3;grid-row:2}
+.face.B{grid-column:4;grid-row:2}.face.D{grid-column:2;grid-row:3}
+.stgrid{display:grid;gap:3px}
+.st{width:32px;height:32px;border-radius:6px;cursor:pointer;transition:transform .08s,filter .08s}
+.st:hover{filter:brightness(1.18)}
+.st:active{transform:scale(.92)}
+
+/* 计时器 */
+.timer{font-variant-numeric:tabular-nums;font-size:44px;font-weight:800;text-align:center;
+  letter-spacing:.02em;margin:4px 0 2px}
+.timer.run{color:var(--down)}
+.status{text-align:center;color:var(--sub);font-size:13px;min-height:18px}
+.scr{margin-top:10px;font-size:12px;color:var(--sub);word-break:break-word;line-height:1.6}
+.scr b{color:var(--txt)}
+.moveinfo{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:8px}
+.moveinfo b{color:var(--txt)}
+
+/* 移动按钮 */
+.moveBtns{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.mbtn{background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:9px;
+  padding:9px 0;font-weight:700;cursor:pointer;font-size:14px;transition:.12s}
+.mbtn:hover{border-color:var(--accent);color:#fff}
+.hint{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.6}
+
+/* 统计 */
+.statgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+.stat{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;text-align:center}
+.stat .v{font-size:22px;font-weight:800}
+.stat .k{font-size:11px;color:var(--sub);margin-top:2px}
+.chart{display:flex;align-items:flex-end;gap:3px;height:80px;margin-top:6px;overflow:hidden}
+.bar{flex:1;background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:3px 3px 0 0;min-height:2px;opacity:.85}
+.recent{margin-top:10px;max-height:160px;overflow:auto}
+.recent .row{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);padding:5px 2px;border-bottom:1px solid var(--line)}
+.recent .row b{color:var(--txt)}
+details{margin-top:6px}
+details summary{cursor:pointer;color:var(--accent);font-size:13px}
+details .body{font-size:12.5px;color:var(--sub);line-height:1.7;margin-top:8px}
+details code{background:var(--card2);padding:1px 6px;border-radius:5px;color:var(--txt)}
+.hubfoot{margin-top:24px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;
+  font-size:12px;color:var(--sub);flex-wrap:wrap;gap:8px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+</style>
+</head>
+<body>
+<a class="hubhome" aria-label="返回 App 大厅" href="../index.html">🏠 大厅</a>
+<div class="wrap">
+  <div class="head">
+    <h1>🧊 魔方训练助手</h1>
+    <p>虚拟魔方 · 计时训练 · 数据统计 · 打乱生成 · 一键还原 ｜ 仿「市场魔方助手」</p>
+  </div>
+
+  <div class="toolbar">
+    <label style="font-size:13px;color:var(--sub)">阶数</label>
+    <select id="order">
+      <option value="2">2 阶</option>
+      <option value="3" selected>3 阶</option>
+      <option value="4">4 阶</option>
+      <option value="5">5 阶</option>
+    </select>
+    <button class="btn" id="scrambleBtn">随机打乱</button>
+    <button class="btn ghost" id="restoreBtn">一键还原</button>
+    <button class="btn ghost" id="undoBtn">撤销</button>
+    <button class="btn ghost" id="resetBtn">重置</button>
+  </div>
+
+  <div class="layout">
+    <div class="card">
+      <h2>虚拟魔方（点格子=顺时针转该面，右键=逆时针）</h2>
+      <div class="cube-cross" id="cube">
+        <div class="face U" data-face="U"><div class="flabel">U</div><div class="stgrid" id="face-U"></div></div>
+        <div class="face L" data-face="L"><div class="flabel">L</div><div class="stgrid" id="face-L"></div></div>
+        <div class="face F" data-face="F"><div class="flabel">F</div><div class="stgrid" id="face-F"></div></div>
+        <div class="face R" data-face="R"><div class="flabel">R</div><div class="stgrid" id="face-R"></div></div>
+        <div class="face B" data-face="B"><div class="flabel">B</div><div class="stgrid" id="face-B"></div></div>
+        <div class="face D" data-face="D"><div class="flabel">D</div><div class="stgrid" id="face-D"></div></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>计时训练</h2>
+        <div class="timer" id="timer">0.00</div>
+        <div class="status" id="status">已还原 · 点「随机打乱」开始</div>
+        <div class="scr" id="scramble">打乱序列：<b>—</b></div>
+        <div class="moveinfo">
+          <span>步数：<b id="moves">0</b></span>
+          <span>TPS：<b id="tps">0.00</b></span>
+        </div>
+        <div class="hint">操作：空格 开始/停止计时 · 打乱后转动魔方复原即自动停表并记录成绩。</div>
+      </div>
+
+      <div class="card">
+        <h2>转动控制</h2>
+        <div class="moveBtns" id="moveBtns"></div>
+        <div class="hint">每面三键：普通 / 逆时针(') / 转 180°(2)。</div>
+      </div>
+
+      <div class="card">
+        <h2>成绩统计</h2>
+        <div class="statgrid">
+          <div class="stat"><div class="v" id="st-best">—</div><div class="k">最佳 (秒)</div></div>
+          <div class="stat"><div class="v" id="st-ao5">—</div><div class="k">近 5 平均 ao5</div></div>
+          <div class="stat"><div class="v" id="st-ao12">—</div><div class="k">近 12 平均 ao12</div></div>
+          <div class="stat"><div class="v" id="st-today">0</div><div class="k">今日练习</div></div>
+        </div>
+        <div class="chart" id="chart"></div>
+        <div class="recent" id="recent"></div>
+      </div>
+
+      <div class="card">
+        <details>
+          <summary>公式速查 / 入门思路</summary>
+          <div class="body">
+            记法：<code>U</code> 上 · <code>D</code> 下 · <code>L</code> 左 · <code>R</code> 右 · <code>F</code> 前 · <code>B</code> 后；
+            后缀 <code>'</code> 表示逆时针，<code>2</code> 表示转 180°。如 <code>R U R' U'</code> 是常见的「SEXy」循环。<br>
+            新手路线：① 做白色十字 → ② 填白色角块（底层复原）→ ③ 第二层棱块 → ④ 顶面十字与黄色铺满 → ⑤ 顶角/顶棱归位。
+            本助手侧重计时与数据沉淀，复原策略可配合上述口诀在屏幕上练习。
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <div class="hubfoot">
+    <a href="../index.html">← 返回应用大厅</a>
+    <span>数据存 localStorage · 纯前端离线</span>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============ 基础定义 ============ */
+var COL = {
+  U:"#f3f3f7", D:"#ffd23f", F:"#00c853", B:"#2979ff", R:"#ff1744", L:"#ff9100",
+  blank:"#15151f"
+};
+var DIR = {
+  "+x":[1,0,0], "-x":[-1,0,0], "+y":[0,1,0], "-y":[0,-1,0], "+z":[0,0,1], "-z":[0,0,-1]
+};
+var VDIR = {
+  "1,0,0":"+x", "-1,0,0":"-x", "0,1,0":"+y", "0,-1,0":"-y", "0,0,1":"+z", "0,0,-1":"-z"
+};
+var FACES = [
+  {key:"U", normal:"+y", u:"+x", v:"+z"},
+  {key:"F", normal:"+z", u:"+x", v:"-y"},
+  {key:"D", normal:"-y", u:"+x", v:"-z"},
+  {key:"L", normal:"-x", u:"+z", v:"-y"},
+  {key:"R", normal:"+x", u:"-z", v:"-y"},
+  {key:"B", normal:"-z", u:"-x", v:"-y"}
+];
+var FACEINFO = {
+  U:{axis:"y",layer:1}, D:{axis:"y",layer:-1},
+  L:{axis:"x",layer:-1}, R:{axis:"x",layer:1},
+  F:{axis:"z",layer:1}, B:{axis:"z",layer:-1}
+};
+
+/* ============ 状态 ============ */
+var N = 3;
+var coords = [];
+var cubies = [];
+var moveHistory = [];     // {axis,layer,sign}
+var state = "idle";       // idle | ready | running
+var startTime = 0;
+var sessionMoves = 0;
+var scrambleSeq = "";
+var stats = [];
+var timerInt = null;
+
+/* ============ 工具 ============ */
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);});}
+function rot(axis, sign, v){
+  var x=v[0],y=v[1],z=v[2];
+  if(axis==="x") return sign>0 ? [x,-z,y] : [x,z,-y];
+  if(axis==="y") return sign>0 ? [z,y,-x] : [-z,y,x];
+  return sign>0 ? [-y,x,z] : [y,-x,z];
+}
+function snap(v){
+  var best=coords[0], bd=1e9;
+  for(var i=0;i<coords.length;i++){ var d=Math.abs(coords[i]-v); if(d<bd){bd=d;best=coords[i];} }
+  return best;
+}
+function buildCoords(n){
+  coords=[];
+  for(var k=0;k<n;k++) coords.push(2*k/(n-1)-1);
+}
+function buildCubies(n){
+  buildCoords(n);
+  cubies=[];
+  for(var xi=0;xi<coords.length;xi++)
+  for(var yi=0;yi<coords.length;yi++)
+  for(var zi=0;zi<coords.length;zi++){
+    var x=coords[xi], y=coords[yi], z=coords[zi];
+    if(n%2===1 && x===0 && y===0 && z===0) continue;
+    var colors={
+      "+x": x===1?COL.R:(x===-1?COL.L:COL.blank),
+      "-x": x===-1?COL.L:(x===1?COL.R:COL.blank),
+      "+y": y===1?COL.U:(y===-1?COL.D:COL.blank),
+      "-y": y===-1?COL.D:(y===1?COL.U:COL.blank),
+      "+z": z===1?COL.F:(z===-1?COL.B:COL.blank),
+      "-z": z===-1?COL.B:(z===1?COL.F:COL.blank)
+    };
+    cubies.push({pos:[x,y,z], colors:colors});
+  }
+}
+function cubieAt(pos){
+  for(var i=0;i<cubies.length;i++){
+    var p=cubies[i].pos;
+    if(Math.abs(p[0]-pos[0])<1e-6 && Math.abs(p[1]-pos[1])<1e-6 && Math.abs(p[2]-pos[2])<1e-6)
+      return cubies[i];
+  }
+  return null;
+}
+function cellPos(face, r, c){
+  var step = 2/(N-1);
+  var n=DIR[face.normal], u=DIR[face.u], v=DIR[face.v];
+  var layerVal = face.normal[0]==="+"?1:-1;
+  var a=(c-(N-1)/2)*step, b=(r-(N-1)/2)*step;
+  return [
+    n[0]*layerVal + u[0]*a + v[0]*b,
+    n[1]*layerVal + u[1]*a + v[1]*b,
+    n[2]*layerVal + u[2]*a + v[2]*b
+  ];
+}
+
+/* ============ 转动 ============ */
+function applyTurn(axis, layer, sign, isUser, record){
+  var ai = axis==="x"?0:(axis==="y"?1:2);
+  for(var i=0;i<cubies.length;i++){
+    var c=cubies[i];
+    if(Math.abs(c.pos[ai]-layer)<1e-6){
+      c.pos = rot(axis, sign, c.pos);
+      c.pos = [snap(c.pos[0]), snap(c.pos[1]), snap(c.pos[2])];
+      var nc={};
+      for(var d in c.colors){
+        var nv = rot(axis, sign, DIR[d]);
+        nc[VDIR[nv[0]+","+nv[1]+","+nv[2]]] = c.colors[d];
+      }
+      c.colors = nc;
+    }
+  }
+  if(record!==false) moveHistory.push({axis:axis, layer:layer, sign:sign});
+  if(isUser && state==="running"){
+    sessionMoves++;
+    renderTimer();
+  }
+  renderCube();
+  if(isUser && state==="running" && checkSolved()){
+    stopTimer(true);
+  }
+}
+function faceMove(face, isUser, ccw){
+  var info=FACEINFO[face];
+  var sign = info.layer===1 ? -1 : 1;
+  if(ccw) sign=-sign;
+  applyTurn(info.axis, info.layer, sign, isUser);
+}
+
+/* ============ 打乱 / 还原 / 撤销 / 重置 ============ */
+function scramble(){
+  if(state==="running") stopTimer(false);
+  var faces=["U","D","L","R","F","B"];
+  var seq=[], last="";
+  for(var i=0;i<20;i++){
+    var f; do{ f=faces[Math.floor(Math.random()*6)]; }while(f===last);
+    last=f;
+    var r=Math.random();
+    var ccw = r>0.66, dbl = (r>0.33 && r<=0.66);
+    seq.push(f+(ccw?"'":(dbl?"2":"")));
+    faceMove(f, false, ccw);
+    if(dbl) faceMove(f, false, ccw);
+  }
+  scrambleSeq=seq.join(" ");
+  state="ready";
+  renderScramble();
+  setStatus("已打乱 · 按空格开始计时");
+  renderTimer();
+}
+function autoRestore(){
+  if(state==="running") stopTimer(false);
+  var hist = moveHistory.slice();
+  moveHistory = [];
+  for(var i=hist.length-1;i>=0;i--){
+    var m=hist[i];
+    applyTurn(m.axis, m.layer, -m.sign, false, false);
+  }
+  state="idle";
+  renderScramble();
+  setStatus("已还原 · 点「随机打乱」开始");
+  renderTimer();
+}
+function undo(){
+  if(!moveHistory.length) return;
+  var m=moveHistory.pop();
+  applyTurn(m.axis, m.layer, -m.sign, false, false);
+  if(state==="running" && sessionMoves>0) sessionMoves--;
+  renderTimer();
+}
+function resetCube(){
+  if(state==="running") stopTimer(false);
+  buildCubies(N);
+  moveHistory=[];
+  state="idle";
+  renderScramble();
+  setStatus("已还原 · 点「随机打乱」开始");
+  renderTimer();
+}
+function setN(n){
+  N=n;
+  buildCubies(N);
+  moveHistory=[];
+  state="idle";
+  scrambleSeq="";
+  renderScramble();
+  setStatus("已还原 · 点「随机打乱」开始");
+  renderTimer();
+}
+
+/* ============ 计时 ============ */
+function fmt(ms){
+  var s=ms/1000;
+  return s.toFixed(2);
+}
+function renderTimer(){
+  var t=0;
+  if(state==="running") t=Date.now()-startTime;
+  document.getElementById("timer").textContent=fmt(t);
+  document.getElementById("timer").className="timer"+(state==="running"?" run":"");
+  document.getElementById("moves").textContent=sessionMoves;
+  var sec=t/1000;
+  document.getElementById("tps").textContent= sec>0 ? (sessionMoves/sec).toFixed(2) : "0.00";
+}
+function setStatus(s){ document.getElementById("status").textContent=s; }
+function startStop(){
+  if(state==="ready"){ startTimer(); }
+  else if(state==="running"){ stopTimer(true); }
+}
+function startTimer(){
+  startTime=Date.now();
+  sessionMoves=0;
+  state="running";
+  setStatus("计时中… 复原即自动停表");
+  renderTimer();
+  if(timerInt) clearInterval(timerInt);
+  timerInt=setInterval(renderTimer, 80);
+}
+function stopTimer(record){
+  if(timerInt){ clearInterval(timerInt); timerInt=null; }
+  var t=Date.now()-startTime;
+  if(record && t>0){
+    pushStats(t, sessionMoves);
+  }
+  state="idle";
+  setStatus("已记录 · 点「随机打乱」再来一次");
+  renderTimer();
+}
+
+/* ============ 复原判定 ============ */
+function checkSolved(){
+  for(var fi=0;fi<FACES.length;fi++){
+    var face=FACES[fi];
+    var first=null;
+    for(var r=0;r<N;r++)for(var c=0;c<N;c++){
+      var cu=cubieAt(cellPos(face,r,c));
+      if(!cu) return false;
+      var col=cu.colors[face.normal];
+      if(col===COL.blank) return false;
+      if(first===null) first=col;
+      else if(col!==first) return false;
+    }
+  }
+  return true;
+}
+
+/* ============ 渲染魔方 ============ */
+function renderCube(){
+  for(var fi=0;fi<FACES.length;fi++){
+    var face=FACES[fi];
+    var box=document.getElementById("face-"+face.key);
+    if(!box) continue;
+    box.style.gridTemplateColumns="repeat("+N+",32px)";
+    var html="";
+    for(var r=0;r<N;r++)for(var c=0;c<N;c++){
+      var cu=cubieAt(cellPos(face,r,c));
+      var col = cu ? cu.colors[face.normal] : COL.blank;
+      html+='<div class="st" style="background:'+col+'" data-face="'+face.key+'"></div>';
+    }
+    box.innerHTML=html;
+  }
+}
+function renderScramble(){
+  document.getElementById("scramble").innerHTML="打乱序列：<b>"+(scrambleSeq||"—")+"</b>";
+}
+
+/* ============ 统计 ============ */
+function loadStats(){
+  try{ stats=JSON.parse(localStorage.getItem("cube_trainer_stats_v1"))||[]; }
+  catch(e){ stats=[]; }
+}
+function saveStats(){
+  try{ localStorage.setItem("cube_trainer_stats_v1", JSON.stringify(stats)); }catch(e){}
+}
+function pushStats(t, m){
+  stats.push({t:t, m:m, d:Date.now()});
+  if(stats.length>200) stats=stats.slice(-200);
+  saveStats();
+  renderStats();
+}
+function mean(arr){ var s=0; for(var i=0;i<arr.length;i++) s+=arr[i]; return s/arr.length; }
+function ao(n){
+  if(stats.length===0) return null;
+  var last=stats.slice(-n);
+  if(last.length<n) return mean(last.map(function(x){return x.t;}));
+  var sorted=last.slice().sort(function(a,b){return a.t-b.t;});
+  var trim=(n-1)>>1;
+  var mid=sorted.slice(trim, n-trim);
+  return mean(mid.map(function(x){return x.t;}));
+}
+function todayStr(){
+  var d=new Date();
+  return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+}
+function renderStats(){
+  var best=stats.length?Math.min.apply(null, stats.map(function(x){return x.t;})):null;
+  document.getElementById("st-best").textContent = best!=null?fmt(best):"—";
+  var a5=ao(5), a12=ao(12);
+  document.getElementById("st-ao5").textContent = a5!=null?fmt(a5):"—";
+  document.getElementById("st-ao12").textContent = a12!=null?fmt(a12):"—";
+  var ts=todayStr(), cnt=0;
+  for(var i=0;i<stats.length;i++){ var d=new Date(stats[i].d); if(d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()===ts) cnt++; }
+  document.getElementById("st-today").textContent=cnt;
+  // 柱状图：最近 20 次
+  var chart=document.getElementById("chart");
+  var last=stats.slice(-20);
+  if(last.length){
+    var maxT=Math.max.apply(null, last.map(function(x){return x.t;}));
+    chart.innerHTML=last.map(function(x){
+      var h=Math.max(2, Math.round(x.t/maxT*78));
+      return '<div class="bar" style="height:'+h+'px" title="'+fmt(x.t)+'s / '+x.m+'步"></div>';
+    }).join("");
+  } else { chart.innerHTML='<div style="color:var(--sub);font-size:12px;margin:auto">暂无成绩</div>'; }
+  // 最近列表
+  var rec=document.getElementById("recent");
+  if(stats.length){
+    rec.innerHTML=stats.slice(-8).reverse().map(function(x){
+      var d=new Date(x.d);
+      var ds=(d.getMonth()+1)+"/"+d.getDate()+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);
+      return '<div class="row"><span>'+ds+'</span><b>'+fmt(x.t)+'s · '+x.m+'步</b></div>';
+    }).join("");
+  } else { rec.innerHTML='<div style="color:var(--sub);font-size:12px">完成一次复原后这里会记录成绩</div>'; }
+}
+
+/* ============ 初始化 ============ */
+function init(){
+  loadStats();
+  buildCubies(N);
+  // 移动按钮
+  var mb=document.getElementById("moveBtns");
+  if(mb){
+    ["U","D","L","R","F","B"].forEach(function(face){
+      [["",false,false],["'",true,false],["2",false,true]].forEach(function(o){
+        var b=document.createElement("button");
+        b.className="mbtn"; b.textContent=face+o[0];
+        b.addEventListener("click", function(){
+          faceMove(face, true, o[1]);
+          if(o[2]) faceMove(face, true, o[1]);
+        });
+        mb.appendChild(b);
+      });
+    });
+  }
+  // 魔方点击 / 右键
+  var cube=document.getElementById("cube");
+  if(cube){
+    cube.addEventListener("click", function(e){
+      var t=e.target.closest(".st"); if(!t) return;
+      faceMove(t.getAttribute("data-face"), true, false);
+    });
+    cube.addEventListener("contextmenu", function(e){
+      var t=e.target.closest(".st"); if(!t) return;
+      e.preventDefault();
+      faceMove(t.getAttribute("data-face"), true, true);
+    });
+  }
+  // 工具按钮
+  var sb=document.getElementById("scrambleBtn"); if(sb) sb.addEventListener("click", scramble);
+  var rb=document.getElementById("restoreBtn"); if(rb) rb.addEventListener("click", autoRestore);
+  var ub=document.getElementById("undoBtn"); if(ub) ub.addEventListener("click", undo);
+  var rs=document.getElementById("resetBtn"); if(rs) rs.addEventListener("click", resetCube);
+  var od=document.getElementById("order");
+  if(od) od.addEventListener("change", function(){ setN(parseInt(od.value,10)||3); });
+  // 键盘：空格启停
+  document.addEventListener("keydown", function(e){
+    if(e.code==="Space"){
+      var tag=(e.target&&e.target.tagName)||"";
+      if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT") return;
+      e.preventDefault(); startStop();
+    }
+  });
+  renderCube();
+  renderScramble();
+  renderTimer();
+  renderStats();
+}
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init);
+else init();
+</script>
+</body>
+</html>
