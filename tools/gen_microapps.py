@@ -71,14 +71,17 @@ SPECS = [
     # —— 本轮新增: 消费 POST 端点(统一 LLM 网关 / 库存刷新) ——
     dict(dir="market-qa", name="AI 投研问答", ico="💬", cat="tool", tag="LLM 问答",
          desc="消费 /api/llm 统一大模型网关，输入问题获取 AI 投研回答（后端可接 Ollama / DeepSeek / OpenAI）。",
-         endpoint="/api/llm", loader="post", postKind="llm",
+         endpoint="/api/llm", loader="post", postKind="llm-multi",
          system="你是一个专业的 A股与期货投研助手，回答简洁、用中文、给出可操作的信息；涉及具体标的时注明数据来源与不确定性。",
          inputs=[dict(id="q", label="你的问题", ph="最近市场情绪如何？白酒板块还能拿吗？",
                       default="最近 A股 市场情绪如何，后市怎么看？", area=True)],
          mode="kv"),
     dict(dir="inv-refresh", name="库存刷新台", ico="🔄", cat="fin", tag="库存刷新",
          desc="消费 /api/refresh，触发单个期货品种的真实库存刷新（东方财富），查看刷新结果与最新库存。",
-         endpoint="/api/refresh", loader="post", postKind="args",
+         endpoint="/api/refresh", loader="post", postKind="args-batch",
+         batchSymbols=[{"symbol":"cu","exchange":"SHFE"},{"symbol":"rb","exchange":"SHFE"},
+                      {"symbol":"au","exchange":"SHFE"},{"symbol":"i","exchange":"DCE"},
+                      {"symbol":"TA","exchange":"CZCE"},{"symbol":"m","exchange":"DCE"}],
          inputs=[dict(id="symbol", label="品种代码", ph="cu", default="cu"),
                  dict(id="exchange", label="交易所", ph="SHFE", default="SHFE")],
          mode="kv"),
@@ -327,16 +330,17 @@ CUSTOM = {
     if(!jj || typeof jj.content !== "string") return false;
     var src = jj.source ? String(jj.source) : "";
     var cached = jj.cached ? "（缓存）" : "";
-    out.innerHTML = '<div class="qa"><div class="qab">' +
-      '<div class="qaa">' + esc(jj.content) + '</div>' +
+    out.innerHTML = '<div class="qa"><div class="qat"><div class="qaa">' + esc(jj.content) + '</div>' +
       (src ? '<div class="qas">来源: ' + esc(src) + cached + '</div>' : '') +
       '</div></div>';
     return true;''',
     css=r'''
-    .qa{margin-top:8px}
-    .qab{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
-    .qaa{white-space:pre-wrap;line-height:1.7;font-size:14px}
-    .qas{margin-top:10px;color:var(--sub);font-size:12px}'''),
+    .qa{margin-top:8px;display:flex;flex-direction:column;gap:12px;max-height:62vh;overflow:auto}
+    .qat{display:flex;flex-direction:column;gap:4px}
+    .qaq{align-self:flex-end;background:var(--accent);color:#fff;padding:9px 13px;border-radius:14px 14px 4px 14px;max-width:85%;white-space:pre-wrap;line-height:1.6;font-size:14px;word-break:break-word}
+    .qaa{align-self:flex-start;background:var(--panel);border:1px solid var(--line);color:var(--text);padding:11px 14px;border-radius:14px 14px 14px 4px;max-width:92%;white-space:pre-wrap;line-height:1.7;font-size:14px;word-break:break-word}
+    .qaw{color:var(--amber);font-style:italic}
+    .qas{margin-top:8px;color:var(--sub);font-size:12px;align-self:flex-start}'''),
     "inv-refresh": dict(render=r'''
     var jj = (j && typeof j === "object") ? j : null;
     if(!jj || typeof jj.ok !== "boolean") return false;
@@ -561,11 +565,13 @@ __CUSTOM_ROWS__
     var html = "";
     {controls_html}
     document.getElementById("controls").innerHTML = html +
-      '<button id="goBtn">查询</button>';
+      '<button id="goBtn">查询</button>{extra_buttons}';
     var controlIds = [{control_ids}];
     controlIds.forEach(function(id){{ inputs[id]=document.getElementById(id); }});
     var go = document.getElementById("goBtn");
     go.addEventListener("click", go_);
+    var batchBtn = document.getElementById("batchBtn");
+    if(batchBtn && typeof batch_ === "function") batchBtn.addEventListener("click", batch_);
     (document.getElementById("{first_input}")||go).addEventListener("keydown", function(e){{ if(e.key==="Enter") go_(); }});
   }}
   function gatherInputs(){{
@@ -614,9 +620,10 @@ def loader_body(spec):
     setStatus(fail? "bad":"ok", "已加载 "+rows.length+" 项"+(fail?(" · "+fail+" 项失败"):""));
     renderRows(rows);
   }}'''.format(mi=mi)
-    # post: 提交到 POST 端点(支持 args=查询参数 / llm=JSON body 两种形态)
+    # post: 提交到 POST 端点(支持 args / args-batch / llm / llm-multi 四种形态)
     if spec.get("loader") == "post":
-        if spec.get("postKind") == "args":
+        kind = spec.get("postKind", "llm")
+        if kind == "args":
             return ('''
   function go_(){{
     if(!BASE){{ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }}
@@ -627,7 +634,83 @@ def loader_body(spec):
       .then(function(j){{ setStatus(j.ok?"ok":"bad", j.ok?"完成":"失败"); render("{mode}", j); }})
       .catch(function(e){{ setStatus("bad","失败: "+e.message); out.innerHTML='<div class="err">失败: '+esc(e.message)+'</div>'; }});
   }}''').format(mode=spec["mode"])
-        # llm: POST JSON body {{system, user}}
+        if kind == "args-batch":
+            body = ('''
+  function go_(){{
+    if(!BASE){{ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }}
+    setStatus("wait","提交中…");
+    var url = buildUrl(gatherInputs());
+    fetch(BASE+url, {{method:"POST",cache:"no-store"}})
+      .then(function(r){{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }})
+      .then(function(j){{ setStatus(j.ok?"ok":"bad", j.ok?"完成":"失败"); render("{mode}", j); }})
+      .catch(function(e){{ setStatus("bad","失败: "+e.message); out.innerHTML='<div class="err">失败: '+esc(e.message)+'</div>'; }});
+  }}
+  function batch_(){{
+    if(!BASE){{ out.innerHTML='<div class="err">未连接到后端</div>'; return; }}
+    setStatus("wait","批量刷新中…");
+    var syms = __MAJOR__;
+    var done = 0, rows = [];
+    syms.forEach(function(s){{
+      fetch(BASE+"/api/refresh?symbol="+encodeURIComponent(s.symbol)+"&exchange="+encodeURIComponent(s.exchange), {{method:"POST",cache:"no-store"}})
+        .then(function(r){{ return r.json().catch(function(){{ return {{ok:false,symbol:s.symbol,exchange:s.exchange,msg:"解析失败"}}; }}); }})
+        .then(function(j){{ rows.push(j); }})
+        .catch(function(e){{ rows.push({{ok:false,symbol:s.symbol,exchange:s.exchange,msg:String(e.message||e)}}); }})
+        .then(function(){{ done++; if(done===syms.length) finishBatch(rows); }});
+    }});
+  }}
+  function finishBatch(rows){{
+    setStatus("ok","已刷新 "+rows.length+" 个品种");
+    out.innerHTML = '<div class="note">批量刷新结果（'+rows.length+' 个品种）</div>' + tableHtml(rows);
+  }}''').format(mode=spec["mode"])
+            body = body.replace("__MAJOR__", json.dumps(spec.get("batchSymbols", []), ensure_ascii=False))
+            return body
+        if kind == "llm-multi":
+            qid = (spec.get("inputs") or [{}])[0].get("id", "q")
+            system = spec.get("system", "")
+            return ('''
+  var QA_HISTORY = [];
+  function packContext(){{
+    var parts = [];
+    QA_HISTORY.forEach(function(h){{ if(h.a!=null) parts.push("用户: "+h.q+"\\n助手: "+h.a); }});
+    return parts.join("\\n\\n");
+  }}
+  function renderQA(){{
+    if(!QA_HISTORY.length){{ out.innerHTML = '<div class="empty">还没有对话，输入问题开始。</div>'; return; }}
+    var htm = '<div class="qa">';
+    QA_HISTORY.forEach(function(h){{
+      htm += '<div class="qat"><div class="qaq">'+esc(h.q)+'</div>'+
+             '<div class="qaa">'+(h.a!=null?esc(h.a):'<span class="qaw">思考中…</span>')+'</div></div>';
+    }});
+    htm += '</div>';
+    out.innerHTML = htm;
+    out.scrollTop = out.scrollHeight;
+  }}
+  function go_(){{
+    if(!BASE){{ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }}
+    setStatus("wait","思考中…");
+    var q = (inputs["{qid}"].value||"").trim();
+    if(!q){{ out.innerHTML='<div class="empty">请输入你的问题</div>'; return; }}
+    inputs["{qid}"].value = "";
+    QA_HISTORY.push({{q:q, a:null}});
+    renderQA();
+    var ctx = packContext();
+    var prompt = (ctx ? ctx+"\\n\\n" : "")+"新问题: "+q;
+    fetch(BASE+ENDPOINT, {{method:"POST",headers:{{"Content-Type":"application/json"}},cache:"no-store",
+      body:JSON.stringify({{system:"{system}", user:prompt}})}})
+      .then(function(r){{ if(!r.ok) return r.json().then(function(e){{ throw new Error(e.error||("HTTP "+r.status)); }}); return r.json(); }})
+      .then(function(j){{
+        var ans = (j && typeof j.content==="string") ? j.content : "(无回答)";
+        QA_HISTORY[QA_HISTORY.length-1].a = ans;
+        renderQA();
+        setStatus("ok","已回答");
+      }})
+      .catch(function(e){{
+        QA_HISTORY[QA_HISTORY.length-1].a = "（请求失败: "+e.message+"）";
+        renderQA();
+        setStatus("bad","请求失败: "+e.message);
+      }});
+  }}''').format(qid=qid, system=system, mode=spec["mode"])
+        # default llm: POST JSON body {{system, user}}
         qid = (spec.get("inputs") or [{}])[0].get("id", "q")
         system = spec.get("system", "")
         return ('''
@@ -656,6 +739,9 @@ def loader_body(spec):
 def make_html(spec):
     ids = [i["id"] for i in spec.get("inputs", [])]
     control_ids = "[" + ", ".join('"%s"' % i for i in ids) + "]" if ids else "[]"
+    extra_buttons = ""
+    if spec.get("postKind") == "args-batch":
+        extra_buttons = '<button id="batchBtn" class="ghost">批量刷新全品种</button>'
     html = TPL.format(
         name=spec["name"], ico=spec["ico"], tag=spec["tag"], dir=spec["dir"],
         endpoint=spec["endpoint"], mode=spec["mode"],
@@ -663,6 +749,7 @@ def make_html(spec):
         control_ids=control_ids,
         first_input=(spec.get("inputs") or [{}])[0].get("id","goBtn"),
         loader_body=loader_body(spec),
+        extra_buttons=extra_buttons,
     )
     # 定制渲染体在 .format 之后注入 → 花括号无需转义
     cust = CUSTOM.get(spec["dir"], {})

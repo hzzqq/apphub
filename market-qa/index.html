@@ -84,10 +84,12 @@
   .big{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:8px}
   .big .bp{font-size:34px;font-weight:800;line-height:1.1} .big .bc{font-size:15px;margin-top:4px}
 
-    .qa{margin-top:8px}
-    .qab{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
-    .qaa{white-space:pre-wrap;line-height:1.7;font-size:14px}
-    .qas{margin-top:10px;color:var(--sub);font-size:12px}
+    .qa{margin-top:8px;display:flex;flex-direction:column;gap:12px;max-height:62vh;overflow:auto}
+    .qat{display:flex;flex-direction:column;gap:4px}
+    .qaq{align-self:flex-end;background:var(--accent);color:#fff;padding:9px 13px;border-radius:14px 14px 4px 14px;max-width:85%;white-space:pre-wrap;line-height:1.6;font-size:14px;word-break:break-word}
+    .qaa{align-self:flex-start;background:var(--panel);border:1px solid var(--line);color:var(--text);padding:11px 14px;border-radius:14px 14px 14px 4px;max-width:92%;white-space:pre-wrap;line-height:1.7;font-size:14px;word-break:break-word}
+    .qaw{color:var(--amber);font-style:italic}
+    .qas{margin-top:8px;color:var(--sub);font-size:12px;align-self:flex-start}
 </style>
 </head>
 <body>
@@ -171,8 +173,7 @@
     if(!jj || typeof jj.content !== "string") return false;
     var src = jj.source ? String(jj.source) : "";
     var cached = jj.cached ? "（缓存）" : "";
-    out.innerHTML = '<div class="qa"><div class="qab">' +
-      '<div class="qaa">' + esc(jj.content) + '</div>' +
+    out.innerHTML = '<div class="qa"><div class="qat"><div class="qaa">' + esc(jj.content) + '</div>' +
       (src ? '<div class="qas">来源: ' + esc(src) + cached + '</div>' : '') +
       '</div></div>';
     return true;
@@ -219,22 +220,55 @@
     controlIds.forEach(function(id){ inputs[id]=document.getElementById(id); });
     var go = document.getElementById("goBtn");
     go.addEventListener("click", go_);
+    var batchBtn = document.getElementById("batchBtn");
+    if(batchBtn && typeof batch_ === "function") batchBtn.addEventListener("click", batch_);
     (document.getElementById("q")||go).addEventListener("keydown", function(e){ if(e.key==="Enter") go_(); });
   }
   function gatherInputs(){
     var p = {}; Object.keys(inputs).forEach(function(id){ p[id]=inputs[id].value; }); return p;
   }
   
+  var QA_HISTORY = [];
+  function packContext(){
+    var parts = [];
+    QA_HISTORY.forEach(function(h){ if(h.a!=null) parts.push("用户: "+h.q+"\n助手: "+h.a); });
+    return parts.join("\n\n");
+  }
+  function renderQA(){
+    if(!QA_HISTORY.length){ out.innerHTML = '<div class="empty">还没有对话，输入问题开始。</div>'; return; }
+    var htm = '<div class="qa">';
+    QA_HISTORY.forEach(function(h){
+      htm += '<div class="qat"><div class="qaq">'+esc(h.q)+'</div>'+
+             '<div class="qaa">'+(h.a!=null?esc(h.a):'<span class="qaw">思考中…</span>')+'</div></div>';
+    });
+    htm += '</div>';
+    out.innerHTML = htm;
+    out.scrollTop = out.scrollHeight;
+  }
   function go_(){
     if(!BASE){ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }
     setStatus("wait","思考中…");
     var q = (inputs["q"].value||"").trim();
     if(!q){ out.innerHTML='<div class="empty">请输入你的问题</div>'; return; }
+    inputs["q"].value = "";
+    QA_HISTORY.push({q:q, a:null});
+    renderQA();
+    var ctx = packContext();
+    var prompt = (ctx ? ctx+"\n\n" : "")+"新问题: "+q;
     fetch(BASE+ENDPOINT, {method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",
-      body:JSON.stringify({system:"你是一个专业的 A股与期货投研助手，回答简洁、用中文、给出可操作的信息；涉及具体标的时注明数据来源与不确定性。", user:q})})
+      body:JSON.stringify({system:"你是一个专业的 A股与期货投研助手，回答简洁、用中文、给出可操作的信息；涉及具体标的时注明数据来源与不确定性。", user:prompt})})
       .then(function(r){ if(!r.ok) return r.json().then(function(e){ throw new Error(e.error||("HTTP "+r.status)); }); return r.json(); })
-      .then(function(j){ setStatus("ok","已回答"); render("kv", j); })
-      .catch(function(e){ setStatus("bad","请求失败: "+e.message); out.innerHTML='<div class="err">请求失败: '+esc(e.message)+'</div>'; });
+      .then(function(j){
+        var ans = (j && typeof j.content==="string") ? j.content : "(无回答)";
+        QA_HISTORY[QA_HISTORY.length-1].a = ans;
+        renderQA();
+        setStatus("ok","已回答");
+      })
+      .catch(function(e){
+        QA_HISTORY[QA_HISTORY.length-1].a = "（请求失败: "+e.message+"）";
+        renderQA();
+        setStatus("bad","请求失败: "+e.message);
+      });
   }
   drawControls();
   setStatus(BASE?"wait":"bad", BASE?"就绪":"请以 http 方式经后端访问");

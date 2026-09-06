@@ -219,11 +219,13 @@
     html += '<label>品种代码<input id="symbol" placeholder="cu" value="cu"></label>';
     html += '<label>交易所<input id="exchange" placeholder="SHFE" value="SHFE"></label>';
     document.getElementById("controls").innerHTML = html +
-      '<button id="goBtn">查询</button>';
+      '<button id="goBtn">查询</button><button id="batchBtn" class="ghost">批量刷新全品种</button>';
     var controlIds = [["symbol", "exchange"]];
     controlIds.forEach(function(id){ inputs[id]=document.getElementById(id); });
     var go = document.getElementById("goBtn");
     go.addEventListener("click", go_);
+    var batchBtn = document.getElementById("batchBtn");
+    if(batchBtn && typeof batch_ === "function") batchBtn.addEventListener("click", batch_);
     (document.getElementById("symbol")||go).addEventListener("keydown", function(e){ if(e.key==="Enter") go_(); });
   }
   function gatherInputs(){
@@ -238,6 +240,23 @@
       .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
       .then(function(j){ setStatus(j.ok?"ok":"bad", j.ok?"完成":"失败"); render("kv", j); })
       .catch(function(e){ setStatus("bad","失败: "+e.message); out.innerHTML='<div class="err">失败: '+esc(e.message)+'</div>'; });
+  }
+  function batch_(){
+    if(!BASE){ out.innerHTML='<div class="err">未连接到后端</div>'; return; }
+    setStatus("wait","批量刷新中…");
+    var syms = [{"symbol": "cu", "exchange": "SHFE"}, {"symbol": "rb", "exchange": "SHFE"}, {"symbol": "au", "exchange": "SHFE"}, {"symbol": "i", "exchange": "DCE"}, {"symbol": "TA", "exchange": "CZCE"}, {"symbol": "m", "exchange": "DCE"}];
+    var done = 0, rows = [];
+    syms.forEach(function(s){
+      fetch(BASE+"/api/refresh?symbol="+encodeURIComponent(s.symbol)+"&exchange="+encodeURIComponent(s.exchange), {method:"POST",cache:"no-store"})
+        .then(function(r){ return r.json().catch(function(){ return {ok:false,symbol:s.symbol,exchange:s.exchange,msg:"解析失败"}; }); })
+        .then(function(j){ rows.push(j); })
+        .catch(function(e){ rows.push({ok:false,symbol:s.symbol,exchange:s.exchange,msg:String(e.message||e)}); })
+        .then(function(){ done++; if(done===syms.length) finishBatch(rows); });
+    });
+  }
+  function finishBatch(rows){
+    setStatus("ok","已刷新 "+rows.length+" 个品种");
+    out.innerHTML = '<div class="note">批量刷新结果（'+rows.length+' 个品种）</div>' + tableHtml(rows);
   }
   drawControls();
   setStatus(BASE?"wait":"bad", BASE?"就绪":"请以 http 方式经后端访问");
