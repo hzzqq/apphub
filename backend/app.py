@@ -1862,8 +1862,15 @@ def api_cache_stats():
 
 @app.route("/api/cache/clear", methods=["POST"])
 def api_cache_clear():
-    """清空进程内缓存(强制下次全量真抓)。运维/调试用, 不删磁盘数据。"""
+    """清空进程内缓存(强制下次全量真抓)。运维/调试用, 不删磁盘数据。
+    支持 ?key=<缓存键> 仅清空单个键; 不带 key 则清空全部。"""
+    key = request.args.get("key")
     with _CACHE_LOCK:
+        if key:
+            removed = 1 if key in _CACHE_STORE else 0
+            _CACHE_STORE.pop(key, None)
+            _CACHE_KEY_STATS.pop(key, None)
+            return jsonify({"ok": True, "cleared": removed, "key": key})
         n = len(_CACHE_STORE)
         _CACHE_STORE.clear()
         _CACHE_KEY_STATS.clear()

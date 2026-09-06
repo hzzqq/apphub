@@ -146,3 +146,25 @@ def test_cache_endpoint_registered():
     # /api/info 自动发现应包含缓存可观测端点
     eps = set(_client().get("/api/info").get_json()["endpoints"])
     assert "/api/cache/stats" in eps and "/api/cache/clear" in eps
+
+
+def test_cache_clear_single_key(monkeypatch):
+    backend._CACHE_STORE.clear()
+    backend._CACHE_KEY_STATS.clear()
+
+    def b():
+        return {"ok": True, "v": 1}
+
+    backend._cached_build("kA", 1800, b)
+    backend._cached_build("kB", 1800, b)
+    assert len(backend._CACHE_STORE) == 2
+    # 仅清 kA
+    r = _client().post("/api/cache/clear?key=kA").get_json()
+    assert r["ok"] is True and r["cleared"] == 1 and r["key"] == "kA"
+    assert "kA" not in backend._CACHE_STORE and "kB" in backend._CACHE_STORE
+    # 清不存在的 key
+    r2 = _client().post("/api/cache/clear?key=nope").get_json()
+    assert r2["cleared"] == 0
+    # 全清
+    r3 = _client().post("/api/cache/clear").get_json()
+    assert r3["cleared"] == 1 and len(backend._CACHE_STORE) == 0
