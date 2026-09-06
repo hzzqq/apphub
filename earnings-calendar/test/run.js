@@ -9,6 +9,7 @@
 const fs = require("fs");
 const vm = require("vm");
 const path = require("path");
+const { makeTester } = require("../../tools/test-scaffold.js");
 
 const ROOT = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
@@ -91,10 +92,7 @@ vm.createContext(ctx);
 vm.runInContext(src, ctx);
 
 /* ---------- 断言工具 ---------- */
-let pass = 0, fail = 0;
-const fails = [];
-function ok(cond, msg) { if (cond) pass++; else { fail++; fails.push(msg); } }
-function eq(a, b, msg) { ok(a === b, msg + ` (got ${JSON.stringify(a)} want ${JSON.stringify(b)})`); }
+const { ok, eq, report } = makeTester();
 
 /* ========== 1. esc ========== */
 eq(ctx.esc("<b>"), "&lt;b&gt;", "esc 转义 < >");
@@ -329,11 +327,4 @@ eq(ctx.ann.u1 && ctx.ann.u1.seen, true, "importItems 恢复标注(annotations)�
 eq(ctx.items[0].id, "u1", "importItems 保留事件ID用于标注回挂");
 
 /* ---------- 汇总 ---------- */
-console.log("\n财报日历 自测：" + pass + " 通过 / " + fail + " 失败");
-if (fail) {
-  console.log("失败项：");
-  fails.forEach((f) => console.log("  ✗ " + f));
-  process.exit(1);
-} else {
-  console.log("✅ 全部通过");
-}
+report();

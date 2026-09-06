@@ -8,6 +8,7 @@
 const fs = require("fs");
 const vm = require("vm");
 const path = require("path");
+const { makeTester } = require("../../tools/test-scaffold.js");
 
 const ROOT = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
@@ -119,12 +120,7 @@ vm.createContext(ctx);
 vm.runInContext(src, ctx);
 
 // ---------- 断言工具 ----------
-let pass = 0, fail = 0;
-const fails = [];
-function ok(cond, msg) { if (cond) pass++; else { fail++; fails.push(msg); } }
-function eq(a, b, msg) {
-  ok(a === b, msg + ` (got ${JSON.stringify(a)} want ${JSON.stringify(b)})`);
-}
+const { ok, eq, report } = makeTester();
 
 // ---------- 1. sanitize ----------
 const s1 = ctx.sanitize({ id: "x", code: "600519", name: "茅台", date: "2024-01-01", type: "up", content: "c", createdAt: 1 });
@@ -378,11 +374,4 @@ ok(lastClipboard && lastClipboard.includes("【600519 茅台】"), "复制为文
 ok(doc.getElementById("toast").classList.contains("show"), "复制成功后弹出 toast");
 
 // ---------- 结果 ----------
-console.log(`\n通过 ${pass} 项，失败 ${fail} 项`);
-if (fail) {
-  console.log("失败明细：");
-  fails.forEach((f) => console.log("  - " + f));
-  process.exit(1);
-} else {
-  console.log("全部逻辑自测通过 ✅");
-}
+report();

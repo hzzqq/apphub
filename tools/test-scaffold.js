@@ -52,7 +52,8 @@ function loadApp(appDir, opts) {
   const html = fs.readFileSync(path.resolve(appDir, "..", "index.html"), "utf8");
   const m = html.match(/<script>([\s\S]*?)<\/script>/);
   if (!m) throw new Error("index.html 中未找到 <script>");
-  const src = m[1];
+  let src = m[1];
+  if (opts.appendSrc) src = src + "\n" + opts.appendSrc;
 
   const doc = makeDoc();
   const _ls = {};
@@ -76,10 +77,15 @@ function loadApp(appDir, opts) {
     AbortController, URL, Blob, process, Buffer,
     encodeURIComponent, decodeURIComponent, btoa: win.btoa, atob: win.atob,
     TextEncoder, TextDecoder, navigator: { userAgent: "node" },
-    Math, Date, JSON, Promise, Array, Object, String, Number, Boolean, RegExp
+    alert: () => {}, confirm: () => true, prompt: () => null,
+    Math, Date, JSON, Promise, Array, Object, String, Number, Boolean, RegExp,
+    isFinite, parseFloat, parseInt, Set, Map, Symbol
   };
+  // 允许各 App 注入定制桩（custom Blob/FileReader/URL/alerts 捕获等）
+  if (opts.extraGlobals) Object.assign(sandbox, opts.extraGlobals);
   // 兼容 code-teacher 等"故意不提供 window 以阻止 initApp 自动运行"的 App
-  if (opts.window !== false) { sandbox.window = win; win.localStorage = localStorage; win.document = doc; win.fetch = sandbox.fetch; }
+  if (opts.windowAlias) { sandbox.window = sandbox; }
+  else if (opts.window !== false) { sandbox.window = win; win.localStorage = localStorage; win.document = doc; win.fetch = sandbox.fetch; }
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
   process.on("unhandledRejection", () => {});
@@ -96,14 +102,12 @@ function loadApp(appDir, opts) {
   return { sandbox, src, err, doc: sandbox.document, window: sandbox.window, localStorage };
 }
 
-function runAppTest(appDir, assertsFn) {
-  const { sandbox, src, err } = loadApp(appDir);
-  const win = sandbox.window, doc = sandbox.document;
-
+// 断言框架（单一真源）：供 runAppTest 与各历史/独立测试复用，杜绝多份 ok/eq/汇总样板。
+// ok 顺序无关：兼容两种写法
+//   标准测试: ok(name, cond)
+//   历史/原生测试: ok(cond, msg)
+function makeTester() {
   let pass = 0, fail = 0, failed = [];
-  // ok 顺序无关：兼容两种写法
-  //   25 个标准测试: ok(name, cond)
-  //   历史/原生测试: ok(cond, msg)
   function ok(a, b, extra) {
     let name, cond;
     if (typeof b === "boolean") { name = a; cond = b; }
@@ -114,12 +118,23 @@ function runAppTest(appDir, assertsFn) {
   }
   function eq(a, b, msg) { ok(msg + ` (got ${JSON.stringify(a)} want ${JSON.stringify(b)})`, a === b); }
   function arrEq(a, b, msg) { const s = JSON.stringify; ok(msg + ` (got ${s(a)} want ${s(b)})`, s(a) === s(b)); }
+  function report() {
+    console.log(`\n汇总：${pass} 通过 / ${fail} 失败`);
+    if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }
+    process.exit(0);
+  }
+  return { ok, eq, arrEq, report };
+}
+
+function runAppTest(appDir, assertsFn) {
+  const { sandbox, src, err } = loadApp(appDir);
+  const win = sandbox.window, doc = sandbox.document;
+  const t = makeTester();
+  const { ok, eq, arrEq } = t;
 
   assertsFn({ sandbox, window: win, doc, ok, eq, arrEq, src, err });
 
-  console.log(`\n汇总：${pass} 通过 / ${fail} 失败`);
-  if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }
-  else { console.log("全部通过 ✅"); process.exit(0); }
+  t.report();
 }
 
-module.exports = { runAppTest, loadApp, makeEl, makeDoc };
+module.exports = { runAppTest, loadApp, makeEl, makeDoc, makeTester };

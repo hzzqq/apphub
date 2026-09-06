@@ -8,90 +8,26 @@
 const fs = require("fs");
 const vm = require("vm");
 const path = require("path");
+const { makeTester, loadApp } = require("../../tools/test-scaffold.js");
 
-const ROOT = path.resolve(__dirname, "..");
-const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-
-const m = html.match(/<script>([\s\S]*?)<\/script>/);
-if (!m) throw new Error("index.html 中未找到 <script>");
-const src = m[1];
-
-// ---------- 最小 DOM 桩 ----------
-function makeEl() {
-  const el = {
-    _html: "", _value: "", _text: "", _attrs: {}, _listeners: {}, style: {},
-    classList: {
-      _s: new Set(),
-      add(c) { this._s.add(c); },
-      remove(c) { this._s.delete(c); },
-      toggle(c, on) { on ? this._s.add(c) : this._s.delete(c); },
-      contains(c) { return this._s.has(c); }
-    },
-    set innerHTML(v) { this._html = v; },
-    get innerHTML() { return this._html; },
-    set value(v) { this._value = v; },
-    get value() { return this._value; },
-    set textContent(v) { this._text = v; },
-    get textContent() { return this._text; },
-    setAttribute(n, v) { this._attrs[n] = v; },
-    getAttribute(n) { return n in this._attrs ? this._attrs[n] : null; },
-    addEventListener(t, fn) { (this._listeners[t] = this._listeners[t] || []).push(fn); },
-    appendChild() {}, click() {},
-    querySelector() { return makeEl(); },
-    querySelectorAll() { return []; },
-    onclick: null
-  };
-  return el;
-}
 const alerts = [];
-const doc = {
-  _byId: {},
-  getElementById(id) { return this._byId[id] || (this._byId[id] = makeEl()); },
-  querySelector() { return makeEl(); },
-  querySelectorAll() { return []; },
-  addEventListener() {},
-  createElement() { return makeEl(); }
-};
-const _ls = {};
-const localStorage = {
-  getItem(k) { return k in _ls ? _ls[k] : null; },
-  setItem(k, v) { _ls[k] = String(v); },
-  removeItem(k) { delete _ls[k]; }
-};
-function Blob(parts) { this.content = parts.join(""); }
+const { sandbox, localStorage } = loadApp(__dirname, {
+  // blackswan 需要 window===sandbox 别名(脚本经 globalThis.__BS_TEST__ 暴露纯函数)
+  windowAlias: true,
+  // 注入其定制桩（其余 DOM/localStorage 由脚手架默认提供）
+  extraGlobals: {
+    Blob: function (parts) { this.content = parts.join(""); },
+    URL: { createObjectURL: () => "blob:mock", revokeObjectURL() {} },
+    alert: (msg) => alerts.push(msg),
+    navigator: { clipboard: null }
+  }
+});
 
-const ctx = {
-  document: doc,
-  localStorage,
-  Blob,
-  URL: { createObjectURL: () => "blob:mock", revokeObjectURL() {} },
-  alert: (msg) => alerts.push(msg),
-  navigator: { clipboard: null },
-  console,
-  setTimeout: () => 0,
-  clearTimeout: () => {},
-  Date,
-  Math,
-  JSON,
-  Array,
-  Object,
-  Set,
-  isFinite,
-  parseFloat
-};
-ctx.window = ctx;
-ctx.globalThis = ctx;
-vm.createContext(ctx);
-vm.runInContext(src, ctx);
-
-const T = ctx.__BS_TEST__;
+const T = sandbox.__BS_TEST__;
 if (!T) throw new Error("脚本未暴露 __BS_TEST__，请检查 globalThis 钩子");
 
 // ---------- 断言工具 ----------
-let pass = 0, fail = 0;
-const fails = [];
-function ok(cond, msg) { if (cond) pass++; else { fail++; fails.push(msg); } }
-function eq(a, b, msg) { ok(a === b, msg + ` (got ${JSON.stringify(a)} want ${JSON.stringify(b)})`); }
+const { ok, eq, report } = makeTester();
 
 // ---------- 1. 内置库完整性 ----------
 ok(Array.isArray(T.EVENTS) && T.EVENTS.length >= 28, "内置事件库 >=28 条 (" + T.EVENTS.length + ")");
@@ -300,11 +236,4 @@ ok(T.validateEvent({ title: "x", sev: "high", markets: ["cn"] }).ok, "合法事�
 }
 
 // ---------- 结果 ----------
-console.log(`\n通过 ${pass} 项，失败 ${fail} 项`);
-if (fail) {
-  console.log("失败明细：");
-  fails.forEach(f => console.log("  - " + f));
-  process.exit(1);
-} else {
-  console.log("全部逻辑自测通过 ✅");
-}
+report();

@@ -8,6 +8,7 @@
 const fs = require("fs");
 const vm = require("vm");
 const path = require("path");
+const { makeTester } = require("../../tools/test-scaffold.js");
 
 const html = fs.readFileSync(path.resolve(__dirname, "..", "index.html"), "utf8");
 
@@ -38,11 +39,7 @@ vm.runInContext(safeSrc + "\nthis.__safeUrl=safeUrl;", ctx);
 const esc = ctx.__esc;
 const safeUrl = ctx.__safeUrl;
 
-let pass = 0, fail = 0;
-function ok(name, cond) {
-  if (cond) { pass++; console.log("  ✓ " + name); }
-  else { fail++; console.log("  ✗ " + name); }
-}
+const { ok, report } = makeTester();
 
 /* ---------- esc 行为 ---------- */
 ok("空值 -> 空串", esc(null) === "" && esc(undefined) === "");
@@ -68,5 +65,4 @@ ok("渲染 url 文本使用 esc(m.url)", /esc\(\s*m\.url\s*\)/.test(html));
 ok("链接 href 使用 safeUrl(m.url)", /safeUrl\(\s*m\.url\s*\)/.test(html));
 ok("渲染 tag 使用 esc(m.tag)", /esc\(\s*m\.tag\s*\)/.test(html));
 
-console.log("\n汇总：通过 " + pass + " / 失败 " + fail);
-process.exit(fail ? 1 : 0);
+report();

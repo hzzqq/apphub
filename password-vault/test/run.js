@@ -2,6 +2,7 @@
 // 复刻 index.html 中的 encryptItems/decryptItems 参数与格式，验证可解密 + 错误密码失败。
 const { webcrypto } = require("crypto");
 const crypto = webcrypto;
+const { makeTester } = require("../../tools/test-scaffold.js");
 function b64(buf){ return Buffer.from(buf).toString("base64"); }
 function unb64(s){ return new Uint8Array(Buffer.from(s, "base64")); }
 async function deriveKey(master, salt){
@@ -22,8 +23,7 @@ async function dec(master, stored, salt){
   return JSON.parse(new TextDecoder().decode(pt));
 }
 (async () => {
-  let pass = 0, fail = 0;
-  const ok = (c, m) => { if (c) { pass++; } else { fail++; console.log("FAIL:", m); } };
+  const { ok, report } = makeTester();
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const obj = [{ site:"github.com", user:"boss", pass:"p@ssw0rd!23" }, { site:"bank", user:"hz", pass:"x" }];
   const s = await enc("master123", obj, salt);
@@ -33,6 +33,5 @@ async function dec(master, stored, salt){
   try { await dec("wrong-password", s, salt); } catch (e) { threw = true; }
   ok(threw, "wrong master password fails to decrypt (AES-GCM auth tag)");
   ok(s.includes(":"), "stored format is iv:ct base64");
-  console.log(`password-vault crypto: ${pass} passed / ${fail} failed`);
-  if (fail) process.exit(1);
+  report();
 })();

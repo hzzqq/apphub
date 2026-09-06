@@ -9,6 +9,7 @@
 const fs = require("fs");
 const vm = require("vm");
 const path = require("path");
+const { makeTester } = require("../../tools/test-scaffold.js");
 
 const html = fs.readFileSync(path.resolve(__dirname, "..", "index.html"), "utf8");
 const m = html.match(/<script>([\s\S]*?)<\/script>/);
@@ -79,11 +80,7 @@ try { vm.runInContext(src, sandbox, { filename: "index.html#script" }); }
 catch (e) { console.warn("（脚本自动运行期的提示，已忽略）:", e.message); }
 
 /* ---------- 断言工具 ---------- */
-let pass = 0, fail = 0, failed = [];
-function ok(name, cond, extra) {
-  if (cond) { pass++; console.log("  ✓ " + name); }
-  else { fail++; failed.push(name); console.log("  ✗ " + name + (extra ? " :: " + extra : "")); }
-}
+const { ok, eq, report } = makeTester();
 const approx = (a, b, e) => Math.abs(a - b) <= (e == null ? 1e-9 : e);
 
 /* ============================================================
@@ -722,5 +719,4 @@ if (typeof sandbox.fcSignalStats === "function" && typeof sandbox.fcExpectedDir 
   console.log("\n[Round 18] 联动信号统计条 —— 函数不存在，跳过");
 }
 /* ---------- 汇总 ---------- */
-console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
-if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }
+report();

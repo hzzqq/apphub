@@ -7,4 +7,6 @@ ok("消费 /api/cache/stats", src.indexOf("cache/stats")>=0);
 ok("含 clearCache 调用", src.indexOf("clearCache")>=0);
 ok("含 escapeHtml", src.indexOf("escapeHtml")>=0);
 ok("含 freshness", src.indexOf("freshness")>=0);
+ok("清空失败文案(状态条变红)", src.indexOf("清空失败")>=0);
+ok("清空前校验 r.ok", src.indexOf("!r.ok")>=0);
 });
