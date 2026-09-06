@@ -90,6 +90,12 @@ SPECS = [
          inputs=[dict(id="symbol", label="品种代码", ph="cu", default="cu"),
                  dict(id="exchange", label="交易所", ph="SHFE", default="SHFE")],
          mode="kv"),
+    dict(dir="health-board", name="后端健康台", ico="💚", cat="tool", tag="健康检查",
+         desc="消费 /api/health，轮询后端存活/在线状态、端点数、运行时长与数据文件清单。",
+         endpoint="/api/health", loader="single", mode="kv"),
+    dict(dir="info-board", name="API 一览", ico="🧭", cat="tool", tag="端点清单",
+         desc="消费 /api/info，列出后端全部可用 API 端点（部署/排查时一眼看清能力边界）。",
+         endpoint="/api/info", loader="single", mode="rows"),
 ]
 
 # 每个 App 的定制可视化:
@@ -372,6 +378,39 @@ CUSTOM = {
     .rbm{color:var(--sub);font-size:13px;margin:2px 0}
     .mini{background:var(--panel2);color:var(--sub);border:1px solid var(--line);border-radius:7px;padding:2px 9px;font-size:11px;cursor:pointer}
     .mini:hover{color:var(--text)}'''),
+    "health-board": dict(render=r'''
+    var obj = (j && typeof j === "object") ? j : null;
+    if(!obj || typeof obj !== "object") return false;
+    var online = (!obj.offline && obj.status === "up");
+    var files = (obj.data_files && Array.isArray(obj.data_files)) ? obj.data_files : [];
+    function hbkv(k, v){ return '<div class="kv"><div class="k">'+esc(k)+'</div><div class="v">'+cell(v)+'</div></div>'; }
+    var htm = '<div class="hb"><div class="hstat"><span class="dot '+(online?"ok":"bad")+'"></span><b>'+
+      (online?"后端在线":"后端离线/异常")+'</b> · '+esc(obj.time||"")+'</div>'+
+      '<div class="kvg">'+hbkv("服务", obj.service||"")+hbkv("端点数", obj.endpoints)+
+      hbkv("已缓存品种", obj.cached_varieties)+hbkv("运行时长(s)", obj.uptime_sec)+
+      hbkv("数据文件", files.length)+'</div>'+
+      (files.length ? '<div class="note">数据文件('+files.length+')：'+files.map(function(f){return esc(f);}).join("、")+'</div>' : '')+
+      '</div>';
+    out.innerHTML = htm; return true;''',
+    css=r'''
+    .hb{margin-top:8px}
+    .hstat{display:flex;align-items:center;gap:8px;font-size:15px;margin-bottom:10px}
+    .hstat .dot{width:11px;height:11px}'''),
+    "info-board": dict(render=r'''
+    var obj = (j && typeof j === "object") ? j : null;
+    if(!obj || typeof obj !== "object") return false;
+    var eps = (obj.endpoints && Array.isArray(obj.endpoints)) ? obj.endpoints : [];
+    if(!eps.length) return false;
+    var htm = '<div class="ib"><div class="ibsvc">'+esc(obj.service||"")+'</div>'+
+      (obj.hint ? '<div class="note">'+esc(obj.hint)+'</div>' : '')+
+      '<div class="note">可用 API 端点（'+eps.length+'）：</div>'+
+      '<div class="eps">'+eps.map(function(e){return '<code class="ep">'+esc(e)+'</code>';}).join("")+'</div></div>';
+    out.innerHTML = htm; return true;''',
+    css=r'''
+    .ib{margin-top:8px}
+    .ibsvc{font-weight:600;margin-bottom:6px;color:var(--text)}
+    .eps{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+    .ep{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:12px;font-family:ui-monospace,Menlo,monospace;color:var(--accent)}'''),
 }
 
 TPL = '''<!DOCTYPE html>

@@ -348,6 +348,9 @@ const APPS = [
   // —— R21 新接入的 POST 端点消费者 ——
   {dir:"market-qa",         name:"AI 投研问答",    ico:"💬", cat:"tool", tag:"LLM 问答",        desc:"消费 /api/llm 统一大模型网关，输入问题获取 AI 投研回答（后端可接 Ollama / DeepSeek / OpenAI）。"},
   {dir:"inv-refresh",       name:"库存刷新台",     ico:"🔄", cat:"fin",  tag:"库存刷新",        desc:"消费 /api/refresh，触发单个期货品种的真实库存刷新（东方财富），查看刷新结果与最新库存。"},
+  // —— R42 新接入的 GET 端点消费者 ——
+  {dir:"health-board",      name:"后端健康台",     ico:"💚", cat:"tool", tag:"健康检查",       desc:"消费 /api/health，轮询后端在线状态、端点数、运行时长与数据文件清单。"},
+  {dir:"info-board",        name:"API 一览",       ico:"🧭", cat:"tool", tag:"端点清单",       desc:"消费 /api/info，列出后端全部可用 API 端点。"},
 ];
 
 /* ====================== 渲染 ====================== */
