@@ -90,12 +90,17 @@
     .qaa{align-self:flex-start;background:var(--panel);border:1px solid var(--line);color:var(--text);padding:11px 14px;border-radius:14px 14px 14px 4px;max-width:92%;white-space:pre-wrap;line-height:1.7;font-size:14px;word-break:break-word}
     .qaw{color:var(--amber);font-style:italic}
     .qas{margin-top:8px;color:var(--sub);font-size:12px;align-self:flex-start}
+    .qaa code{background:rgba(124,140,255,.16);padding:1px 5px;border-radius:5px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+    .qaa.qaerr{border-color:var(--red);color:var(--red)}
+    .qatools{margin-top:6px;display:flex;gap:6px}
+    .mini{background:var(--panel2);color:var(--sub);border:1px solid var(--line);border-radius:7px;padding:2px 9px;font-size:11px;cursor:pointer}
+    .mini:hover{color:var(--text)}
 </style>
 </head>
 <body>
 <a class="hubhome" href="../index.html">🏠 大厅</a>
 <h1>💬 AI 投研问答</h1>
-<p class="sub">LLM 问答</p>
+<p class="sub">LLM 多轮问答</p>
 <div class="controls" id="controls"></div>
 <div class="status"><span id="dot" class="dot bad"></span><span id="statusTxt">未连接</span></div>
 <div id="out"></div>
@@ -215,64 +220,105 @@
     var html = "";
     html += '<label>你的问题<br><textarea id="q" placeholder="最近市场情绪如何？白酒板块还能拿吗？">最近 A股 市场情绪如何，后市怎么看？</textarea></label>';
     document.getElementById("controls").innerHTML = html +
-      '<button id="goBtn">查询</button>';
+      '<button id="goBtn">发送</button><select id="modelSel" class="ghost"><option value="general">通用投研</option><option value="risk">风控视角</option><option value="trader">交易员视角</option></select><button id="stopBtn" class="ghost">停止</button><button id="clearBtn" class="ghost">清空对话</button>';
     var controlIds = [["q"]];
     controlIds.forEach(function(id){ inputs[id]=document.getElementById(id); });
     var go = document.getElementById("goBtn");
     go.addEventListener("click", go_);
     var batchBtn = document.getElementById("batchBtn");
     if(batchBtn && typeof batch_ === "function") batchBtn.addEventListener("click", batch_);
-    (document.getElementById("q")||go).addEventListener("keydown", function(e){ if(e.key==="Enter") go_(); });
+    var modelSel = document.getElementById("modelSel");
+    if(modelSel && typeof QA_MODELS !== "undefined") modelSel.addEventListener("change", function(){ QA_MODEL = (QA_MODELS[modelSel.selectedIndex] && QA_MODELS[modelSel.selectedIndex].system) || ""; });
+    var clearBtn = document.getElementById("clearBtn");
+    if(clearBtn && typeof QA_HISTORY !== "undefined") clearBtn.addEventListener("click", function(){ QA_HISTORY=[]; if(typeof saveQA==="function") saveQA(); renderQA(); setStatus("wait","已清空对话"); });
+    var stopBtn = document.getElementById("stopBtn");
+    if(stopBtn && typeof QA_CTRL !== "undefined") stopBtn.addEventListener("click", function(){ if(QA_CTRL && QA_CTRL.abort) QA_CTRL.abort(); });
+    (document.getElementById("q")||go).addEventListener("keydown", function(e){ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); go_(); } });
   }
   function gatherInputs(){
     var p = {}; Object.keys(inputs).forEach(function(id){ p[id]=inputs[id].value; }); return p;
   }
   
+  var QA_MODELS = [{"id": "general", "label": "通用投研", "system": "你是一个专业的 A股与期货投研助手，回答简洁、用中文、给出可操作的信息；涉及具体标的时注明数据来源与不确定性。"}, {"id": "risk", "label": "风控视角", "system": "你是一名严谨的量化风控分析师，聚焦持仓风险、回撤与不确定性，指出关键风险点并给出对冲/止损思路。"}, {"id": "trader", "label": "交易员视角", "system": "你是一名实战派交易员，侧重趋势、量价、情绪与择时，给出偏行动导向的短线/波段建议。"}];
+  var QA_MODEL = (QA_MODELS[0] && QA_MODELS[0].system) || "";
   var QA_HISTORY = [];
+  try { var _qs = localStorage.getItem("qa_history_" + ENDPOINT); if(_qs) QA_HISTORY = JSON.parse(_qs) || []; } catch(e) {}
+  function saveQA(){ try { localStorage.setItem("qa_history_" + ENDPOINT, JSON.stringify(QA_HISTORY)); } catch(e) {} }
+  function mdLite(s){
+    return esc(s)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+      .replace(/^\s*[-*]\s+(.+)$/gm, "• $1");
+  }
   function packContext(){
     var parts = [];
-    QA_HISTORY.forEach(function(h){ if(h.a!=null) parts.push("用户: "+h.q+"\n助手: "+h.a); });
+    QA_HISTORY.forEach(function(h){ if(h.a!=null && h.a.indexOf("（请求失败")!==0) parts.push("用户: "+h.q+"\n助手: "+h.a); });
     return parts.join("\n\n");
   }
+  var QA_CTRL = null;
   function renderQA(){
     if(!QA_HISTORY.length){ out.innerHTML = '<div class="empty">还没有对话，输入问题开始。</div>'; return; }
     var htm = '<div class="qa">';
-    QA_HISTORY.forEach(function(h){
+    QA_HISTORY.forEach(function(h, idx){
+      var failed = (h.a && h.a.indexOf("（请求失败")===0);
+      var acls = failed ? "qaa qaerr" : "qaa";
+      var abody = (h.a!=null) ? mdLite(h.a) : '<span class="qaw">思考中…</span>';
       htm += '<div class="qat"><div class="qaq">'+esc(h.q)+'</div>'+
-             '<div class="qaa">'+(h.a!=null?esc(h.a):'<span class="qaw">思考中…</span>')+'</div></div>';
+             '<div class="'+acls+'">'+abody+
+             '<div class="qatools"><button class="mini" data-act="copy" data-i="'+idx+'">复制</button>'+
+             (failed ? '<button class="mini" data-act="retry" data-i="'+idx+'">重试</button>' : '')+'</div></div></div>';
     });
     htm += '</div>';
     out.innerHTML = htm;
     out.scrollTop = out.scrollHeight;
+    Array.prototype.forEach.call(out.querySelectorAll(".mini"), function(b){
+      b.addEventListener("click", function(){
+        var i = +b.getAttribute("data-i");
+        if(b.getAttribute("data-act")==="copy"){
+          copyText(QA_HISTORY[i].a||""); var _t=b; b.textContent="已复制"; setTimeout(function(){ _t.textContent="复制"; },1200);
+        } else if(b.getAttribute("data-act")==="retry"){
+          var q = QA_HISTORY[i].q; QA_HISTORY.splice(i,1); saveQA(); sendQ(q);
+        }
+      });
+    });
   }
-  function go_(){
-    if(!BASE){ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }
+  function copyText(t){
+    try { if(navigator.clipboard) navigator.clipboard.writeText(t); }
+    catch(e){ var ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(e2){} document.body.removeChild(ta); }
+  }
+  function sendQ(q){
+    if(!q) return;
     setStatus("wait","思考中…");
-    var q = (inputs["q"].value||"").trim();
-    if(!q){ out.innerHTML='<div class="empty">请输入你的问题</div>'; return; }
-    inputs["q"].value = "";
-    QA_HISTORY.push({q:q, a:null});
-    renderQA();
+    QA_HISTORY.push({q:q, a:null}); saveQA(); renderQA();
+    if(QA_CTRL && QA_CTRL.abort) { try{ QA_CTRL.abort(); }catch(e){} }
+    QA_CTRL = (window.AbortController ? new AbortController() : null);
     var ctx = packContext();
     var prompt = (ctx ? ctx+"\n\n" : "")+"新问题: "+q;
     fetch(BASE+ENDPOINT, {method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",
-      body:JSON.stringify({system:"你是一个专业的 A股与期货投研助手，回答简洁、用中文、给出可操作的信息；涉及具体标的时注明数据来源与不确定性。", user:prompt})})
+      signal: (QA_CTRL ? QA_CTRL.signal : undefined),
+      body:JSON.stringify({system:QA_MODEL, user:prompt})})
       .then(function(r){ if(!r.ok) return r.json().then(function(e){ throw new Error(e.error||("HTTP "+r.status)); }); return r.json(); })
       .then(function(j){
         var ans = (j && typeof j.content==="string") ? j.content : "(无回答)";
-        QA_HISTORY[QA_HISTORY.length-1].a = ans;
-        renderQA();
-        setStatus("ok","已回答");
+        QA_HISTORY[QA_HISTORY.length-1].a = ans; saveQA(); renderQA(); setStatus("ok","已回答");
       })
       .catch(function(e){
-        QA_HISTORY[QA_HISTORY.length-1].a = "（请求失败: "+e.message+"）";
-        renderQA();
+        if(e.name==="AbortError"){ QA_HISTORY.pop(); saveQA(); renderQA(); setStatus("wait","已停止"); return; }
+        QA_HISTORY[QA_HISTORY.length-1].a = "（请求失败: "+e.message+"）"; saveQA(); renderQA();
         setStatus("bad","请求失败: "+e.message);
       });
   }
+  function go_(){
+    if(!BASE){ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }
+    var q = (inputs["q"].value||"").trim();
+    if(!q){ out.innerHTML='<div class="empty">请输入你的问题</div>'; return; }
+    inputs["q"].value = "";
+    sendQ(q);
+  }
+
   drawControls();
   setStatus(BASE?"wait":"bad", BASE?"就绪":"请以 http 方式经后端访问");
-  go_();
+  if(typeof QA_HISTORY !== "undefined" && QA_HISTORY.length){ renderQA(); } else { go_(); }
 })();
 </script>
 </body>

@@ -69,16 +69,21 @@ SPECS = [
          inputs=[dict(id="q", label="关键词", ph="茅台 利润", default="茅台")],
          mode="rows"),
     # —— 本轮新增: 消费 POST 端点(统一 LLM 网关 / 库存刷新) ——
-    dict(dir="market-qa", name="AI 投研问答", ico="💬", cat="tool", tag="LLM 问答",
-         desc="消费 /api/llm 统一大模型网关，输入问题获取 AI 投研回答（后端可接 Ollama / DeepSeek / OpenAI）。",
-         endpoint="/api/llm", loader="post", postKind="llm-multi",
+    dict(dir="market-qa", name="AI 投研问答", ico="💬", cat="tool", tag="LLM 多轮问答",
+         desc="消费 /api/llm 统一大模型网关，支持多轮对话（保留历史上下文）、人设切换、停止、清空、复制与 Markdown 渲染（后端可接 Ollama / DeepSeek / OpenAI）。",
+         endpoint="/api/llm", loader="post", postKind="llm-multi", goLabel="发送",
          system="你是一个专业的 A股与期货投研助手，回答简洁、用中文、给出可操作的信息；涉及具体标的时注明数据来源与不确定性。",
+         models=[
+           {"id":"general","label":"通用投研","system":"你是一个专业的 A股与期货投研助手，回答简洁、用中文、给出可操作的信息；涉及具体标的时注明数据来源与不确定性。"},
+           {"id":"risk","label":"风控视角","system":"你是一名严谨的量化风控分析师，聚焦持仓风险、回撤与不确定性，指出关键风险点并给出对冲/止损思路。"},
+           {"id":"trader","label":"交易员视角","system":"你是一名实战派交易员，侧重趋势、量价、情绪与择时，给出偏行动导向的短线/波段建议。"},
+         ],
          inputs=[dict(id="q", label="你的问题", ph="最近市场情绪如何？白酒板块还能拿吗？",
                       default="最近 A股 市场情绪如何，后市怎么看？", area=True)],
          mode="kv"),
     dict(dir="inv-refresh", name="库存刷新台", ico="🔄", cat="fin", tag="库存刷新",
          desc="消费 /api/refresh，触发单个期货品种的真实库存刷新（东方财富），查看刷新结果与最新库存。",
-         endpoint="/api/refresh", loader="post", postKind="args-batch",
+         endpoint="/api/refresh", loader="post", postKind="args-batch", goLabel="刷新",
          batchSymbols=[{"symbol":"cu","exchange":"SHFE"},{"symbol":"rb","exchange":"SHFE"},
                       {"symbol":"au","exchange":"SHFE"},{"symbol":"i","exchange":"DCE"},
                       {"symbol":"TA","exchange":"CZCE"},{"symbol":"m","exchange":"DCE"}],
@@ -340,7 +345,12 @@ CUSTOM = {
     .qaq{align-self:flex-end;background:var(--accent);color:#fff;padding:9px 13px;border-radius:14px 14px 4px 14px;max-width:85%;white-space:pre-wrap;line-height:1.6;font-size:14px;word-break:break-word}
     .qaa{align-self:flex-start;background:var(--panel);border:1px solid var(--line);color:var(--text);padding:11px 14px;border-radius:14px 14px 14px 4px;max-width:92%;white-space:pre-wrap;line-height:1.7;font-size:14px;word-break:break-word}
     .qaw{color:var(--amber);font-style:italic}
-    .qas{margin-top:8px;color:var(--sub);font-size:12px;align-self:flex-start}'''),
+    .qas{margin-top:8px;color:var(--sub);font-size:12px;align-self:flex-start}
+    .qaa code{background:rgba(124,140,255,.16);padding:1px 5px;border-radius:5px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+    .qaa.qaerr{border-color:var(--red);color:var(--red)}
+    .qatools{margin-top:6px;display:flex;gap:6px}
+    .mini{background:var(--panel2);color:var(--sub);border:1px solid var(--line);border-radius:7px;padding:2px 9px;font-size:11px;cursor:pointer}
+    .mini:hover{color:var(--text)}'''),
     "inv-refresh": dict(render=r'''
     var jj = (j && typeof j === "object") ? j : null;
     if(!jj || typeof jj.ok !== "boolean") return false;
@@ -565,14 +575,20 @@ __CUSTOM_ROWS__
     var html = "";
     {controls_html}
     document.getElementById("controls").innerHTML = html +
-      '<button id="goBtn">查询</button>{extra_buttons}';
+      '<button id="goBtn">{go_label}</button>{extra_buttons}';
     var controlIds = [{control_ids}];
     controlIds.forEach(function(id){{ inputs[id]=document.getElementById(id); }});
     var go = document.getElementById("goBtn");
     go.addEventListener("click", go_);
     var batchBtn = document.getElementById("batchBtn");
     if(batchBtn && typeof batch_ === "function") batchBtn.addEventListener("click", batch_);
-    (document.getElementById("{first_input}")||go).addEventListener("keydown", function(e){{ if(e.key==="Enter") go_(); }});
+    var modelSel = document.getElementById("modelSel");
+    if(modelSel && typeof QA_MODELS !== "undefined") modelSel.addEventListener("change", function(){{ QA_MODEL = (QA_MODELS[modelSel.selectedIndex] && QA_MODELS[modelSel.selectedIndex].system) || ""; }});
+    var clearBtn = document.getElementById("clearBtn");
+    if(clearBtn && typeof QA_HISTORY !== "undefined") clearBtn.addEventListener("click", function(){{ QA_HISTORY=[]; if(typeof saveQA==="function") saveQA(); renderQA(); setStatus("wait","已清空对话"); }});
+    var stopBtn = document.getElementById("stopBtn");
+    if(stopBtn && typeof QA_CTRL !== "undefined") stopBtn.addEventListener("click", function(){{ if(QA_CTRL && QA_CTRL.abort) QA_CTRL.abort(); }});
+    (document.getElementById("{first_input}")||go).addEventListener("keydown", function(e){{ if(e.key==="Enter" && !e.shiftKey){{ e.preventDefault(); go_(); }} }});
   }}
   function gatherInputs(){{
     var p = {{}}; Object.keys(inputs).forEach(function(id){{ p[id]=inputs[id].value; }}); return p;
@@ -580,7 +596,7 @@ __CUSTOM_ROWS__
   {loader_body}
   drawControls();
   setStatus(BASE?"wait":"bad", BASE?"就绪":"请以 http 方式经后端访问");
-  go_();
+  if(typeof QA_HISTORY !== "undefined" && QA_HISTORY.length){{ renderQA(); }} else {{ go_(); }}
 }})();
 </script>
 </body>
@@ -666,50 +682,85 @@ def loader_body(spec):
             return body
         if kind == "llm-multi":
             qid = (spec.get("inputs") or [{}])[0].get("id", "q")
-            system = spec.get("system", "")
+            models = spec.get("models") or [{"id":"default","label":"默认","system":spec.get("system","")}]
             return ('''
+  var QA_MODELS = __MODELS__;
+  var QA_MODEL = (QA_MODELS[0] && QA_MODELS[0].system) || "";
   var QA_HISTORY = [];
+  try {{ var _qs = localStorage.getItem("qa_history_" + ENDPOINT); if(_qs) QA_HISTORY = JSON.parse(_qs) || []; }} catch(e) {{}}
+  function saveQA(){{ try {{ localStorage.setItem("qa_history_" + ENDPOINT, JSON.stringify(QA_HISTORY)); }} catch(e) {{}} }}
+  function mdLite(s){{
+    return esc(s)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\\*\\*([^*]+)\\*\\*/g, "<b>$1</b>")
+      .replace(/^\\s*[-*]\\s+(.+)$/gm, "• $1");
+  }}
   function packContext(){{
     var parts = [];
-    QA_HISTORY.forEach(function(h){{ if(h.a!=null) parts.push("用户: "+h.q+"\\n助手: "+h.a); }});
+    QA_HISTORY.forEach(function(h){{ if(h.a!=null && h.a.indexOf("（请求失败")!==0) parts.push("用户: "+h.q+"\\n助手: "+h.a); }});
     return parts.join("\\n\\n");
   }}
+  var QA_CTRL = null;
   function renderQA(){{
     if(!QA_HISTORY.length){{ out.innerHTML = '<div class="empty">还没有对话，输入问题开始。</div>'; return; }}
     var htm = '<div class="qa">';
-    QA_HISTORY.forEach(function(h){{
+    QA_HISTORY.forEach(function(h, idx){{
+      var failed = (h.a && h.a.indexOf("（请求失败")===0);
+      var acls = failed ? "qaa qaerr" : "qaa";
+      var abody = (h.a!=null) ? mdLite(h.a) : '<span class="qaw">思考中…</span>';
       htm += '<div class="qat"><div class="qaq">'+esc(h.q)+'</div>'+
-             '<div class="qaa">'+(h.a!=null?esc(h.a):'<span class="qaw">思考中…</span>')+'</div></div>';
+             '<div class="'+acls+'">'+abody+
+             '<div class="qatools"><button class="mini" data-act="copy" data-i="'+idx+'">复制</button>'+
+             (failed ? '<button class="mini" data-act="retry" data-i="'+idx+'">重试</button>' : '')+'</div></div></div>';
     }});
     htm += '</div>';
     out.innerHTML = htm;
     out.scrollTop = out.scrollHeight;
+    Array.prototype.forEach.call(out.querySelectorAll(".mini"), function(b){{
+      b.addEventListener("click", function(){{
+        var i = +b.getAttribute("data-i");
+        if(b.getAttribute("data-act")==="copy"){{
+          copyText(QA_HISTORY[i].a||""); var _t=b; b.textContent="已复制"; setTimeout(function(){{ _t.textContent="复制"; }},1200);
+        }} else if(b.getAttribute("data-act")==="retry"){{
+          var q = QA_HISTORY[i].q; QA_HISTORY.splice(i,1); saveQA(); sendQ(q);
+        }}
+      }});
+    }});
   }}
-  function go_(){{
-    if(!BASE){{ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }}
+  function copyText(t){{
+    try {{ if(navigator.clipboard) navigator.clipboard.writeText(t); }}
+    catch(e){{ var ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta); ta.select(); try{{document.execCommand("copy");}}catch(e2){{}} document.body.removeChild(ta); }}
+  }}
+  function sendQ(q){{
+    if(!q) return;
     setStatus("wait","思考中…");
-    var q = (inputs["{qid}"].value||"").trim();
-    if(!q){{ out.innerHTML='<div class="empty">请输入你的问题</div>'; return; }}
-    inputs["{qid}"].value = "";
-    QA_HISTORY.push({{q:q, a:null}});
-    renderQA();
+    QA_HISTORY.push({{q:q, a:null}}); saveQA(); renderQA();
+    if(QA_CTRL && QA_CTRL.abort) {{ try{{ QA_CTRL.abort(); }}catch(e){{}} }}
+    QA_CTRL = (window.AbortController ? new AbortController() : null);
     var ctx = packContext();
     var prompt = (ctx ? ctx+"\\n\\n" : "")+"新问题: "+q;
     fetch(BASE+ENDPOINT, {{method:"POST",headers:{{"Content-Type":"application/json"}},cache:"no-store",
-      body:JSON.stringify({{system:"{system}", user:prompt}})}})
+      signal: (QA_CTRL ? QA_CTRL.signal : undefined),
+      body:JSON.stringify({{system:QA_MODEL, user:prompt}})}})
       .then(function(r){{ if(!r.ok) return r.json().then(function(e){{ throw new Error(e.error||("HTTP "+r.status)); }}); return r.json(); }})
       .then(function(j){{
         var ans = (j && typeof j.content==="string") ? j.content : "(无回答)";
-        QA_HISTORY[QA_HISTORY.length-1].a = ans;
-        renderQA();
-        setStatus("ok","已回答");
+        QA_HISTORY[QA_HISTORY.length-1].a = ans; saveQA(); renderQA(); setStatus("ok","已回答");
       }})
       .catch(function(e){{
-        QA_HISTORY[QA_HISTORY.length-1].a = "（请求失败: "+e.message+"）";
-        renderQA();
+        if(e.name==="AbortError"){{ QA_HISTORY.pop(); saveQA(); renderQA(); setStatus("wait","已停止"); return; }}
+        QA_HISTORY[QA_HISTORY.length-1].a = "（请求失败: "+e.message+"）"; saveQA(); renderQA();
         setStatus("bad","请求失败: "+e.message);
       }});
-  }}''').format(qid=qid, system=system, mode=spec["mode"])
+  }}
+  function go_(){{
+    if(!BASE){{ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }}
+    var q = (inputs["{qid}"].value||"").trim();
+    if(!q){{ out.innerHTML='<div class="empty">请输入你的问题</div>'; return; }}
+    inputs["{qid}"].value = "";
+    sendQ(q);
+  }}
+''').format(qid=qid).replace("__MODELS__", json.dumps(models, ensure_ascii=False))
         # default llm: POST JSON body {{system, user}}
         qid = (spec.get("inputs") or [{}])[0].get("id", "q")
         system = spec.get("system", "")
@@ -742,6 +793,12 @@ def make_html(spec):
     extra_buttons = ""
     if spec.get("postKind") == "args-batch":
         extra_buttons = '<button id="batchBtn" class="ghost">批量刷新全品种</button>'
+    elif spec.get("postKind") == "llm-multi":
+        models = spec.get("models") or [{"id":"default","label":"默认","system":spec.get("system","")}]
+        opts = "".join('<option value="%s">%s</option>' % (m["id"], m["label"]) for m in models)
+        extra_buttons = ('<select id="modelSel" class="ghost">' + opts + '</select>' +
+                         '<button id="stopBtn" class="ghost">停止</button>' +
+                         '<button id="clearBtn" class="ghost">清空对话</button>')
     html = TPL.format(
         name=spec["name"], ico=spec["ico"], tag=spec["tag"], dir=spec["dir"],
         endpoint=spec["endpoint"], mode=spec["mode"],
@@ -750,6 +807,7 @@ def make_html(spec):
         first_input=(spec.get("inputs") or [{}])[0].get("id","goBtn"),
         loader_body=loader_body(spec),
         extra_buttons=extra_buttons,
+        go_label=spec.get("goLabel", "查询"),
     )
     # 定制渲染体在 .format 之后注入 → 花括号无需转义
     cust = CUSTOM.get(spec["dir"], {})

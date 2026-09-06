@@ -229,7 +229,13 @@
     go.addEventListener("click", go_);
     var batchBtn = document.getElementById("batchBtn");
     if(batchBtn && typeof batch_ === "function") batchBtn.addEventListener("click", batch_);
-    (document.getElementById("code")||go).addEventListener("keydown", function(e){ if(e.key==="Enter") go_(); });
+    var modelSel = document.getElementById("modelSel");
+    if(modelSel && typeof QA_MODELS !== "undefined") modelSel.addEventListener("change", function(){ QA_MODEL = (QA_MODELS[modelSel.selectedIndex] && QA_MODELS[modelSel.selectedIndex].system) || ""; });
+    var clearBtn = document.getElementById("clearBtn");
+    if(clearBtn && typeof QA_HISTORY !== "undefined") clearBtn.addEventListener("click", function(){ QA_HISTORY=[]; if(typeof saveQA==="function") saveQA(); renderQA(); setStatus("wait","已清空对话"); });
+    var stopBtn = document.getElementById("stopBtn");
+    if(stopBtn && typeof QA_CTRL !== "undefined") stopBtn.addEventListener("click", function(){ if(QA_CTRL && QA_CTRL.abort) QA_CTRL.abort(); });
+    (document.getElementById("code")||go).addEventListener("keydown", function(e){ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); go_(); } });
   }
   function gatherInputs(){
     var p = {}; Object.keys(inputs).forEach(function(id){ p[id]=inputs[id].value; }); return p;
@@ -245,7 +251,7 @@
   }
   drawControls();
   setStatus(BASE?"wait":"bad", BASE?"就绪":"请以 http 方式经后端访问");
-  go_();
+  if(typeof QA_HISTORY !== "undefined" && QA_HISTORY.length){ renderQA(); } else { go_(); }
 })();
 </script>
 </body>
