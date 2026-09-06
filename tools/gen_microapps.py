@@ -369,7 +369,9 @@ CUSTOM = {
     css=r'''
     .rb{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:8px}
     .rbt{font-weight:700;font-size:15px;margin-bottom:6px}
-    .rbm{color:var(--sub);font-size:13px;margin:2px 0}'''),
+    .rbm{color:var(--sub);font-size:13px;margin:2px 0}
+    .mini{background:var(--panel2);color:var(--sub);border:1px solid var(--line);border-radius:7px;padding:2px 9px;font-size:11px;cursor:pointer}
+    .mini:hover{color:var(--text)}'''),
 }
 
 TPL = '''<!DOCTYPE html>
@@ -641,42 +643,101 @@ def loader_body(spec):
         kind = spec.get("postKind", "llm")
         if kind == "args":
             return ('''
+  var SINGLE_LOCK = false;
   function go_(){{
+    if(SINGLE_LOCK) return;
     if(!BASE){{ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }}
-    setStatus("wait","提交中…");
+    SINGLE_LOCK = true; setStatus("wait","提交中…");
     var url = buildUrl(gatherInputs());
+    var t0 = Date.now();
     fetch(BASE+url, {{method:"POST",cache:"no-store"}})
       .then(function(r){{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }})
-      .then(function(j){{ setStatus(j.ok?"ok":"bad", j.ok?"完成":"失败"); render("{mode}", j); }})
-      .catch(function(e){{ setStatus("bad","失败: "+e.message); out.innerHTML='<div class="err">失败: '+esc(e.message)+'</div>'; }});
+      .then(function(j){{ var el=(Date.now()-t0); j.elapsed_ms=el; setStatus(j.ok?"ok":"bad", (j.ok?"完成":"失败")+" · "+el+"ms"); render("{mode}", j); }})
+      .catch(function(e){{ setStatus("bad","失败: "+e.message); out.innerHTML='<div class="err">失败: '+esc(e.message)+'</div>'; }})
+      .then(function(){{ SINGLE_LOCK = false; }});
   }}''').format(mode=spec["mode"])
         if kind == "args-batch":
             body = ('''
+  var BATCH_LOCK = false;
+  var LAST_BATCH = [];
+  var LAST_TOTAL = 0;
+  function csvEscape(v){{
+    var s = (v==null?"":String(v));
+    if(/[",\\n]/.test(s)) s = '"' + s.replace(/"/g,'""') + '"';
+    return s;
+  }}
+  function exportBatchCSV(){{
+    if(!LAST_BATCH.length) return;
+    var cols = []; var seen={{}};
+    LAST_BATCH.forEach(function(r){{ Object.keys(r).forEach(function(k){{ if(!seen[k]){{seen[k]=1;cols.push(k);}} }}); }});
+    var lines = [cols.join(",")];
+    LAST_BATCH.forEach(function(r){{ lines.push(cols.map(function(c){{ return csvEscape(r[c]); }}).join(",")); }});
+    var csv = "﻿" + lines.join("\\n");
+    var blob = new Blob([csv], {{type:"text/csv;charset=utf-8"}});
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "batch_refresh.csv"; a.click();
+    setTimeout(function(){{ URL.revokeObjectURL(a.href); }}, 1000);
+  }}
   function go_(){{
+    if(BATCH_LOCK) return;
     if(!BASE){{ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }}
-    setStatus("wait","提交中…");
+    BATCH_LOCK = true; setStatus("wait","提交中…");
     var url = buildUrl(gatherInputs());
+    var t0 = Date.now();
     fetch(BASE+url, {{method:"POST",cache:"no-store"}})
       .then(function(r){{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }})
-      .then(function(j){{ setStatus(j.ok?"ok":"bad", j.ok?"完成":"失败"); render("{mode}", j); }})
-      .catch(function(e){{ setStatus("bad","失败: "+e.message); out.innerHTML='<div class="err">失败: '+esc(e.message)+'</div>'; }});
+      .then(function(j){{ var el=(Date.now()-t0); j.elapsed_ms=el; setStatus(j.ok?"ok":"bad", (j.ok?"完成":"失败")+" · "+el+"ms"); render("{mode}", j); }})
+      .catch(function(e){{ setStatus("bad","失败: "+e.message); out.innerHTML='<div class="err">失败: '+esc(e.message)+'</div>'; }})
+      .then(function(){{ BATCH_LOCK = false; }});
   }}
   function batch_(){{
+    if(BATCH_LOCK) return;
     if(!BASE){{ out.innerHTML='<div class="err">未连接到后端</div>'; return; }}
-    setStatus("wait","批量刷新中…");
+    BATCH_LOCK = true; setStatus("wait","批量刷新中…");
     var syms = __MAJOR__;
     var done = 0, rows = [];
+    var tAll = Date.now();
     syms.forEach(function(s){{
+      var t0 = Date.now();
       fetch(BASE+"/api/refresh?symbol="+encodeURIComponent(s.symbol)+"&exchange="+encodeURIComponent(s.exchange), {{method:"POST",cache:"no-store"}})
         .then(function(r){{ return r.json().catch(function(){{ return {{ok:false,symbol:s.symbol,exchange:s.exchange,msg:"解析失败"}}; }}); }})
-        .then(function(j){{ rows.push(j); }})
-        .catch(function(e){{ rows.push({{ok:false,symbol:s.symbol,exchange:s.exchange,msg:String(e.message||e)}}); }})
-        .then(function(){{ done++; if(done===syms.length) finishBatch(rows); }});
+        .then(function(j){{ j.elapsed_ms = Date.now()-t0; rows.push(j); }})
+        .catch(function(e){{ rows.push({{ok:false,symbol:s.symbol,exchange:s.exchange,msg:String(e.message||e),elapsed_ms:Date.now()-t0}}); }})
+        .then(function(){{ done++; if(done===syms.length) finishBatch(rows, Date.now()-tAll); }});
     }});
   }}
-  function finishBatch(rows){{
-    setStatus("ok","已刷新 "+rows.length+" 个品种");
-    out.innerHTML = '<div class="note">批量刷新结果（'+rows.length+' 个品种）</div>' + tableHtml(rows);
+  function finishBatch(rows, totalMs){{
+    BATCH_LOCK = false; LAST_BATCH = rows; LAST_TOTAL = totalMs || 0;
+    setStatus("ok","已刷新 "+rows.length+" 个品种 · 总耗时 "+LAST_TOTAL+"ms");
+    var tbl = '<div class="note">批量刷新结果（'+rows.length+' 个品种 · '+LAST_TOTAL+'ms）</div>' +
+      '<table class="tbl"><thead><tr><th>状态</th><th>品种</th><th>交易所</th><th>最新库存</th><th>填充</th><th>耗时</th><th>消息</th><th></th></tr></thead><tbody>' +
+      rows.map(function(r){{
+        var badge = '<span class="dot '+(r.ok?"ok":"bad")+'"></span>' + (r.ok?"成功":"失败");
+        var retry = r.ok ? "" : '<button class="mini" data-sym="'+esc(r.symbol)+'" data-ex="'+esc(r.exchange||"")+'">重试</button>';
+        return '<tr><td>'+badge+'</td><td>'+esc(r.symbol||"")+'</td><td>'+esc(r.exchange||"")+'</td>'+
+          '<td>'+(r.last_inventory!=null?fmtNum(r.last_inventory):"–")+'</td>'+
+          '<td>'+(r.filled!=null?fmtNum(r.filled):"–")+'</td>'+
+          '<td>'+(r.elapsed_ms!=null?r.elapsed_ms+"ms":"–")+'</td>'+
+          '<td>'+(r.msg?esc(r.msg):"")+'</td><td>'+retry+'</td></tr>';
+      }}).join("") + '</tbody></table>' +
+      '<button id="expCsv" class="ghost">导出 CSV</button>';
+    out.innerHTML = tbl;
+    var exp = document.getElementById("expCsv"); if(exp) exp.addEventListener("click", exportBatchCSV);
+    Array.prototype.forEach.call(out.querySelectorAll(".mini"), function(b){{
+      b.addEventListener("click", function(){{ refreshOne(b.getAttribute("data-sym"), b.getAttribute("data-ex")); }});
+    }});
+  }}
+  function refreshOne(symbol, exchange){{
+    if(!BASE) return;
+    setStatus("wait","重试 "+symbol+"…");
+    var t0 = Date.now();
+    fetch(BASE+"/api/refresh?symbol="+encodeURIComponent(symbol)+"&exchange="+encodeURIComponent(exchange), {{method:"POST",cache:"no-store"}})
+      .then(function(r){{ return r.json().catch(function(){{ return {{ok:false,symbol:symbol,exchange:exchange,msg:"解析失败"}}; }}); }})
+      .then(function(j){{
+        j.elapsed_ms = Date.now()-t0; setStatus(j.ok?"ok":"bad", (j.ok?"重试成功 ":"重试失败 ")+symbol);
+        for(var i=0;i<LAST_BATCH.length;i++){{ if(LAST_BATCH[i].symbol===symbol && (LAST_BATCH[i].exchange||"")===exchange){{ LAST_BATCH[i]=j; break; }} }}
+        finishBatch(LAST_BATCH, LAST_TOTAL);
+      }})
+      .catch(function(e){{ setStatus("bad","重试失败: "+e.message); }});
   }}''').format(mode=spec["mode"])
             body = body.replace("__MAJOR__", json.dumps(spec.get("batchSymbols", []), ensure_ascii=False))
             return body
