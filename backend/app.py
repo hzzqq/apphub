@@ -1766,7 +1766,7 @@ ENDPOINTS = [
     "/api/data", "/api/futures_events", "/api/futures_spread",
     "/api/llm", "/api/data_status",
     "/api/futures_chain", "/api/futures_sector_matrix", "/api/futures_varieties", "/api/itinerary/generate",
-    "/api/cache/stats", "/api/cache/clear",
+    "/api/cache/stats", "/api/cache/clear", "/api/cache/warm",
 ]
 
 
@@ -1875,6 +1875,41 @@ def api_cache_clear():
         _CACHE_STORE.clear()
         _CACHE_KEY_STATS.clear()
     return jsonify({"ok": True, "cleared": n})
+
+
+# 预热目标: (缓存键, 触发该键真实填充的端点路径). 经 app 自身请求路径触发,
+# 复用既有 _cached_build 逻辑, 确保缓存填充与真实请求完全一致.
+_WARM_TARGETS = [
+    ("market_cube", "/api/market_cube"),
+    ("etf", "/api/etf"),
+    ("sector", "/api/sector"),
+    ("shepherd", "/api/shepherd"),
+    ("futures_sector_matrix", "/api/futures_sector_matrix"),
+]
+
+
+@app.route("/api/cache/warm", methods=["POST"])
+def api_cache_warm():
+    """预热进程内缓存: 依次真实抓取并填充各重端点, 返回每键结果。
+    运维/调试用: 部署后调一次即可让首个用户请求命中热缓存。"""
+    results = {}
+    ok_n = 0
+    for key, path in _WARM_TARGETS:
+        try:
+            with app.test_request_context(path):
+                # 复用真实请求处理(含 _req_ttl 默认), 触发 _cached_build 真抓+填充
+                rv = app.dispatch_request()
+            payload = rv.get_json() if hasattr(rv, "get_json") else None
+            ok_flag = bool(payload and payload.get("ok"))
+            results[key] = {"ok": ok_flag,
+                            "offline": bool(payload and payload.get("offline")),
+                            "cached_at": payload.get("cached_at") if payload else None}
+            if ok_flag:
+                ok_n += 1
+        except Exception as e:  # noqa: BLE001
+            logger.warning("warm %s 失败: %s", key, str(e)[:160])
+            results[key] = {"ok": False, "error": str(e)[:120]}
+    return jsonify({"ok": True, "warmed": ok_n, "total": len(_WARM_TARGETS), "results": results})
 
 
 @app.route("/api/info", methods=["GET"])

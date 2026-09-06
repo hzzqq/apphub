@@ -145,7 +145,19 @@ def test_cache_stats_counts_misses_and_clear(monkeypatch):
 def test_cache_endpoint_registered():
     # /api/info 自动发现应包含缓存可观测端点
     eps = set(_client().get("/api/info").get_json()["endpoints"])
-    assert "/api/cache/stats" in eps and "/api/cache/clear" in eps
+    assert "/api/cache/stats" in eps and "/api/cache/clear" in eps and "/api/cache/warm" in eps
+
+
+def test_cache_warm_runs():
+    # warm 端点应真实跑通各重端点的 _cached_build(离线样本路径), 填充缓存并报告
+    backend._CACHE_STORE.clear()
+    backend._CACHE_KEY_STATS.clear()
+    j = _client().post("/api/cache/warm").get_json()
+    assert j["ok"] is True
+    assert j["total"] >= 4
+    # warm 后 stats 应能看到被填充的键
+    s = _client().get("/api/cache/stats").get_json()
+    assert s["store_keys"] >= 1
 
 
 def test_cache_clear_single_key(monkeypatch):
