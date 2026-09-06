@@ -47,7 +47,8 @@ function makeDoc() {
   };
 }
 
-function runAppTest(appDir, assertsFn) {
+function loadApp(appDir, opts) {
+  opts = opts || {};
   const html = fs.readFileSync(path.resolve(appDir, "..", "index.html"), "utf8");
   const m = html.match(/<script>([\s\S]*?)<\/script>/);
   if (!m) throw new Error("index.html 中未找到 <script>");
@@ -69,7 +70,7 @@ function runAppTest(appDir, assertsFn) {
     atob: (s) => Buffer.from(s, "base64").toString("binary")
   };
   const sandbox = {
-    document: doc, window: win, localStorage, console,
+    document: doc, localStorage, console,
     fetch: () => Promise.reject(new Error("no net")),
     setTimeout: () => 0, clearTimeout: () => {}, setInterval: () => 0, clearInterval: () => {},
     AbortController, URL, Blob, process, Buffer,
@@ -77,8 +78,9 @@ function runAppTest(appDir, assertsFn) {
     TextEncoder, TextDecoder, navigator: { userAgent: "node" },
     Math, Date, JSON, Promise, Array, Object, String, Number, Boolean, RegExp
   };
+  // 兼容 code-teacher 等"故意不提供 window 以阻止 initApp 自动运行"的 App
+  if (opts.window !== false) { sandbox.window = win; win.localStorage = localStorage; win.document = doc; win.fetch = sandbox.fetch; }
   sandbox.globalThis = sandbox;
-  win.localStorage = localStorage; win.document = doc; win.fetch = sandbox.fetch;
   vm.createContext(sandbox);
   process.on("unhandledRejection", () => {});
 
@@ -91,9 +93,22 @@ function runAppTest(appDir, assertsFn) {
     try { vm.runInContext(wm[1], sandbox, { filename: "cache-widget#script" }); }
     catch (e) { if (!err) err = e; }
   }
+  return { sandbox, src, err, doc: sandbox.document, window: sandbox.window, localStorage };
+}
+
+function runAppTest(appDir, assertsFn) {
+  const { sandbox, src, err } = loadApp(appDir);
+  const win = sandbox.window, doc = sandbox.document;
 
   let pass = 0, fail = 0, failed = [];
-  function ok(name, cond, extra) {
+  // ok 顺序无关：兼容两种写法
+  //   25 个标准测试: ok(name, cond)
+  //   历史/原生测试: ok(cond, msg)
+  function ok(a, b, extra) {
+    let name, cond;
+    if (typeof b === "boolean") { name = a; cond = b; }
+    else if (typeof a === "boolean") { name = b; cond = a; }
+    else { name = a; cond = !!b; }
     if (cond) { pass++; console.log("  ✓ " + name); }
     else { fail++; failed.push(name); console.log("  ✗ " + name + (extra ? (" :: " + extra) : "")); }
   }
@@ -107,4 +122,4 @@ function runAppTest(appDir, assertsFn) {
   else { console.log("全部通过 ✅"); process.exit(0); }
 }
 
-module.exports = { runAppTest, makeEl, makeDoc };
+module.exports = { runAppTest, loadApp, makeEl, makeDoc };
