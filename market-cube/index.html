@@ -139,6 +139,7 @@ td.cell:hover{filter:brightness(1.25)}
       </select></div>
       <button class="btn" id="swapBtn">🔄 旋转魔方</button>
       <button class="btn ghost" id="csvBtn">导出 CSV</button>
+      <a class="btn ghost" href="../cache-insight/" title="查看后端缓存命中/未命中、按键清空">🔍 缓存洞察</a>
     </div>
     <div class="summary" id="summary"></div>
     <div class="metaLegend" id="metaLegend"></div>
@@ -362,7 +363,8 @@ function exportCSV(){
   });
   var csv=lines.join("\n");
   try{
-    var blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+    // UTF-8 BOM 头: 防止 Excel 打开中文 CSV 乱码
+    var blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});
     var url=URL.createObjectURL(blob);
     var a=document.createElement("a"); a.href=url; a.download="market_cube_"+cfg.metric+".csv";
     document.body.appendChild(a); a.click(); document.body.removeChild(a);

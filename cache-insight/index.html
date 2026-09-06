@@ -53,6 +53,7 @@
 <div class="status"><span id="dot" class="dot bad"></span><span id="statusTxt">未连接</span></div>
 
 <div class="cards">
+  <div class="card"><div class="k">缓存命中率</div><div id="vRate" class="v accent">–</div></div>
   <div class="card"><div class="k">缓存命中</div><div id="vHits" class="v green">–</div></div>
   <div class="card"><div class="k">未命中(真抓)</div><div id="vMiss" class="v amber">–</div></div>
   <div class="card"><div class="k">陈旧回退</div><div id="vStale" class="v red">–</div></div>
@@ -61,8 +62,12 @@
 
 <div class="toolbar">
   <button id="refreshBtn">↻ 刷新</button>
+  <button id="warmBtn" class="ghost">🔥 预热缓存</button>
   <button id="clearBtn" class="danger">🗑 清空缓存</button>
   <label class="tog"><input type="checkbox" id="autoChk"> 自动刷新(5s)</label>
+</div>
+<div class="note" id="rateHist" style="margin-top:0;margin-bottom:14px;padding:8px 14px;font-size:12px">
+  命中率趋势（最近 12 次轮询）：暂无数据
 </div>
 
 <table class="tbl" id="tbl">
@@ -87,6 +92,8 @@
   var dot = document.getElementById("dot");
   var statusTxt = document.getElementById("statusTxt");
   var autoTimer = null;
+  var rateHist = [];   // 最近 N 次命中率(0~100 或 null)
+  var RATE_MAX = 12;
 
   function fmt(n){ return (n==null?0:n).toLocaleString("en-US"); }
   function freshness(ageSec){
@@ -106,6 +113,20 @@
     document.getElementById("vMiss").textContent  = fmt(j.misses);
     document.getElementById("vStale").textContent = fmt(j.stale_hits);
     document.getElementById("vErr").textContent   = fmt(j.build_errors);
+
+    // 命中率 = 命中 / (命中 + 未命中)，保留两位小数
+    var tot = (j.hits||0) + (j.misses||0);
+    var rate = tot > 0 ? (j.hits / tot) : null;
+    var rateEl = document.getElementById("vRate");
+    if(rate === null){ rateEl.textContent = "–"; rateEl.className = "v accent"; }
+    else {
+      rateEl.textContent = (rate*100).toFixed(1) + "%";
+      rateEl.className = "v " + (rate >= 0.8 ? "green" : (rate >= 0.5 ? "amber" : "red"));
+    }
+    // 记录趋势(R20: 自动轮询命中率历史)
+    rateHist.push(rate);
+    if(rateHist.length > RATE_MAX) rateHist.shift();
+    renderRateHist();
 
     var keys = j.keys || {};
     var names = Object.keys(keys);
@@ -140,6 +161,35 @@
   function setStatus(ok, txt){
     dot.className = "dot " + (ok ? "ok" : "bad");
     statusTxt.textContent = txt;
+  }
+
+  function renderRateHist(){
+    var box = document.getElementById("rateHist");
+    if(!rateHist.length){ box.textContent = "命中率趋势（最近 12 次轮询）：暂无数据"; return; }
+    var tags = rateHist.map(function(r){
+      if(r === null) return "?";
+      var pct = Math.round(r*100);
+      var cls = r >= 0.8 ? "green" : (r >= 0.5 ? "amber" : "red");
+      return '<span style="color:var(--'+cls+')">'+pct+'%</span>';
+    }).join(" → ");
+    box.innerHTML = "命中率趋势（最近 "+rateHist.length+" 次轮询）：" + tags;
+  }
+
+  function warmCache(){
+    if(!base){ alert("未连接到后端，无法预热缓存。"); return; }
+    setStatus(true, "正在预热缓存…");
+    fetch(base + "/api/cache/warm", {method:"POST", cache:"no-store"}).then(function(r){
+      if(!r.ok) throw new Error("HTTP " + r.status + (r.statusText ? (" " + r.statusText) : ""));
+      return r.json();
+    }).then(function(j){
+      var warmed = (j && Array.isArray(j.warmed)) ? j.warmed.length : 0;
+      setStatus(true, "预热完成 · 成功 " + warmed + " 个端点（失败 " +
+        ((j && j.failed) ? j.failed.length : 0) + "）· 统计已刷新");
+      load();
+    }).catch(function(e){
+      setStatus(false, "预热失败: " + e.message);
+      alert("预热缓存失败: " + e.message);
+    });
   }
 
   function load(){
@@ -194,6 +244,7 @@
   }
 
   document.getElementById("refreshBtn").addEventListener("click", load);
+  document.getElementById("warmBtn").addEventListener("click", warmCache);
   document.getElementById("clearBtn").addEventListener("click", clearCache);
   document.getElementById("tbody").addEventListener("click", function(e){
     var btn = e.target.closest ? e.target.closest("button[data-key]") : null;
