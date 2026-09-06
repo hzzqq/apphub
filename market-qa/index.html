@@ -88,6 +88,7 @@
   .big{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:8px}
   .big .bp{font-size:34px;font-weight:800;line-height:1.1} .big .bc{font-size:15px;margin-top:4px}
 
+    .qhead{position:sticky;top:0;z-index:2;background:var(--bg);color:var(--accent);font-size:12px;font-weight:700;letter-spacing:.5px;padding:6px 2px 7px;border-bottom:1px dashed var(--line);margin-bottom:4px}
     .qa{margin-top:8px;display:flex;flex-direction:column;gap:12px;max-height:62vh;overflow:auto}
     .qat{display:flex;flex-direction:column;gap:4px}
     .qaq{align-self:flex-end;background:var(--accent);color:#fff;padding:9px 13px;border-radius:14px 14px 4px 14px;max-width:85%;white-space:pre-wrap;line-height:1.6;font-size:14px;word-break:break-word}
@@ -250,13 +251,14 @@
     var batchBtn = document.getElementById("batchBtn");
     if(batchBtn && typeof batch_ === "function") batchBtn.addEventListener("click", batch_);
     var modelSel = document.getElementById("modelSel");
-    if(modelSel && typeof QA_MODELS !== "undefined") modelSel.addEventListener("change", function(){ QA_MODEL = (QA_MODELS[modelSel.selectedIndex] && QA_MODELS[modelSel.selectedIndex].system) || ""; });
+    if(modelSel && typeof QA_MODELS !== "undefined") modelSel.addEventListener("change", function(){ QA_MODEL = (QA_MODELS[modelSel.selectedIndex] && QA_MODELS[modelSel.selectedIndex].system) || ""; try{ var _qs=localStorage.getItem(qaKey()); QA_HISTORY=_qs?(JSON.parse(_qs)||[]):[]; }catch(e){ QA_HISTORY=[]; } renderQA(); setStatus("wait","已切换到「"+(QA_MODELS[modelSel.selectedIndex]?QA_MODELS[modelSel.selectedIndex].label:"")+"」"); });
     var personaSel = document.getElementById("personaSel");
     if(personaSel && typeof TRAIT_PERSONAS !== "undefined") personaSel.addEventListener("change", function(){
       TRAIT_IDX = personaSel.selectedIndex;
       QA_MODEL = (TRAIT_PERSONAS[TRAIT_IDX] && TRAIT_PERSONAS[TRAIT_IDX].system) || "";
+      try{ var _qs=localStorage.getItem(qaKey()); QA_HISTORY=_qs?(JSON.parse(_qs)||[]):[]; }catch(e){ QA_HISTORY=[]; }
       renderBio();
-      QA_HISTORY = []; if(typeof saveQA==="function") saveQA(); renderQA();
+      renderQA();
       setStatus("wait","已切换到「"+(TRAIT_PERSONAS[TRAIT_IDX]?TRAIT_PERSONAS[TRAIT_IDX].label:"")+"」");
     });
     var clearBtn = document.getElementById("clearBtn");
@@ -271,9 +273,10 @@
   
   var QA_MODELS = [{"id": "general", "label": "通用投研", "system": "你是一个专业的 A股与期货投研助手，回答简洁、用中文、给出可操作的信息；涉及具体标的时注明数据来源与不确定性。"}, {"id": "risk", "label": "风控视角", "system": "你是一名严谨的量化风控分析师，聚焦持仓风险、回撤与不确定性，指出关键风险点并给出对冲/止损思路。"}, {"id": "trader", "label": "交易员视角", "system": "你是一名实战派交易员，侧重趋势、量价、情绪与择时，给出偏行动导向的短线/波段建议。"}];
   var QA_MODEL = (QA_MODELS[0] && QA_MODELS[0].system) || "";
+  function qaKey(){ var s=document.getElementById("modelSel"); var m = QA_MODELS[(s?s.selectedIndex:0)] || QA_MODELS[0]; return "qa_history_" + ENDPOINT + "_" + ((m&&m.id)?m.id:"default"); }
   var QA_HISTORY = [];
-  try { var _qs = localStorage.getItem("qa_history_" + ENDPOINT); if(_qs) QA_HISTORY = JSON.parse(_qs) || []; } catch(e) {}
-  function saveQA(){ try { localStorage.setItem("qa_history_" + ENDPOINT, JSON.stringify(QA_HISTORY)); } catch(e) {} }
+  try { var _qs = localStorage.getItem(qaKey()); if(_qs) QA_HISTORY = JSON.parse(_qs) || []; } catch(e) {}
+  function saveQA(){ try { localStorage.setItem(qaKey(), JSON.stringify(QA_HISTORY)); } catch(e) {} }
   function mdLite(s){
     return esc(s)
       .replace(/`([^`]+)`/g, "<code>$1</code>")
@@ -287,8 +290,9 @@
   }
   var QA_CTRL = null;
   function renderQA(){
+    var msel = document.getElementById("modelSel"); var who = (QA_MODELS[(msel?msel.selectedIndex:0)] || QA_MODELS[0]);
     if(!QA_HISTORY.length){ out.innerHTML = '<div class="empty">还没有对话，输入问题开始。</div>'; return; }
-    var htm = '<div class="qa">';
+    var htm = '<div class="qhead">🤖 当前模型：'+esc(who?who.label:"模型")+'</div><div class="qa">';
     QA_HISTORY.forEach(function(h, idx){
       var failed = (h.a && h.a.indexOf("（请求失败")===0);
       var acls = failed ? "qaa qaerr" : "qaa";

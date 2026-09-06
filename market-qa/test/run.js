@@ -7,5 +7,5 @@ runAppTest(__dirname, ({ sandbox, ok, eq, arrEq, src, err }) => {
   ok("渲染函数存在", src.indexOf("function render") >= 0);
   ok("定制渲染钩子存在", src.indexOf("function renderCustom") >= 0);
   ok("模板占位符已替换", src.indexOf("__CUSTOM") < 0);
-  ok("POST 助手 fetchT/showError 存在", src.indexOf("fetchT(")>=0 && src.indexOf("function showError")>=0);ok("多轮 QA_HISTORY 存在", src.indexOf("QA_HISTORY")>=0);
+  ok("POST 助手 fetchT/showError 存在", src.indexOf("fetchT(")>=0 && src.indexOf("function showError")>=0);ok("多轮 QA_HISTORY 存在", src.indexOf("QA_HISTORY")>=0);ok("按模型隔离历史键 qaKey 存在", src.indexOf("function qaKey")>=0 && src.indexOf("qa_history_")>=0);
 });

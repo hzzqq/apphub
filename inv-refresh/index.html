@@ -251,13 +251,14 @@
     var batchBtn = document.getElementById("batchBtn");
     if(batchBtn && typeof batch_ === "function") batchBtn.addEventListener("click", batch_);
     var modelSel = document.getElementById("modelSel");
-    if(modelSel && typeof QA_MODELS !== "undefined") modelSel.addEventListener("change", function(){ QA_MODEL = (QA_MODELS[modelSel.selectedIndex] && QA_MODELS[modelSel.selectedIndex].system) || ""; });
+    if(modelSel && typeof QA_MODELS !== "undefined") modelSel.addEventListener("change", function(){ QA_MODEL = (QA_MODELS[modelSel.selectedIndex] && QA_MODELS[modelSel.selectedIndex].system) || ""; try{ var _qs=localStorage.getItem(qaKey()); QA_HISTORY=_qs?(JSON.parse(_qs)||[]):[]; }catch(e){ QA_HISTORY=[]; } renderQA(); setStatus("wait","已切换到「"+(QA_MODELS[modelSel.selectedIndex]?QA_MODELS[modelSel.selectedIndex].label:"")+"」"); });
     var personaSel = document.getElementById("personaSel");
     if(personaSel && typeof TRAIT_PERSONAS !== "undefined") personaSel.addEventListener("change", function(){
       TRAIT_IDX = personaSel.selectedIndex;
       QA_MODEL = (TRAIT_PERSONAS[TRAIT_IDX] && TRAIT_PERSONAS[TRAIT_IDX].system) || "";
+      try{ var _qs=localStorage.getItem(qaKey()); QA_HISTORY=_qs?(JSON.parse(_qs)||[]):[]; }catch(e){ QA_HISTORY=[]; }
       renderBio();
-      QA_HISTORY = []; if(typeof saveQA==="function") saveQA(); renderQA();
+      renderQA();
       setStatus("wait","已切换到「"+(TRAIT_PERSONAS[TRAIT_IDX]?TRAIT_PERSONAS[TRAIT_IDX].label:"")+"」");
     });
     var clearBtn = document.getElementById("clearBtn");

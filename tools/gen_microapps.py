@@ -439,6 +439,7 @@ CUSTOM = {
       '</div></div>';
     return true;''',
     css=r'''
+    .qhead{position:sticky;top:0;z-index:2;background:var(--bg);color:var(--accent);font-size:12px;font-weight:700;letter-spacing:.5px;padding:6px 2px 7px;border-bottom:1px dashed var(--line);margin-bottom:4px}
     .qa{margin-top:8px;display:flex;flex-direction:column;gap:12px;max-height:62vh;overflow:auto}
     .qat{display:flex;flex-direction:column;gap:4px}
     .qaq{align-self:flex-end;background:var(--accent);color:#fff;padding:9px 13px;border-radius:14px 14px 4px 14px;max-width:85%;white-space:pre-wrap;line-height:1.6;font-size:14px;word-break:break-word}
@@ -513,6 +514,7 @@ CUSTOM = {
     .pname{font-weight:700;font-size:15px;margin-bottom:4px}
     .pmethod{color:var(--sub);font-size:12.5px;line-height:1.65}
     .pcard{margin-top:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+    .qhead{position:sticky;top:0;z-index:2;background:var(--bg);color:var(--accent);font-size:12px;font-weight:700;letter-spacing:.5px;padding:6px 2px 7px;border-bottom:1px dashed var(--line);margin-bottom:4px}
     .pct{font-size:11px;font-weight:700;letter-spacing:1px;color:var(--accent);margin-bottom:5px}
     .pcb{font-size:12.5px;line-height:1.65;color:var(--text)}
     .pqu{margin:0;padding-left:18px}
@@ -763,13 +765,14 @@ __CUSTOM_ROWS__
     var batchBtn = document.getElementById("batchBtn");
     if(batchBtn && typeof batch_ === "function") batchBtn.addEventListener("click", batch_);
     var modelSel = document.getElementById("modelSel");
-    if(modelSel && typeof QA_MODELS !== "undefined") modelSel.addEventListener("change", function(){{ QA_MODEL = (QA_MODELS[modelSel.selectedIndex] && QA_MODELS[modelSel.selectedIndex].system) || ""; }});
+    if(modelSel && typeof QA_MODELS !== "undefined") modelSel.addEventListener("change", function(){{ QA_MODEL = (QA_MODELS[modelSel.selectedIndex] && QA_MODELS[modelSel.selectedIndex].system) || ""; try{{ var _qs=localStorage.getItem(qaKey()); QA_HISTORY=_qs?(JSON.parse(_qs)||[]):[]; }}catch(e){{ QA_HISTORY=[]; }} renderQA(); setStatus("wait","已切换到「"+(QA_MODELS[modelSel.selectedIndex]?QA_MODELS[modelSel.selectedIndex].label:"")+"」"); }});
     var personaSel = document.getElementById("personaSel");
     if(personaSel && typeof TRAIT_PERSONAS !== "undefined") personaSel.addEventListener("change", function(){{
       TRAIT_IDX = personaSel.selectedIndex;
       QA_MODEL = (TRAIT_PERSONAS[TRAIT_IDX] && TRAIT_PERSONAS[TRAIT_IDX].system) || "";
+      try{{ var _qs=localStorage.getItem(qaKey()); QA_HISTORY=_qs?(JSON.parse(_qs)||[]):[]; }}catch(e){{ QA_HISTORY=[]; }}
       renderBio();
-      QA_HISTORY = []; if(typeof saveQA==="function") saveQA(); renderQA();
+      renderQA();
       setStatus("wait","已切换到「"+(TRAIT_PERSONAS[TRAIT_IDX]?TRAIT_PERSONAS[TRAIT_IDX].label:"")+"」");
     }});
     var clearBtn = document.getElementById("clearBtn");
@@ -934,9 +937,10 @@ def loader_body(spec):
             return ('''
   var QA_MODELS = __MODELS__;
   var QA_MODEL = (QA_MODELS[0] && QA_MODELS[0].system) || "";
+  function qaKey(){{ var s=document.getElementById("modelSel"); var m = QA_MODELS[(s?s.selectedIndex:0)] || QA_MODELS[0]; return "qa_history_" + ENDPOINT + "_" + ((m&&m.id)?m.id:"default"); }}
   var QA_HISTORY = [];
-  try {{ var _qs = localStorage.getItem("qa_history_" + ENDPOINT); if(_qs) QA_HISTORY = JSON.parse(_qs) || []; }} catch(e) {{}}
-  function saveQA(){{ try {{ localStorage.setItem("qa_history_" + ENDPOINT, JSON.stringify(QA_HISTORY)); }} catch(e) {{}} }}
+  try {{ var _qs = localStorage.getItem(qaKey()); if(_qs) QA_HISTORY = JSON.parse(_qs) || []; }} catch(e) {{}}
+  function saveQA(){{ try {{ localStorage.setItem(qaKey(), JSON.stringify(QA_HISTORY)); }} catch(e) {{}} }}
   function mdLite(s){{
     return esc(s)
       .replace(/`([^`]+)`/g, "<code>$1</code>")
@@ -950,8 +954,9 @@ def loader_body(spec):
   }}
   var QA_CTRL = null;
   function renderQA(){{
+    var msel = document.getElementById("modelSel"); var who = (QA_MODELS[(msel?msel.selectedIndex:0)] || QA_MODELS[0]);
     if(!QA_HISTORY.length){{ out.innerHTML = '<div class="empty">还没有对话，输入问题开始。</div>'; return; }}
-    var htm = '<div class="qa">';
+    var htm = '<div class="qhead">🤖 当前模型：'+esc(who?who.label:"模型")+'</div><div class="qa">';
     QA_HISTORY.forEach(function(h, idx){{
       var failed = (h.a && h.a.indexOf("（请求失败")===0);
       var acls = failed ? "qaa qaerr" : "qaa";
@@ -1016,9 +1021,10 @@ def loader_body(spec):
   var TRAIT_PERSONAS = __PERSONAS__;
   var TRAIT_IDX = 0;
   var QA_MODEL = (TRAIT_PERSONAS[0] && TRAIT_PERSONAS[0].system) || "";
+  function qaKey(){{ var p = TRAIT_PERSONAS[TRAIT_IDX]; return "qa_history_" + ENDPOINT + "_" + ((p&&p.id)?p.id:"default"); }}
   var QA_HISTORY = [];
-  try {{ var _qs = localStorage.getItem("qa_history_" + ENDPOINT); if(_qs) QA_HISTORY = JSON.parse(_qs) || []; }} catch(e) {{}}
-  function saveQA(){{ try {{ localStorage.setItem("qa_history_" + ENDPOINT, JSON.stringify(QA_HISTORY)); }} catch(e) {{}} }}
+  try {{ var _qs = localStorage.getItem(qaKey()); if(_qs) QA_HISTORY = JSON.parse(_qs) || []; }} catch(e) {{}}
+  function saveQA(){{ try {{ localStorage.setItem(qaKey(), JSON.stringify(QA_HISTORY)); }} catch(e) {{}} }}
   function mdLite(s){{
     return esc(s)
       .replace(/`([^`]+)`/g, "<code>$1</code>")
@@ -1046,7 +1052,7 @@ def loader_body(spec):
   function renderQA(){{
     var who = (TRAIT_PERSONAS[TRAIT_IDX] && TRAIT_PERSONAS[TRAIT_IDX].label) || "交易大师";
     if(!QA_HISTORY.length){{ out.innerHTML = '<div class="empty">还没有对话，输入问题开始（你将与「'+who+'」对话）。</div>'; return; }}
-    var htm = '<div class="qa">';
+    var htm = '<div class="qhead">🎭 正在与「'+esc(who)+'」对话</div><div class="qa">';
     QA_HISTORY.forEach(function(h, idx){{
       var failed = (h.a && h.a.indexOf("（请求失败")===0);
       var acls = failed ? "qaa qaerr" : "qaa";
@@ -1176,9 +1182,11 @@ def make_test(spec):
         extra = 'ok("POST 助手 fetchT/showError 存在", src.indexOf("fetchT(")>=0 && src.indexOf("function showError")>=0);'
         if spec.get("postKind") == "llm-multi":
             extra += 'ok("多轮 QA_HISTORY 存在", src.indexOf("QA_HISTORY")>=0);'
+            extra += 'ok("按模型隔离历史键 qaKey 存在", src.indexOf("function qaKey")>=0 && src.indexOf("qa_history_")>=0);'
         if spec.get("postKind") == "llm-persona":
             extra += 'ok("人格列表 TRAIT_PERSONAS 存在", src.indexOf("TRAIT_PERSONAS")>=0);'
             extra += 'ok("多轮 QA_HISTORY 存在", src.indexOf("QA_HISTORY")>=0);'
+            extra += 'ok("按人格隔离历史键 qaKey 存在", src.indexOf("function qaKey")>=0 && src.indexOf("qa_history_")>=0);'
         if spec.get("postKind") == "args-batch":
             extra += 'ok("批量锁 BATCH_LOCK 存在", src.indexOf("BATCH_LOCK")>=0);'
     return '''// 自动生成 (tools/gen_microapps.py) — {name}
