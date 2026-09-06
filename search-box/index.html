@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>智能搜索 · AppHub</title>
+<style>
+  :root{--bg:#0f1020;--panel:#1a1b2e;--panel2:#23243a;--line:#2e2f4a;--text:#e8e9f3;
+    --sub:#9aa0c0;--accent:#7c8cff;--green:#00d486;--red:#ff6b6b;--amber:#ffb454;--chip:#2a2c46;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;padding:22px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--sub);margin:0 0 16px;font-size:13px}
+  a.hubhome{position:fixed;left:12px;top:12px;z-index:50;text-decoration:none;
+    background:var(--chip);color:var(--text);padding:5px 10px;border-radius:8px;font-size:12px}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:flex-end}
+  .controls label{display:flex;flex-direction:column;gap:4px;color:var(--sub);font-size:12px}
+  .controls input{background:var(--panel);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:8px 10px;font-size:13px;min-width:180px}
+  button{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:8px 16px;
+    font-size:13px;cursor:pointer;font-weight:600}
+  button.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+  .status{display:inline-flex;align-items:center;gap:7px;font-size:13px;margin-bottom:14px;
+    padding:6px 12px;border-radius:9px;background:var(--panel);border:1px solid var(--line)}
+  .dot{width:9px;height:9px;border-radius:50%}
+  .dot.ok{background:var(--green)} .dot.bad{background:var(--red)} .dot.wait{background:var(--amber)}
+  #out{margin-top:6px}
+  .tbl{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;margin-top:8px}
+  .tbl th,.tbl td{padding:8px 11px;text-align:left;border-bottom:1px solid var(--line);font-size:13px;
+    vertical-align:top}
+  .tbl th{color:var(--sub);font-weight:600;background:var(--panel2);position:sticky;top:0}
+  .tbl tr:last-child td{border-bottom:0}
+  .tbl td.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--accent)}
+  .kvg{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:8px}
+  .kv{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .kv .k{color:var(--sub);font-size:12px} .kv .v{font-size:16px;margin-top:3px;word-break:break-all}
+  .v.up{color:var(--red)} .v.down{color:var(--green)}
+  .empty{color:var(--sub);padding:24px;text-align:center}
+  .err{color:var(--red);padding:14px;border:1px solid var(--red);border-radius:10px;background:rgba(255,107,107,.08)}
+  .note{margin-top:14px;color:var(--sub);font-size:12px}
+  .bar{height:6px;border-radius:3px;display:inline-block}
+</style>
+</head>
+<body>
+<a class="hubhome" href="../index.html">🏠 大厅</a>
+<h1>🔎 智能搜索</h1>
+<p class="sub">全局搜索</p>
+<div class="controls" id="controls"></div>
+<div class="status"><span id="dot" class="dot bad"></span><span id="statusTxt">未连接</span></div>
+<div id="out"></div>
+<div class="note">需经 <b>后端</b> 访问（http://&lt;host&gt;:8787/search-box/）。以 file:// 打开则无法读取数据。</div>
+
+<script>
+(function(){
+  function apiBase(){ return location.protocol === "file:" ? null : location.origin; }
+  var BASE = apiBase();
+  var ENDPOINT = "/api/search";
+  var out = document.getElementById("out");
+  var dot = document.getElementById("dot");
+  var statusTxt = document.getElementById("statusTxt");
+  var inputs = {};   // id -> element
+
+  function setStatus(kind, txt){
+    dot.className = "dot " + kind;
+    statusTxt.textContent = txt;
+  }
+  function esc(s){
+    return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function fmtNum(n){
+    if(n==null||n==="") return "–";
+    var x = Number(n); if(isNaN(x)) return esc(n);
+    return x.toLocaleString("en-US", {maximumFractionDigits:4});
+  }
+  function cell(v){
+    if(v==null||v==="") return "–";
+    if(typeof v === "number"){ var cls = v>0?"up":(v<0?"down":""); return '<span class="'+(v>0?"up":(v<0?"down":""))+'">'+fmtNum(v)+'</span>'; }
+    if(typeof v === "object") return '<span class="mono">'+esc(JSON.stringify(v))+'</span>';
+    return esc(v);
+  }
+  function toRows(j){
+    if(Array.isArray(j)) return j;
+    if(j && Array.isArray(j.rows)) return j.rows;
+    if(j && Array.isArray(j.data)) return j.data;
+    if(j && Array.isArray(j.items)) return j.items;
+    if(j && Array.isArray(j.list)) return j.list;
+    if(j && j.ok && Array.isArray(j.result)) return j.result;
+    return null;
+  }
+  function renderRows(rows){
+    if(!rows || !rows.length){ out.innerHTML = '<div class="empty">无数据</div>'; return; }
+    var cols = []; var seen = {};
+    rows.forEach(function(r){ if(r && typeof r==="object"){ Object.keys(r).forEach(function(k){ if(!seen[k]){seen[k]=1;cols.push(k);} }); } });
+    if(!cols.length) cols = Object.keys(rows[0]||{});
+    var html = '<table class="tbl"><thead><tr>'+cols.map(function(c){return "<th>"+esc(c)+"</th>";}).join("")+'</tr></thead><tbody>';
+    rows.forEach(function(r){
+      html += "<tr>"+cols.map(function(c){ return "<td>"+cell(r?r[c]:null)+"</td>"; }).join("")+"</tr>";
+    });
+    html += "</tbody></table>";
+    out.innerHTML = html;
+  }
+  function renderKV(j){
+    var obj = (j && j.ok && typeof j.data==="object" && !Array.isArray(j.data)) ? j.data : j;
+    if(Array.isArray(j)) obj = {"items": j.length};
+    var keys = Object.keys(obj||{}).filter(function(k){ return k!=="ok"; });
+    if(!keys.length){ out.innerHTML = '<div class="empty">无数据</div>'; return; }
+    var html = '<div class="kvg">'+keys.map(function(k){
+      var v = obj[k]; var cls = (typeof v==="number"&&v>0)?"up":((typeof v==="number"&&v<0)?"down":"");
+      return '<div class="kv"><div class="k">'+esc(k)+'</div><div class="v '+cls+'">'+cell(v)+'</div></div>';
+    }).join("")+'</div>';
+    out.innerHTML = html;
+  }
+  function render(mode, j){
+    if("rows"==="kv"){ renderKV(j); return; }
+    if("rows"==="rows"){ var r=toRows(j); if(r){renderRows(r);return;} renderKV(j); return; }
+    // auto
+    var r=toRows(j); if(r && r.length){ renderRows(r); return; } renderKV(j);
+  }
+  function buildUrl(params){
+    var u = ENDPOINT; var qs = [];
+    Object.keys(params||{}).forEach(function(k){ var v=(params[k]||"").trim(); if(v) qs.push(encodeURIComponent(k)+"="+encodeURIComponent(v)); });
+    return qs.length ? u+"?"+qs.join("&") : u;
+  }
+  function drawControls(){
+    var html = "";
+    html += '<label>关键词<input id="q" placeholder="茅台 利润" value="茅台"></label>';
+    document.getElementById("controls").innerHTML = html +
+      '<button id="goBtn">查询</button>';
+    var controlIds = [["q"]];
+    controlIds.forEach(function(id){ inputs[id]=document.getElementById(id); });
+    var go = document.getElementById("goBtn");
+    go.addEventListener("click", go_);
+    (document.getElementById("q")||go).addEventListener("keydown", function(e){ if(e.key==="Enter") go_(); });
+  }
+  function gatherInputs(){
+    var p = {}; Object.keys(inputs).forEach(function(id){ p[id]=inputs[id].value; }); return p;
+  }
+  
+  function go_(){
+    if(!BASE){ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }
+    setStatus("wait","加载中…");
+    var url = buildUrl(gatherInputs());
+    fetch(BASE+url, {cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+      .then(function(j){ setStatus("ok","已加载"); render("rows", j); })
+      .catch(function(e){ setStatus("bad","加载失败: "+e.message); out.innerHTML='<div class="err">加载失败: '+esc(e.message)+'</div>'; });
+  }
+  drawControls();
+  setStatus(BASE?"wait":"bad", BASE?"就绪":"请以 http 方式经后端访问");
+  go_();
+})();
+</script>
+</body>
+</html>

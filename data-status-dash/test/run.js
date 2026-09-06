@@ -1,0 +1,9 @@
+// 自动生成 (tools/gen_microapps.py) — 数据状态总览
+const { runAppTest } = require("../../tools/test-scaffold.js");
+runAppTest(__dirname, ({ sandbox, ok, eq, arrEq, src, err }) => {
+  ok("脚本无语法错误", !err || !(err instanceof SyntaxError), err ? err.message : "");
+  ok("fetch 调用存在", src.indexOf("fetch(") >= 0);
+  ok("端点已配置 (/api/data_status)", src.indexOf("/api/data_status") >= 0);
+  ok("渲染函数存在", src.indexOf("function render") >= 0);
+  
+});

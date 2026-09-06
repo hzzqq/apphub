@@ -329,6 +329,22 @@ const APPS = [
   {dir:"cube-trainer",     name:"魔方训练助手",   ico:"🧊", cat:"life", tag:"魔方计时训练",  desc:"仿市场魔方助手：3D 虚拟魔方 + 计时训练 + 数据统计 + 打乱生成 + 一键还原，2/3/4/5 阶可切。"},
   {dir:"market-cube",      name:"市场数据魔方",   ico:"🧊", cat:"tool", tag:"多维透视分析",  desc:"板块×时间×多指标 OLAP 数据魔方：旋转/切片/下钻/导出 CSV，24 板块×8 周×5 指标离线样本，红涨绿跌。"},
   {dir:"cache-insight",    name:"缓存洞察",       ico:"🔍", cat:"tool", tag:"缓存可观测",     desc:"后端进程内缓存可观测面板：命中/未命中/陈旧回退/构建错误计数 + 各缓存键年龄/体积，一键清空缓存。"},
+  // —— R3~R18 新接入的真实端点消费者 ——
+  {dir:"data-status-dash",  name:"数据状态总览",   ico:"📊", cat:"tool", tag:"数据覆盖/质量",   desc:"消费 /api/data_status，总览各数据源覆盖、质量与新鲜度。"},
+  {dir:"spread-viewer",     name:"期货跨期价差",   ico:"📐", cat:"fin",  tag:"跨期价差",       desc:"消费 /api/futures_spread，展示各品种近月-远月跨期价差。"},
+  {dir:"holdings-health",   name:"持仓体检",       ico:"💼", cat:"fin",  tag:"持仓估值",       desc:"批量消费 /api/quote，输入一组代码展示实时价/涨跌/占比。"},
+  {dir:"sector-heat",       name:"板块强弱热力",   ico:"🔥", cat:"fin",  tag:"板块涨跌",       desc:"消费 /api/sector，按涨跌幅着色展示板块强弱热力。"},
+  {dir:"quote-board",       name:"实时报价板",     ico:"💹", cat:"fin",  tag:"个股实时报价",   desc:"消费 /api/quote，输入代码查看实时价格/涨跌/量。"},
+  {dir:"eia-watch",         name:"原油库存周报",   ico:"🛢️", cat:"fin",  tag:"EIA 原油",       desc:"消费 /api/eia_crude，展示美国原油库存周度数据。"},
+  {dir:"inventory-watch",   name:"库存概览",       ico:"📦", cat:"fin",  tag:"期货库存",       desc:"消费 /api/inventory_overview，展示主要品种库存概览。"},
+  {dir:"variety-screener",  name:"期货品种筛选",   ico:"🧮", cat:"fin",  tag:"品种列表",       desc:"消费 /api/futures_varieties，浏览/筛选期货品种。"},
+  {dir:"corr-explorer",     name:"相关性探测器",   ico:"🔗", cat:"fin",  tag:"相关性",         desc:"消费 /api/corr_top，展示相关性最强的标的对。"},
+  {dir:"futures-events",    name:"期货事件台",     ico:"🗓️", cat:"fin",  tag:"期货事件",       desc:"消费 /api/futures_events，展示期货品种事件。"},
+  {dir:"market-mood",       name:"市场情绪台",     ico:"🧭", cat:"fin",  tag:"牧羊人指数",     desc:"消费 /api/shepherd，展示市场情绪/牧羊人指数。"},
+  {dir:"itinerary-view",    name:"行程规划台",     ico:"🧳", cat:"tool", tag:"行程生成",       desc:"消费 /api/itinerary/generate，展示行程规划结果。"},
+  {dir:"futures-board",     name:"期货总览",       ico:"📈", cat:"fin",  tag:"期货行情",       desc:"消费 /api/futures，展示期货品种总览行情。"},
+  {dir:"data-explorer",     name:"数据浏览器",     ico:"🗂️", cat:"tool", tag:"数据条目",       desc:"消费 /api/data，浏览后端数据条目。"},
+  {dir:"search-box",        name:"智能搜索",       ico:"🔎", cat:"tool", tag:"全局搜索",       desc:"消费 /api/search，输入关键词搜索。"},
 ];
 
 /* ====================== 渲染 ====================== */
