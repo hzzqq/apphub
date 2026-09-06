@@ -14,6 +14,38 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # loader:
 #   single -> 单次 GET (可带 inputs 拼 query)
 #   multi  -> 取某个 inputs 的多值(token 由 sep 切分)循环 GET 同一端点并合并 rows
+# 交易大师人格库：总结历史上与当代知名金融交易者的交易方法，并为其塑造虚拟 AI 人格。
+# 每个 persona: id / label / avatar / method(方法摘要) / system(角色扮演 prompt，要求以该交易者口吻分析股票/期货/期权)。
+PERSONAS = [
+    dict(id="livermore", label="杰西·利弗莫尔（趋势投机）", avatar="📈",
+         method="趋势跟随与关键点交易法：只在价格突破关键点、大势明朗时出手；盈利持仓让其奔跑，亏损到预设点位立即止损；反对摊平亏损，重视大盘与个股联动。",
+         system="你是杰西·利弗莫尔（Jesse Livermore），20世纪最传奇的投机家。请用第一人称、口语化、带点老派华尔街腔调发言。你笃信价格沿最小阻力方向运动，只做趋势、只做突破关键点后的行情；盈利持仓要拿住，亏损必须在关键点下方果断止损，绝不摊平亏损；先判大势再看个股，关注成交量与板块联动。当用户问具体股票、期货或期权时，你从趋势、关键点、止损位与仓位角度给出偏行动的建议，并强调风控纪律。用中文回答，简洁有力。"),
+    dict(id="buffett", label="沃伦·巴菲特（价值投资）", avatar="🏰",
+         method="价值投资：在能力圈内寻找具持久护城河、由优秀管理层经营、且价格显著低于内在价值的公司，长期持有、忽略短期波动；以所有者视角看待每一笔投资。",
+         system="你是沃伦·巴菲特（Warren Buffett）。请用第一人称、温和而笃定的口吻发言，像在给股东写信。你只投自己看得懂的生意（能力圈），看重护城河、现金流、管理层诚信与合理价格（安全边际），主张长期持有、忽略市场噪音；厌恶高杠杆与投机。当用户问具体标的时，你从商业模式、护城河、估值与是否值得长期持有的角度分析，并提醒不要被短期涨跌牵着走。用中文回答。"),
+    dict(id="soros", label="乔治·索罗斯（反身性）", avatar="🌐",
+         method="反身性理论：市场参与者的偏见与价格互相影响，形成自我强化的趋势直至拐点；用试错小仓验证判断，确认后大幅加仓，错了立刻认错离场。",
+         system="你是乔治·索罗斯（George Soros）。请用第一人称、宏观而犀利的口吻发言。你信奉反身性：市场偏见与基本面互相强化，制造泡沫与拐点；你先做小仓位试错验证逻辑，一旦被市场确认便重仓出击，错了就快速认错离场。你擅长宏观主题与货币、利率、大宗的联动。当用户问具体标的时，你从宏观驱动、市场预期与拐点风险的角度分析，强调对的时候赚大钱、错的时候亏小钱。用中文回答。"),
+    dict(id="simons", label="詹姆斯·西蒙斯（量化）", avatar="🤖",
+         method="量化投资：用海量历史数据与统计模型捕捉市场中微小而非随机的价格规律，依赖纪律化执行与分散化的中高频策略，排除人类情绪干扰。",
+         system="你是詹姆斯·西蒙斯（Jim Simons），文艺复兴科技创始人。请用第一人称、冷静而工程师式的口吻发言。你相信市场存在可被数学模型捕捉的统计规律，强调数据、回测、分散化与严格去情绪化的执行；你不太谈故事，更谈胜率、期望值、相关性与风控。当用户问具体标的时，你从数据特征、波动结构、相关性与量化可执行的角度给出观点，并提醒模型会失效、要持续检验。用中文回答。"),
+    dict(id="dalio", label="雷·达里奥（全天候）", avatar="⚖️",
+         method="全天候与风险平价：理解经济机器由增长与通胀驱动，用不押注单一情景、跨资产分散的组合抵御各种环境；重视极度求真文化。",
+         system="你是雷·达里奥（Ray Dalio），桥水基金创始人。请用第一人称、体系化而平和的口吻发言，喜欢用原则的方式拆解问题。你从经济增长与通胀的四个象限出发，主张用风险平价、全天候思路做跨资产分散，不押注单一宏观情景；强调理解经济机器、降低尾部风险。当用户问具体标的时，你从宏观环境适配、资产相关性与组合韧性角度分析。用中文回答。"),
+    dict(id="ptj", label="保罗·都铎·琼斯（宏观择时）", avatar="🌊",
+         method="宏观择时与动量：结合技术形态（尤其头肩顶底）与宏观流动性判断拐点，严格风控、单笔亏损严控；擅长在趋势早期介入。",
+         system="你是保罗·都铎·琼斯（Paul Tudor Jones），以1987年股灾精准做空闻名。请用第一人称、果断而注重风险的口吻发言。你重视技术形态（头肩顶底、支撑阻力）与宏观流动性，在拐点处果敢出手，但始终把保护本金放第一位，单笔亏损有硬上限。当用户问具体标的时，你从形态、动能、流动性与止损位角度给出偏短中线的建议。用中文回答。"),
+    dict(id="lynch", label="彼得·林奇（成长股）", avatar="🏪",
+         method="成长股 GARP 投资：在日常生活与工作中发现十倍股，用合理价格买成长（PEG），偏爱自己能看懂的消费品生意，分散持有、勤做功课。",
+         system="你是彼得·林奇（Peter Lynch）。请用第一人称、亲切务实的口吻发言，像在和散户朋友聊天。你主张从身边观察发现好公司，用 PEG 衡量合理价格买成长，看重公司业务是否简单易懂、是否真的在增长；你鼓励普通人做功课、分散持有、别被宏观吓倒。当用户问具体标的时，你从生意本身、增长质量与估值合理性角度分析，用大白话讲清楚。用中文回答。"),
+    dict(id="druckenmiller", label="斯坦利·德鲁肯米勒（集中下注）", avatar="🎯",
+         method="集中下注加宏观不对称：在确定性高的宏观判断上重仓集中押注，追求非对称风险收益（上行远大于下行），同时保持极度灵活、随时纠错。",
+         system="你是斯坦利·德鲁肯米勒（Stanley Druckenmiller），索罗斯昔日的战友。请用第一人称、自信而灵活机变的口吻发言。你信奉在最有把握的想法上重仓，追求风险收益的不对称性（上行远大于下行），并以宏观为锚；你极度重视仓位管理与灵活纠错，错了立刻转向。当用户问具体标的时，你从宏观确定性、催化剂、仓位与不对称赔率角度给出建议。用中文回答。"),
+    dict(id="graham", label="本杰明·格雷厄姆（安全边际）", avatar="🛡️",
+         method="安全边际与价值基石：用严谨的账面估值（净流动资产、清算价值）构筑安全边际，买得足够便宜以对冲未知，把市场视作情绪化的市场先生反向利用。",
+         system="你是本杰明·格雷厄姆（Benjamin Graham），价值投资之父、巴菲特的老师。请用第一人称、严谨学院派的口吻发言。你强调安全边际：只在价格显著低于保守估值（如净流动资产价值、清算价值）时才出手，把市场看作情绪化的市场先生并加以利用；你偏好可量化、可验证的便宜。当用户问具体标的时，你从估值底、账面价值、安全边际与下行保护角度分析，并提醒不要为故事付太高价格。用中文回答。"),
+]
+
 SPECS = [
     dict(dir="data-status-dash", name="数据状态总览", ico="📊", cat="tool", tag="数据覆盖/质量",
          desc="消费 /api/data_status，总览各数据源覆盖、质量与新鲜度。",
@@ -96,6 +128,14 @@ SPECS = [
     dict(dir="info-board", name="API 一览", ico="🧭", cat="tool", tag="端点清单",
          desc="消费 /api/info，列出后端全部可用 API 端点（部署/排查时一眼看清能力边界）。",
          endpoint="/api/info", loader="single", mode="rows"),
+    # —— 本轮新增: 交易大师虚拟人格对话（总结知名交易者方法→塑造 AI 人格→多轮对话分析金融产品）——
+    dict(dir="trader-avatars", name="交易大师·虚拟对话", ico="🎭", cat="tool", tag="交易人格",
+         desc="总结历史上与当代知名金融交易者的交易方法，并为其塑造虚拟 AI 人格；用户可切换人格、与之对话，由其判断/分析股票、期货、期权等金融产品。",
+         endpoint="/api/llm", loader="post", postKind="llm-persona", goLabel="发送",
+         personas=PERSONAS,
+         inputs=[dict(id="q", label="你的问题", ph="帮我分析一下 600519 贵州茅台 现在能不能买？",
+                      default="帮我分析一下 600519 贵州茅台 现在还能不能买？", area=True)],
+         mode="kv"),
 ]
 
 # 每个 App 的定制可视化:
@@ -411,6 +451,24 @@ CUSTOM = {
     .ibsvc{font-weight:600;margin-bottom:6px;color:var(--text)}
     .eps{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
     .ep{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:12px;font-family:ui-monospace,Menlo,monospace;color:var(--accent)}'''),
+    "trader-avatars": dict(render=r'''
+    return false;''',
+    css=r'''
+    .pbio{display:flex;gap:12px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+    .pava{font-size:30px;line-height:1}
+    .pinfo{flex:1}
+    .pname{font-weight:700;font-size:15px;margin-bottom:4px}
+    .pmethod{color:var(--sub);font-size:12.5px;line-height:1.65}
+    .qa{margin-top:8px;display:flex;flex-direction:column;gap:12px;max-height:58vh;overflow:auto}
+    .qat{display:flex;flex-direction:column;gap:4px}
+    .qaq{align-self:flex-end;background:var(--accent);color:#fff;padding:9px 13px;border-radius:14px 14px 4px 14px;max-width:85%;white-space:pre-wrap;line-height:1.6;font-size:14px;word-break:break-word}
+    .qaa{align-self:flex-start;background:var(--panel);border:1px solid var(--line);color:var(--text);padding:11px 14px;border-radius:14px 14px 14px 4px;max-width:92%;white-space:pre-wrap;line-height:1.7;font-size:14px;word-break:break-word}
+    .qaw{color:var(--amber);font-style:italic}
+    .qas{margin-top:8px;color:var(--sub);font-size:12px;align-self:flex-start}
+    .qaa.qaerr{border-color:var(--red);color:var(--red)}
+    .qatools{margin-top:6px;display:flex;gap:6px}
+    .mini{background:var(--panel2);color:var(--sub);border:1px solid var(--line);border-radius:7px;padding:2px 9px;font-size:11px;cursor:pointer}
+    .mini:hover{color:var(--text)}'''),
 }
 
 TPL = '''<!DOCTYPE html>
@@ -647,6 +705,14 @@ __CUSTOM_ROWS__
     if(batchBtn && typeof batch_ === "function") batchBtn.addEventListener("click", batch_);
     var modelSel = document.getElementById("modelSel");
     if(modelSel && typeof QA_MODELS !== "undefined") modelSel.addEventListener("change", function(){{ QA_MODEL = (QA_MODELS[modelSel.selectedIndex] && QA_MODELS[modelSel.selectedIndex].system) || ""; }});
+    var personaSel = document.getElementById("personaSel");
+    if(personaSel && typeof TRAIT_PERSONAS !== "undefined") personaSel.addEventListener("change", function(){{
+      TRAIT_IDX = personaSel.selectedIndex;
+      QA_MODEL = (TRAIT_PERSONAS[TRAIT_IDX] && TRAIT_PERSONAS[TRAIT_IDX].system) || "";
+      renderBio();
+      QA_HISTORY = []; if(typeof saveQA==="function") saveQA(); renderQA();
+      setStatus("wait","已切换到「"+(TRAIT_PERSONAS[TRAIT_IDX]?TRAIT_PERSONAS[TRAIT_IDX].label:"")+"」");
+    }});
     var clearBtn = document.getElementById("clearBtn");
     if(clearBtn && typeof QA_HISTORY !== "undefined") clearBtn.addEventListener("click", function(){{ QA_HISTORY=[]; if(typeof saveQA==="function") saveQA(); renderQA(); setStatus("wait","已清空对话"); }});
     var stopBtn = document.getElementById("stopBtn");
@@ -659,6 +725,7 @@ __CUSTOM_ROWS__
   {loader_body}
   drawControls();
   setStatus(BASE?"wait":"bad", BASE?"就绪":"请以 http 方式经后端访问");
+  if(typeof TRAIT_PERSONAS !== "undefined"){{ renderBio(); }}
   if(typeof QA_HISTORY !== "undefined" && QA_HISTORY.length){{ renderQA(); }} else {{ go_(); }}
 }})();
 </script>
@@ -883,6 +950,98 @@ def loader_body(spec):
     sendQ(q);
   }}
 ''').format(qid=qid).replace("__MODELS__", json.dumps(models, ensure_ascii=False))
+        if kind == "llm-persona":
+            qid = (spec.get("inputs") or [{}])[0].get("id", "q")
+            personas = spec.get("personas") or [{"id":"default","label":"默认","avatar":"🧑","method":"","system":spec.get("system","")}]
+            return ('''
+  var TRAIT_PERSONAS = __PERSONAS__;
+  var TRAIT_IDX = 0;
+  var QA_MODEL = (TRAIT_PERSONAS[0] && TRAIT_PERSONAS[0].system) || "";
+  var QA_HISTORY = [];
+  try {{ var _qs = localStorage.getItem("qa_history_" + ENDPOINT); if(_qs) QA_HISTORY = JSON.parse(_qs) || []; }} catch(e) {{}}
+  function saveQA(){{ try {{ localStorage.setItem("qa_history_" + ENDPOINT, JSON.stringify(QA_HISTORY)); }} catch(e) {{}} }}
+  function mdLite(s){{
+    return esc(s)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\\*\\*([^*]+)\\*\\*/g, "<b>$1</b>")
+      .replace(/^\\s*[-*]\\s+(.+)$/gm, "• $1");
+  }}
+  function packContext(){{
+    var parts = [];
+    QA_HISTORY.forEach(function(h){{ if(h.a!=null && h.a.indexOf("（请求失败")!==0) parts.push("用户: "+h.q+"\\n助手: "+h.a); }});
+    return parts.join("\\n\\n");
+  }}
+  function renderBio(){{
+    var p = TRAIT_PERSONAS[TRAIT_IDX]; if(!p) return;
+    var bioEl = document.getElementById("bio");
+    if(!bioEl) return;
+    bioEl.innerHTML = '<div class="pbio"><span class="pava">'+esc(p.avatar||"🧑")+'</span>'+
+      '<div class="pinfo"><div class="pname">'+esc(p.label)+'</div>'+
+      '<div class="pmethod">'+(p.method?esc(p.method):"")+'</div></div></div>';
+  }}
+  var QA_CTRL = null;
+  function renderQA(){{
+    var who = (TRAIT_PERSONAS[TRAIT_IDX] && TRAIT_PERSONAS[TRAIT_IDX].label) || "交易大师";
+    if(!QA_HISTORY.length){{ out.innerHTML = '<div class="empty">还没有对话，输入问题开始（你将与「'+who+'」对话）。</div>'; return; }}
+    var htm = '<div class="qa">';
+    QA_HISTORY.forEach(function(h, idx){{
+      var failed = (h.a && h.a.indexOf("（请求失败")===0);
+      var acls = failed ? "qaa qaerr" : "qaa";
+      var abody = (h.a!=null) ? mdLite(h.a) : '<span class="qaw">思考中…</span>';
+      htm += '<div class="qat"><div class="qaq">'+esc(h.q)+'</div>'+
+             '<div class="'+acls+'">'+abody+
+             '<div class="qatools"><button class="mini" data-act="copy" data-i="'+idx+'">复制</button>'+
+             (failed ? '<button class="mini" data-act="retry" data-i="'+idx+'">重试</button>' : '')+'</div></div></div>';
+    }});
+    htm += '</div>';
+    out.innerHTML = htm;
+    out.scrollTop = out.scrollHeight;
+    Array.prototype.forEach.call(out.querySelectorAll(".mini"), function(b){{
+      b.addEventListener("click", function(){{
+        var i = +b.getAttribute("data-i");
+        if(b.getAttribute("data-act")==="copy"){{
+          copyText(QA_HISTORY[i].a||""); var _t=b; b.textContent="已复制"; setTimeout(function(){{ _t.textContent="复制"; }},1200);
+        }} else if(b.getAttribute("data-act")==="retry"){{
+          var q = QA_HISTORY[i].q; QA_HISTORY.splice(i,1); saveQA(); sendQ(q);
+        }}
+      }});
+    }});
+  }}
+  function copyText(t){{
+    try {{ if(navigator.clipboard) navigator.clipboard.writeText(t); }}
+    catch(e){{ var ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta); ta.select(); try{{document.execCommand("copy");}}catch(e2){{}} document.body.removeChild(ta); }}
+  }}
+  function sendQ(q){{
+    if(!q) return;
+    setStatus("wait","思考中…");
+    QA_HISTORY.push({{q:q, a:null}}); saveQA(); renderQA();
+    if(QA_CTRL && QA_CTRL.abort) {{ try{{ QA_CTRL.abort(); }}catch(e){{}} }}
+    QA_CTRL = (window.AbortController ? new AbortController() : null);
+    var ctx = packContext();
+    var who = (TRAIT_PERSONAS[TRAIT_IDX] && TRAIT_PERSONAS[TRAIT_IDX].label) || "交易大师";
+    var prompt = (ctx ? ctx+"\\n\\n" : "")+"新问题: "+q;
+    fetch(BASE+ENDPOINT, {{method:"POST",headers:{{"Content-Type":"application/json"}},cache:"no-store",
+      signal: (QA_CTRL ? QA_CTRL.signal : undefined),
+      body:JSON.stringify({{system:QA_MODEL, user:prompt, persona:who}})}})
+      .then(function(r){{ if(!r.ok) return r.json().then(function(e){{ throw new Error(e.error||("HTTP "+r.status)); }}); return r.json(); }})
+      .then(function(j){{
+        var ans = (j && typeof j.content==="string") ? j.content : "(无回答)";
+        QA_HISTORY[QA_HISTORY.length-1].a = ans; saveQA(); renderQA(); setStatus("ok","已回答");
+      }})
+      .catch(function(e){{
+        if(e.name==="AbortError"){{ QA_HISTORY.pop(); saveQA(); renderQA(); setStatus("wait","已停止"); return; }}
+        QA_HISTORY[QA_HISTORY.length-1].a = "（请求失败: "+e.message+"）"; saveQA(); renderQA();
+        setStatus("bad","请求失败: "+e.message);
+      }});
+  }}
+  function go_(){{
+    if(!BASE){{ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }}
+    var q = (inputs["{qid}"].value||"").trim();
+    if(!q){{ out.innerHTML='<div class="empty">请输入你的问题，例如：帮我分析一下 600519 贵州茅台 现在能不能买？</div>'; return; }}
+    inputs["{qid}"].value = "";
+    sendQ(q);
+  }}
+''').format(qid=qid).replace("__PERSONAS__", json.dumps(personas, ensure_ascii=False))
         # default llm: POST JSON body {{system, user}}
         qid = (spec.get("inputs") or [{}])[0].get("id", "q")
         system = spec.get("system", "")
@@ -921,6 +1080,13 @@ def make_html(spec):
         extra_buttons = ('<select id="modelSel" class="ghost">' + opts + '</select>' +
                          '<button id="stopBtn" class="ghost">停止</button>' +
                          '<button id="clearBtn" class="ghost">清空对话</button>')
+    elif spec.get("postKind") == "llm-persona":
+        personas = spec.get("personas") or [{"id":"default","label":"默认","avatar":"🧑","method":"","system":spec.get("system","")}]
+        opts = "".join('<option value="%s">%s %s</option>' % (p["id"], p.get("avatar",""), p["label"]) for p in personas)
+        extra_buttons = ('<select id="personaSel" class="ghost">' + opts + '</select>' +
+                         '<div id="bio" style="flex-basis:100%;margin-top:6px"></div>' +
+                         '<button id="stopBtn" class="ghost">停止</button>' +
+                         '<button id="clearBtn" class="ghost">清空对话</button>')
     html = TPL.format(
         name=spec["name"], ico=spec["ico"], tag=spec["tag"], dir=spec["dir"],
         endpoint=spec["endpoint"], mode=spec["mode"],
@@ -946,6 +1112,9 @@ def make_test(spec):
     elif spec.get("loader") == "post":
         extra = 'ok("POST 助手 fetchT/showError 存在", src.indexOf("fetchT(")>=0 && src.indexOf("function showError")>=0);'
         if spec.get("postKind") == "llm-multi":
+            extra += 'ok("多轮 QA_HISTORY 存在", src.indexOf("QA_HISTORY")>=0);'
+        if spec.get("postKind") == "llm-persona":
+            extra += 'ok("人格列表 TRAIT_PERSONAS 存在", src.indexOf("TRAIT_PERSONAS")>=0);'
             extra += 'ok("多轮 QA_HISTORY 存在", src.indexOf("QA_HISTORY")>=0);'
         if spec.get("postKind") == "args-batch":
             extra += 'ok("批量锁 BATCH_LOCK 存在", src.indexOf("BATCH_LOCK")>=0);'

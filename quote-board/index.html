@@ -253,6 +253,14 @@
     if(batchBtn && typeof batch_ === "function") batchBtn.addEventListener("click", batch_);
     var modelSel = document.getElementById("modelSel");
     if(modelSel && typeof QA_MODELS !== "undefined") modelSel.addEventListener("change", function(){ QA_MODEL = (QA_MODELS[modelSel.selectedIndex] && QA_MODELS[modelSel.selectedIndex].system) || ""; });
+    var personaSel = document.getElementById("personaSel");
+    if(personaSel && typeof TRAIT_PERSONAS !== "undefined") personaSel.addEventListener("change", function(){
+      TRAIT_IDX = personaSel.selectedIndex;
+      QA_MODEL = (TRAIT_PERSONAS[TRAIT_IDX] && TRAIT_PERSONAS[TRAIT_IDX].system) || "";
+      renderBio();
+      QA_HISTORY = []; if(typeof saveQA==="function") saveQA(); renderQA();
+      setStatus("wait","已切换到「"+(TRAIT_PERSONAS[TRAIT_IDX]?TRAIT_PERSONAS[TRAIT_IDX].label:"")+"」");
+    });
     var clearBtn = document.getElementById("clearBtn");
     if(clearBtn && typeof QA_HISTORY !== "undefined") clearBtn.addEventListener("click", function(){ QA_HISTORY=[]; if(typeof saveQA==="function") saveQA(); renderQA(); setStatus("wait","已清空对话"); });
     var stopBtn = document.getElementById("stopBtn");
@@ -273,6 +281,7 @@
   }
   drawControls();
   setStatus(BASE?"wait":"bad", BASE?"就绪":"请以 http 方式经后端访问");
+  if(typeof TRAIT_PERSONAS !== "undefined"){ renderBio(); }
   if(typeof QA_HISTORY !== "undefined" && QA_HISTORY.length){ renderQA(); } else { go_(); }
 })();
 </script>
