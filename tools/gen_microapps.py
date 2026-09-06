@@ -70,6 +70,246 @@ SPECS = [
          mode="rows"),
 ]
 
+# 每个 App 的定制可视化:
+#   render -> 注入 renderCustom(j)，处理整体 JSON（对象型数据）
+#   rows   -> 注入 renderCustomRows(rows)，处理数组行（表格型数据）
+# 约定: 命中并渲染就 return true；数据形状不符必须 return false，由通用表格/键值兜底。
+# 注意: 这些 JS 体通过 .replace 注入（在 .format 之后），因此花括号无需转义。
+CUSTOM = {
+    "sector-heat": dict(rows=r'''
+    var pk = pickKey(rows[0], ["涨跌幅", "pct", "change", "chg", "涨跌"]);
+    if(!pk) return false;
+    var nk = pickKey(rows[0], ["名称", "板块", "name", "行业", "sector"]);
+    var vals = rows.map(function(r){ return numOf(r[pk]); }).filter(function(v){ return v != null; });
+    if(!vals.length) return false;
+    var mx = 0; vals.forEach(function(v){ mx = Math.max(mx, Math.abs(v)); }); if(!mx) mx = 1;
+    var isPct = String(pk).indexOf("%") >= 0 || String(pk).indexOf("幅") >= 0 || String(pk).toLowerCase().indexOf("pct") >= 0;
+    out.innerHTML = '<div class="heat">' + rows.map(function(r){
+      var v = numOf(r[pk]); if(v == null) return "";
+      var a = Math.min(1, Math.abs(v) / mx);
+      var col = v > 0 ? "rgba(255,77,79," + (0.16 + 0.74 * a) + ")"
+              : (v < 0 ? "rgba(0,212,134," + (0.16 + 0.74 * a) + ")" : "var(--panel2)");
+      var nm = nk ? r[nk] : pk;
+      return '<div class="tile" style="background:' + col + '" title="' + esc(nm) + ' ' + fmtNum(v) + '">' +
+             '<div class="tn">' + esc(nm) + '</div><div class="tv">' + fmtNum(v) + (isPct ? "%" : "") + '</div></div>';
+    }).join("") + '</div><div class="note">热力图：颜色深浅 = 涨跌强度（红涨绿跌），共 ' + rows.length + ' 个板块</div>';
+    return true;'''),
+    "market-mood": dict(render=r'''
+    var obj = (j && j.ok && typeof j.data === "object" && !Array.isArray(j.data)) ? j.data : j;
+    if(!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
+    var keys = Object.keys(obj).filter(function(k){ return k !== "ok" && typeof obj[k] === "number"; });
+    if(keys.length < 2) return false;
+    var mx = 0; keys.forEach(function(k){ mx = Math.max(mx, Math.abs(obj[k])); }); if(!mx) mx = 1;
+    out.innerHTML = '<div class="kvg">' + keys.map(function(k){
+      var v = obj[k], pct = Math.min(100, Math.abs(v) / mx * 100);
+      var col = v > 0 ? "var(--red)" : (v < 0 ? "var(--green)" : "var(--accent)");
+      return '<div class="kv"><div class="k">' + esc(k) + '</div>' +
+             '<div class="v" style="color:' + col + '">' + fmtNum(v) + '</div>' +
+             '<div class="track"><span style="width:' + pct + '%;background:' + col + '"></span></div></div>';
+    }).join("") + '</div><div class="note">条形 = 相对最大绝对值的强度（红正向 / 绿负向）</div>';
+    return true;'''),
+    "eia-watch": dict(rows=r'''
+    var dk = pickKey(rows[0], ["date", "日期", "周", "time", "period"]);
+    var vk = pickKey(rows[0], ["库存", "stock", "crude", "value", "值", "amount", "数量"]);
+    if(!vk) return false;
+    var vs = rows.map(function(r){ return numOf(r[vk]); }).filter(function(v){ return v != null; });
+    if(vs.length < 2) return false;
+    var mx = Math.max.apply(null, vs), mn = Math.min.apply(null, vs), rg = (mx - mn) || 1;
+    out.innerHTML = '<div class="chart">' + rows.map(function(r){
+      var v = numOf(r[vk]); if(v == null) return "";
+      var h = 6 + (v - mn) / rg * 94;
+      var d = dk ? String(r[dk] == null ? "" : r[dk]) : "";
+      return '<div class="cb" title="' + esc(d) + ' ' + fmtNum(v) + '">' +
+             '<span style="height:' + h + '%"></span><i>' + esc(d.slice(-5)) + '</i></div>';
+    }).join("") + '</div><div class="note">共 ' + vs.length + ' 期 · 最大 ' + fmtNum(mx) +
+      ' · 最小 ' + fmtNum(mn) + '（柱高按区间归一化）</div>';
+    return true;'''),
+    "spread-viewer": dict(rows=r'''
+    var vk = pickKey(rows[0], ["价差", "spread", "diff", "差"]);
+    if(!vk) return false;
+    var nk = pickKey(rows[0], ["品种", "symbol", "name", "合约", "名称"]);
+    var vs = rows.map(function(r){ return numOf(r[vk]); }).filter(function(v){ return v != null; });
+    if(!vs.length) return false;
+    var mx = 0; vs.forEach(function(v){ mx = Math.max(mx, Math.abs(v)); }); if(!mx) mx = 1;
+    out.innerHTML = '<div class="dv">' + rows.map(function(r){
+      var v = numOf(r[vk]); if(v == null) return "";
+      var w = Math.abs(v) / mx * 50, pos = v >= 0;
+      var col = pos ? "var(--red)" : "var(--green)";
+      return '<div class="dvr"><span class="dvn">' + esc(nk ? r[nk] : "") + '</span>' +
+        '<span class="dvt"><i style="width:' + w + '%;background:' + col + ';' + (pos ? "left:50%" : "right:50%") + '"></i></span>' +
+        '<span class="dvv ' + (pos ? "up" : "down") + '">' + fmtNum(v) + '</span></div>';
+    }).join("") + '</div><div class="note">中线为 0；右侧红 = 正价差，左侧绿 = 负价差，长度按最大绝对值归一</div>';
+    return true;'''),
+    "corr-explorer": dict(rows=r'''
+    var vk = pickKey(rows[0], ["corr", "相关", "coef", "r", "value", "值"]);
+    if(!vk) return false;
+    var nk = pickKey(rows[0], ["pair", "标的", "name", "名称", "symbol", "对"]);
+    var vs = rows.map(function(r){ return numOf(r[vk]); }).filter(function(v){ return v != null; });
+    if(!vs.length) return false;
+    var mx = 0; vs.forEach(function(v){ mx = Math.max(mx, Math.abs(v)); });
+    var denom = mx <= 1 ? 1 : mx;
+    out.innerHTML = '<div class="dv">' + rows.map(function(r){
+      var v = numOf(r[vk]); if(v == null) return "";
+      var w = Math.abs(v) / denom * 50, pos = v >= 0;
+      var col = pos ? "var(--red)" : "var(--green)";
+      return '<div class="dvr"><span class="dvn">' + esc(nk ? r[nk] : "") + '</span>' +
+        '<span class="dvt"><i style="width:' + w + '%;background:' + col + ';' + (pos ? "left:50%" : "right:50%") + '"></i></span>' +
+        '<span class="dvv ' + (pos ? "up" : "down") + '">' + fmtNum(v) + '</span></div>';
+    }).join("") + '</div><div class="note">中线为 0；右侧红 = 正相关，左侧绿 = 负相关' +
+      (mx <= 1 ? '（相关系数已归一到 ±1）' : '（按最大绝对值归一）') + '</div>';
+    return true;'''),
+    "futures-events": dict(rows=r'''
+    var tk = pickKey(rows[0], ["事件", "event", "title", "标题", "name", "名称"]);
+    if(!tk) return false;
+    var dk = pickKey(rows[0], ["date", "日期", "时间", "time", "day"]);
+    out.innerHTML = '<div class="tl">' + rows.map(function(r){
+      var d = dk ? String(r[dk] == null ? "" : r[dk]) : "";
+      var t = String(r[tk] == null ? "" : r[tk]);
+      var rest = Object.keys(r).filter(function(k){ return k !== dk && k !== tk; })
+        .map(function(k){ return '<span class="tlm">' + esc(k) + ': ' + cell(r[k]) + '</span>'; }).join("");
+      return '<div class="tli"><span class="tld">' + esc(d) + '</span><span class="tlc"></span>' +
+             '<div class="tlb"><b>' + esc(t) + '</b><div>' + rest + '</div></div></div>';
+    }).join("") + '</div>';
+    return true;'''),
+    "inventory-watch": dict(rows=r'''
+    var vk = pickKey(rows[0], ["库存", "stock", "inv", "仓单", "量"]);
+    if(!vk) return false;
+    var nk = pickKey(rows[0], ["品种", "symbol", "name", "名称"]);
+    var vs = rows.map(function(r){ return numOf(r[vk]); }).filter(function(v){ return v != null; });
+    if(!vs.length) return false;
+    var mx = Math.max.apply(null, vs) || 1;
+    out.innerHTML = '<div class="dv">' + rows.map(function(r){
+      var v = numOf(r[vk]); if(v == null) return "";
+      return '<div class="dvr"><span class="dvn">' + esc(nk ? r[nk] : "") + '</span>' +
+        '<span class="dvt"><i style="width:' + (v / mx * 100) + '%;left:0;background:var(--accent)"></i></span>' +
+        '<span class="dvv">' + fmtNum(v) + '</span></div>';
+    }).join("") + '</div><div class="note">条形 = 相对最大库存量（' + fmtNum(mx) + '）</div>';
+    return true;'''),
+    "variety-screener": dict(rows=r'''
+    var kw = String(window.__vsFilter || "").trim().toLowerCase();
+    var rs = rows.filter(function(r){
+      if(!kw) return true;
+      return JSON.stringify(r).toLowerCase().indexOf(kw) >= 0;
+    });
+    out.innerHTML = '<div class="flt"><input id="vsF" placeholder="筛选品种 / 代码 / 交易所…" value="' +
+      esc(window.__vsFilter || "") + '"></div>' + tableHtml(rs) +
+      '<div class="note">命中 ' + rs.length + ' / ' + rows.length + ' 个品种</div>';
+    var el = document.getElementById("vsF");
+    if(el) el.addEventListener("input", function(e){ window.__vsFilter = e.target.value; renderRows(rows); });
+    return true;'''),
+    "data-explorer": dict(rows=r'''
+    var kw = String(window.__deFilter || "").trim().toLowerCase();
+    var rs = rows.filter(function(r){
+      if(!kw) return true;
+      return JSON.stringify(r).toLowerCase().indexOf(kw) >= 0;
+    });
+    out.innerHTML = '<div class="flt"><input id="deF" placeholder="筛选数据条目…" value="' +
+      esc(window.__deFilter || "") + '"></div>' + tableHtml(rs) +
+      '<div class="note">命中 ' + rs.length + ' / ' + rows.length + ' 条</div>';
+    var el = document.getElementById("deF");
+    if(el) el.addEventListener("input", function(e){ window.__deFilter = e.target.value; renderRows(rows); });
+    return true;'''),
+    "search-box": dict(rows=r'''
+    var tk = pickKey(rows[0], ["title", "标题", "name", "名称", "code", "代码"]);
+    if(!tk) return false;
+    var sk = pickKey(rows[0], ["snippet", "摘要", "content", "内容", "desc", "描述", "summary"]);
+    out.innerHTML = '<div class="res">' + rows.map(function(r){
+      var t = String(r[tk] == null ? "" : r[tk]);
+      var s = sk ? String(r[sk] == null ? "" : r[sk]) : "";
+      return '<div class="rc"><div class="rt">' + esc(t) + '</div>' +
+             (s ? '<div class="rs">' + esc(s) + '</div>' : "") + '</div>';
+    }).join("") + '</div><div class="note">共 ' + rows.length + ' 条结果</div>';
+    return true;'''),
+    "quote-board": dict(render=r'''
+    var obj = (j && j.ok && typeof j.data === "object" && !Array.isArray(j.data)) ? j.data : j;
+    if(!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
+    var pk = pickKey(obj, ["price", "价格", "现价", "last", "最新"]);
+    if(pk == null || numOf(obj[pk]) == null) return false;
+    var ck = pickKey(obj, ["pct", "涨跌幅", "幅", "change", "涨跌"]);
+    var nmk = pickKey(obj, ["name", "名称", "code", "代码"]);
+    var cv = ck ? numOf(obj[ck]) : null;
+    var col = cv == null ? "var(--text)" : (cv > 0 ? "var(--red)" : (cv < 0 ? "var(--green)" : "var(--sub)"));
+    var head = '<div class="big">' +
+      (nmk ? '<div class="cn" style="color:var(--sub)">' + esc(obj[nmk]) + '</div>' : "") +
+      '<div class="bp" style="color:' + col + '">' + fmtNum(numOf(obj[pk])) + '</div>' +
+      (cv != null ? '<div class="bc" style="color:' + col + '">' + fmtNum(cv) +
+        (String(ck).indexOf("幅") >= 0 ? "%" : "") + '</div>' : "") + '</div>';
+    var keys = Object.keys(obj).filter(function(k){ return k !== "ok" && k !== pk; });
+    var rest = keys.length ? '<div class="kvg">' + keys.map(function(k){
+      var v = obj[k];
+      var cls = (typeof v === "number" && v > 0) ? "up" : ((typeof v === "number" && v < 0) ? "down" : "");
+      return '<div class="kv"><div class="k">' + esc(k) + '</div><div class="v ' + cls + '">' + cell(v) + '</div></div>';
+    }).join("") + '</div>' : "";
+    out.innerHTML = head + rest;
+    return true;'''),
+    "holdings-health": dict(rows=r'''
+    var pk = pickKey(rows[0], ["price", "价格", "现价", "last"]);
+    if(!pk) return false;
+    var ck = pickKey(rows[0], ["pct", "涨跌幅", "幅", "change", "涨跌"]);
+    var codeK = pickKey(rows[0], ["code", "代码", "symbol"]) || "__code";
+    var mx = 0;
+    rows.forEach(function(r){ var v = ck ? numOf(r[ck]) : null; if(v != null) mx = Math.max(mx, Math.abs(v)); });
+    if(!mx) mx = 1;
+    out.innerHTML = '<div class="dv">' + rows.map(function(r){
+      var v = ck ? numOf(r[ck]) : null, px = numOf(r[pk]);
+      var w = v == null ? 0 : Math.abs(v) / mx * 50, pos = (v == null ? true : v >= 0);
+      var col = v == null ? "var(--panel2)" : (pos ? "var(--red)" : "var(--green)");
+      var nm = r[codeK] != null ? r[codeK] : "";
+      return '<div class="dvr"><span class="dvn">' + esc(nm) + '</span>' +
+        '<span class="dvt"><i style="width:' + w + '%;background:' + col + ';' + (pos ? "left:50%" : "right:50%") + '"></i></span>' +
+        '<span class="dvv ' + (pos ? "up" : "down") + '">' + (px != null ? fmtNum(px) + " " : "") +
+        (v != null ? fmtNum(v) : "–") + '</span></div>';
+    }).join("") + '</div>' + tableHtml(rows) +
+      '<div class="note">条形 = 涨跌幅相对强度（红涨绿跌）；下方为完整字段</div>';
+    return true;'''),
+    "data-status-dash": dict(render=r'''
+    var obj = (j && j.ok && typeof j.data === "object" && !Array.isArray(j.data)) ? j.data : j;
+    if(!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
+    var keys = Object.keys(obj).filter(function(k){ return k !== "ok"; });
+    if(!keys.length) return false;
+    out.innerHTML = '<div class="cards">' + keys.map(function(k){
+      var v = obj[k], col = "var(--text)";
+      if(typeof v === "boolean") col = v ? "var(--green)" : "var(--red)";
+      else if(typeof v === "number") col = v > 0 ? "var(--accent)" : (v < 0 ? "var(--red)" : "var(--sub)");
+      var dot = (typeof v === "boolean")
+        ? '<span class="dot ' + (v ? "ok" : "bad") + '" style="display:inline-block;margin-right:6px"></span>' : "";
+      return '<div class="cd"><div class="cn">' + esc(k) + '</div>' +
+             '<div class="cv" style="color:' + col + '">' + dot + cell(v) + '</div></div>';
+    }).join("") + '</div>';
+    return true;'''),
+    "itinerary-view": dict(render=r'''
+    var obj = (j && j.ok && typeof j.data === "object") ? j.data : j;
+    if(!obj || typeof obj !== "object") return false;
+    var arr = null;
+    ["days", "plan", "itinerary", "steps", "items", "result"].forEach(function(k){
+      if(!arr && Array.isArray(obj[k])) arr = obj[k];
+    });
+    if(!arr) return false;
+    out.innerHTML = '<div class="tl">' + arr.map(function(it, i){
+      var t = (it && typeof it === "object") ? (it.title || it.name || it.day || ("第 " + (i + 1) + " 天")) : String(it);
+      var rest = (it && typeof it === "object")
+        ? Object.keys(it).filter(function(k){ return ["title", "name", "day"].indexOf(k) < 0; })
+            .map(function(k){ return '<span class="tlm">' + esc(k) + ': ' + cell(it[k]) + '</span>'; }).join("")
+        : "";
+      return '<div class="tli"><span class="tld">Day ' + (i + 1) + '</span><span class="tlc"></span>' +
+             '<div class="tlb"><b>' + esc(t) + '</b><div>' + rest + '</div></div></div>';
+    }).join("") + '</div>';
+    return true;'''),
+    "futures-board": dict(rows=r'''
+    var nk = pickKey(rows[0], ["名称", "品种", "name", "symbol", "合约"]);
+    var pk = pickKey(rows[0], ["price", "价格", "现价", "last", "收盘"]);
+    if(!nk || !pk) return false;
+    var ck = pickKey(rows[0], ["pct", "涨跌幅", "幅", "change", "涨跌"]);
+    out.innerHTML = '<div class="cards">' + rows.map(function(r){
+      var v = ck ? numOf(r[ck]) : null, px = numOf(r[pk]);
+      var col = v == null ? "var(--text)" : (v > 0 ? "var(--red)" : (v < 0 ? "var(--green)" : "var(--sub)"));
+      return '<div class="cd"><div class="cn">' + esc(r[nk]) + '</div>' +
+        '<div class="cv" style="color:' + col + '">' + (px != null ? fmtNum(px) : "–") + '</div>' +
+        '<div class="cc" style="color:' + col + '">' + (v != null ? fmtNum(v) : "") + '</div></div>';
+    }).join("") + '</div>' + tableHtml(rows);
+    return true;'''),
+}
+
 TPL = '''<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -113,6 +353,47 @@ TPL = '''<!DOCTYPE html>
   .err{{color:var(--red);padding:14px;border:1px solid var(--red);border-radius:10px;background:rgba(255,107,107,.08)}}
   .note{{margin-top:14px;color:var(--sub);font-size:12px}}
   .bar{{height:6px;border-radius:3px;display:inline-block}}
+  /* ---- 定制可视化样式(各 App 按需注入) ---- */
+  .heat{{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:8px}}
+  .tile{{border-radius:10px;padding:10px;border:1px solid var(--line);min-height:62px;
+    display:flex;flex-direction:column;justify-content:space-between}}
+  .tile .tn{{font-size:12px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45);word-break:break-all}}
+  .tile .tv{{font-size:15px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45)}}
+  .track{{height:6px;background:var(--panel2);border-radius:3px;margin-top:8px;overflow:hidden}}
+  .track span{{display:block;height:100%;border-radius:3px}}
+  .chart{{display:flex;align-items:flex-end;gap:3px;height:190px;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:8px;overflow-x:auto}}
+  .cb{{flex:1;min-width:9px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}}
+  .cb span{{width:100%;background:var(--accent);border-radius:3px 3px 0 0;display:block}}
+  .cb i{{font-style:normal;font-size:9px;color:var(--sub);margin-top:4px;white-space:nowrap}}
+  .dv{{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:8px}}
+  .dvr{{display:grid;grid-template-columns:110px 1fr 92px;gap:8px;align-items:center;padding:4px 0}}
+  .dvn{{font-size:12px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+  .dvt{{position:relative;height:12px;background:var(--panel2);border-radius:6px}}
+  .dvt:after{{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--line)}}
+  .dvt i{{position:absolute;top:0;bottom:0;display:block;border-radius:6px}}
+  .dvv{{text-align:right;font-size:12px}}
+  .tl{{margin-top:8px}}
+  .tli{{display:grid;grid-template-columns:100px 14px 1fr;gap:8px;padding:6px 0}}
+  .tld{{font-size:11px;color:var(--sub);font-family:ui-monospace,monospace;padding-top:3px}}
+  .tlc{{position:relative;display:flex;justify-content:center}}
+  .tlc:before{{content:"";position:absolute;top:14px;bottom:-14px;width:2px;background:var(--line)}}
+  .tlc:after{{content:"";position:absolute;top:6px;width:8px;height:8px;border-radius:50%;background:var(--accent);z-index:1}}
+  .tlb{{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px}}
+  .tlm{{display:inline-block;margin-right:10px;color:var(--sub);font-size:11px}}
+  .flt{{display:flex;gap:8px;margin:8px 0 0}}
+  .flt input{{background:var(--panel);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:7px 10px;font-size:13px;min-width:220px}}
+  .res{{display:grid;gap:8px;margin-top:8px}}
+  .rc{{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}}
+  .rc .rt{{font-weight:600;margin-bottom:3px}} .rc .rs{{color:var(--sub);font-size:12px}}
+  .cards{{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:8px}}
+  .cd{{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}}
+  .cd .cn{{color:var(--sub);font-size:12px}} .cd .cv{{font-size:20px;font-weight:700;margin-top:4px}}
+  .cd .cc{{font-size:12px;margin-top:2px}}
+  .big{{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:8px}}
+  .big .bp{{font-size:34px;font-weight:800;line-height:1.1}} .big .bc{{font-size:15px;margin-top:4px}}
+__CUSTOM_CSS__
 </style>
 </head>
 <body>
@@ -163,8 +444,23 @@ TPL = '''<!DOCTYPE html>
     if(j && j.ok && Array.isArray(j.result)) return j.result;
     return null;
   }}
-  function renderRows(rows){{
-    if(!rows || !rows.length){{ out.innerHTML = '<div class="empty">无数据</div>'; return; }}
+  function numOf(v){{
+    if(typeof v==="number") return isFinite(v)? v : null;
+    if(v==null||v==="") return null;
+    var x = Number(v); return isNaN(x)? null : x;
+  }}
+  function pickKey(obj, subs){{
+    if(!obj || typeof obj!=="object") return null;
+    var ks = Object.keys(obj);
+    for(var i=0;i<subs.length;i++){{
+      for(var j=0;j<ks.length;j++){{
+        if(ks[j].toLowerCase().indexOf(String(subs[i]).toLowerCase())>=0) return ks[j];
+      }}
+    }}
+    return null;
+  }}
+  function tableHtml(rows){{
+    if(!rows || !rows.length) return '<div class="empty">无数据</div>';
     var cols = []; var seen = {{}};
     rows.forEach(function(r){{ if(r && typeof r==="object"){{ Object.keys(r).forEach(function(k){{ if(!seen[k]){{seen[k]=1;cols.push(k);}} }}); }} }});
     if(!cols.length) cols = Object.keys(rows[0]||{{}});
@@ -172,8 +468,21 @@ TPL = '''<!DOCTYPE html>
     rows.forEach(function(r){{
       html += "<tr>"+cols.map(function(c){{ return "<td>"+cell(r?r[c]:null)+"</td>"; }}).join("")+"</tr>";
     }});
-    html += "</tbody></table>";
-    out.innerHTML = html;
+    return html + "</tbody></table>";
+  }}
+  // 定制渲染钩子: 命中并渲染返回 true, 否则返回 false 由通用表格/键值兜底
+  function renderCustom(j){{
+__CUSTOM_RENDER__
+    return false;
+  }}
+  function renderCustomRows(rows){{
+__CUSTOM_ROWS__
+    return false;
+  }}
+  function renderRows(rows){{
+    if(!rows || !rows.length){{ out.innerHTML = '<div class="empty">无数据</div>'; return; }}
+    if(renderCustomRows(rows)) return;
+    out.innerHTML = tableHtml(rows);
   }}
   function renderKV(j){{
     var obj = (j && j.ok && typeof j.data==="object" && !Array.isArray(j.data)) ? j.data : j;
@@ -187,6 +496,7 @@ TPL = '''<!DOCTYPE html>
     out.innerHTML = html;
   }}
   function render(mode, j){{
+    if(renderCustom(j)) return;
     if("{mode}"==="kv"){{ renderKV(j); return; }}
     if("{mode}"==="rows"){{ var r=toRows(j); if(r){{renderRows(r);return;}} renderKV(j); return; }}
     // auto
@@ -264,7 +574,7 @@ def loader_body(spec):
 def make_html(spec):
     ids = [i["id"] for i in spec.get("inputs", [])]
     control_ids = "[" + ", ".join('"%s"' % i for i in ids) + "]" if ids else "[]"
-    return TPL.format(
+    html = TPL.format(
         name=spec["name"], ico=spec["ico"], tag=spec["tag"], dir=spec["dir"],
         endpoint=spec["endpoint"], mode=spec["mode"],
         controls_html=controls_html(spec),
@@ -272,6 +582,12 @@ def make_html(spec):
         first_input=(spec.get("inputs") or [{}])[0].get("id","goBtn"),
         loader_body=loader_body(spec),
     )
+    # 定制渲染体在 .format 之后注入 → 花括号无需转义
+    cust = CUSTOM.get(spec["dir"], {})
+    return (html
+            .replace("__CUSTOM_CSS__", cust.get("css", ""))
+            .replace("__CUSTOM_RENDER__", cust.get("render", "    // 通用渲染"))
+            .replace("__CUSTOM_ROWS__", cust.get("rows", "    // 通用渲染")))
 
 def make_test(spec):
     ep = spec["endpoint"]
@@ -285,6 +601,8 @@ runAppTest(__dirname, ({{ sandbox, ok, eq, arrEq, src, err }}) => {{
   ok("fetch 调用存在", src.indexOf("fetch(") >= 0);
   ok("端点已配置 ({ep})", src.indexOf("{ep}") >= 0);
   ok("渲染函数存在", src.indexOf("function render") >= 0);
+  ok("定制渲染钩子存在", src.indexOf("function renderCustom") >= 0);
+  ok("模板占位符已替换", src.indexOf("__CUSTOM") < 0);
   {extra}
 }});
 '''.format(name=spec["name"], ep=ep, extra=extra)

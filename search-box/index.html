@@ -41,6 +41,47 @@
   .err{color:var(--red);padding:14px;border:1px solid var(--red);border-radius:10px;background:rgba(255,107,107,.08)}
   .note{margin-top:14px;color:var(--sub);font-size:12px}
   .bar{height:6px;border-radius:3px;display:inline-block}
+  /* ---- 定制可视化样式(各 App 按需注入) ---- */
+  .heat{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:8px}
+  .tile{border-radius:10px;padding:10px;border:1px solid var(--line);min-height:62px;
+    display:flex;flex-direction:column;justify-content:space-between}
+  .tile .tn{font-size:12px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45);word-break:break-all}
+  .tile .tv{font-size:15px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45)}
+  .track{height:6px;background:var(--panel2);border-radius:3px;margin-top:8px;overflow:hidden}
+  .track span{display:block;height:100%;border-radius:3px}
+  .chart{display:flex;align-items:flex-end;gap:3px;height:190px;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:8px;overflow-x:auto}
+  .cb{flex:1;min-width:9px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
+  .cb span{width:100%;background:var(--accent);border-radius:3px 3px 0 0;display:block}
+  .cb i{font-style:normal;font-size:9px;color:var(--sub);margin-top:4px;white-space:nowrap}
+  .dv{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:8px}
+  .dvr{display:grid;grid-template-columns:110px 1fr 92px;gap:8px;align-items:center;padding:4px 0}
+  .dvn{font-size:12px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dvt{position:relative;height:12px;background:var(--panel2);border-radius:6px}
+  .dvt:after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--line)}
+  .dvt i{position:absolute;top:0;bottom:0;display:block;border-radius:6px}
+  .dvv{text-align:right;font-size:12px}
+  .tl{margin-top:8px}
+  .tli{display:grid;grid-template-columns:100px 14px 1fr;gap:8px;padding:6px 0}
+  .tld{font-size:11px;color:var(--sub);font-family:ui-monospace,monospace;padding-top:3px}
+  .tlc{position:relative;display:flex;justify-content:center}
+  .tlc:before{content:"";position:absolute;top:14px;bottom:-14px;width:2px;background:var(--line)}
+  .tlc:after{content:"";position:absolute;top:6px;width:8px;height:8px;border-radius:50%;background:var(--accent);z-index:1}
+  .tlb{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px}
+  .tlm{display:inline-block;margin-right:10px;color:var(--sub);font-size:11px}
+  .flt{display:flex;gap:8px;margin:8px 0 0}
+  .flt input{background:var(--panel);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:7px 10px;font-size:13px;min-width:220px}
+  .res{display:grid;gap:8px;margin-top:8px}
+  .rc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .rc .rt{font-weight:600;margin-bottom:3px} .rc .rs{color:var(--sub);font-size:12px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:8px}
+  .cd{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .cd .cn{color:var(--sub);font-size:12px} .cd .cv{font-size:20px;font-weight:700;margin-top:4px}
+  .cd .cc{font-size:12px;margin-top:2px}
+  .big{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:8px}
+  .big .bp{font-size:34px;font-weight:800;line-height:1.1} .big .bc{font-size:15px;margin-top:4px}
+
 </style>
 </head>
 <body>
@@ -91,8 +132,23 @@
     if(j && j.ok && Array.isArray(j.result)) return j.result;
     return null;
   }
-  function renderRows(rows){
-    if(!rows || !rows.length){ out.innerHTML = '<div class="empty">无数据</div>'; return; }
+  function numOf(v){
+    if(typeof v==="number") return isFinite(v)? v : null;
+    if(v==null||v==="") return null;
+    var x = Number(v); return isNaN(x)? null : x;
+  }
+  function pickKey(obj, subs){
+    if(!obj || typeof obj!=="object") return null;
+    var ks = Object.keys(obj);
+    for(var i=0;i<subs.length;i++){
+      for(var j=0;j<ks.length;j++){
+        if(ks[j].toLowerCase().indexOf(String(subs[i]).toLowerCase())>=0) return ks[j];
+      }
+    }
+    return null;
+  }
+  function tableHtml(rows){
+    if(!rows || !rows.length) return '<div class="empty">无数据</div>';
     var cols = []; var seen = {};
     rows.forEach(function(r){ if(r && typeof r==="object"){ Object.keys(r).forEach(function(k){ if(!seen[k]){seen[k]=1;cols.push(k);} }); } });
     if(!cols.length) cols = Object.keys(rows[0]||{});
@@ -100,8 +156,31 @@
     rows.forEach(function(r){
       html += "<tr>"+cols.map(function(c){ return "<td>"+cell(r?r[c]:null)+"</td>"; }).join("")+"</tr>";
     });
-    html += "</tbody></table>";
-    out.innerHTML = html;
+    return html + "</tbody></table>";
+  }
+  // 定制渲染钩子: 命中并渲染返回 true, 否则返回 false 由通用表格/键值兜底
+  function renderCustom(j){
+    // 通用渲染
+    return false;
+  }
+  function renderCustomRows(rows){
+
+    var tk = pickKey(rows[0], ["title", "标题", "name", "名称", "code", "代码"]);
+    if(!tk) return false;
+    var sk = pickKey(rows[0], ["snippet", "摘要", "content", "内容", "desc", "描述", "summary"]);
+    out.innerHTML = '<div class="res">' + rows.map(function(r){
+      var t = String(r[tk] == null ? "" : r[tk]);
+      var s = sk ? String(r[sk] == null ? "" : r[sk]) : "";
+      return '<div class="rc"><div class="rt">' + esc(t) + '</div>' +
+             (s ? '<div class="rs">' + esc(s) + '</div>' : "") + '</div>';
+    }).join("") + '</div><div class="note">共 ' + rows.length + ' 条结果</div>';
+    return true;
+    return false;
+  }
+  function renderRows(rows){
+    if(!rows || !rows.length){ out.innerHTML = '<div class="empty">无数据</div>'; return; }
+    if(renderCustomRows(rows)) return;
+    out.innerHTML = tableHtml(rows);
   }
   function renderKV(j){
     var obj = (j && j.ok && typeof j.data==="object" && !Array.isArray(j.data)) ? j.data : j;
@@ -115,6 +194,7 @@
     out.innerHTML = html;
   }
   function render(mode, j){
+    if(renderCustom(j)) return;
     if("rows"==="kv"){ renderKV(j); return; }
     if("rows"==="rows"){ var r=toRows(j); if(r){renderRows(r);return;} renderKV(j); return; }
     // auto
