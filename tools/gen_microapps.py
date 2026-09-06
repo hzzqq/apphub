@@ -417,6 +417,10 @@ TPL = '''<!DOCTYPE html>
   .v.up{{color:var(--red)}} .v.down{{color:var(--green)}}
   .empty{{color:var(--sub);padding:24px;text-align:center}}
   .err{{color:var(--red);padding:14px;border:1px solid var(--red);border-radius:10px;background:rgba(255,107,107,.08)}}
+  .skel{{margin-top:10px}}
+  .skelbar{{height:12px;border-radius:6px;background:linear-gradient(90deg,var(--panel2),var(--line),var(--panel2));background-size:200% 100%;animation:sk 1.1s infinite;margin:6px 0}}
+  .skelbar.w70{{width:70%}} .skelbar.w50{{width:50%}}
+  @keyframes sk{{0%{{background-position:200% 0}}100%{{background-position:-200% 0}}}}
   .note{{margin-top:14px;color:var(--sub);font-size:12px}}
   .bar{{height:6px;border-radius:3px;display:inline-block}}
   /* ---- 定制可视化样式(各 App 按需注入) ---- */
@@ -501,6 +505,23 @@ __CUSTOM_CSS__
     if(typeof v === "object") return '<span class="mono">'+esc(JSON.stringify(v))+'</span>';
     return esc(v);
   }}
+  function showError(msg){{
+    setStatus("bad","失败: "+msg);
+    out.innerHTML = '<div class="err">失败: '+esc(msg)+'</div>';
+  }}
+  function showLoading(txt){{
+    setStatus("wait", txt||"加载中…");
+    out.innerHTML = '<div class="skel"><div class="skelbar"></div><div class="skelbar w70"></div><div class="skelbar w50"></div></div>';
+  }}
+  function fetchT(url, opts, ms){{
+    ms = ms || 8000;
+    if(typeof AbortController === "undefined" || (opts && opts.signal)) return fetch(url, opts);
+    var ac = new AbortController();
+    var id = setTimeout(function(){{ try{{ac.abort();}}catch(e){{}} }}, ms);
+    opts = opts || {{}};
+    opts.signal = ac.signal;
+    return fetch(url, opts).then(function(r){{ clearTimeout(id); return r; }}, function(e){{ clearTimeout(id); throw e; }});
+  }}
   function toRows(j){{
     if(Array.isArray(j)) return j;
     if(j && Array.isArray(j.rows)) return j.rows;
@@ -582,6 +603,7 @@ __CUSTOM_ROWS__
     controlIds.forEach(function(id){{ inputs[id]=document.getElementById(id); }});
     var go = document.getElementById("goBtn");
     go.addEventListener("click", go_);
+    if(!BASE) go.disabled = true;
     var batchBtn = document.getElementById("batchBtn");
     if(batchBtn && typeof batch_ === "function") batchBtn.addEventListener("click", batch_);
     var modelSel = document.getElementById("modelSel");
@@ -646,14 +668,14 @@ def loader_body(spec):
   var SINGLE_LOCK = false;
   function go_(){{
     if(SINGLE_LOCK) return;
-    if(!BASE){{ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }}
-    SINGLE_LOCK = true; setStatus("wait","提交中…");
+    if(!BASE){{ showError("未连接到后端（file:// 模式）"); return; }}
+    SINGLE_LOCK = true; showLoading("提交中…");
     var url = buildUrl(gatherInputs());
     var t0 = Date.now();
-    fetch(BASE+url, {{method:"POST",cache:"no-store"}})
+    fetchT(BASE+url, {{method:"POST",cache:"no-store"}})
       .then(function(r){{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }})
       .then(function(j){{ var el=(Date.now()-t0); j.elapsed_ms=el; setStatus(j.ok?"ok":"bad", (j.ok?"完成":"失败")+" · "+el+"ms"); render("{mode}", j); }})
-      .catch(function(e){{ setStatus("bad","失败: "+e.message); out.innerHTML='<div class="err">失败: '+esc(e.message)+'</div>'; }})
+      .catch(function(e){{ showError("失败: "+e.message); }})
       .then(function(){{ SINGLE_LOCK = false; }});
   }}''').format(mode=spec["mode"])
         if kind == "args-batch":
@@ -679,14 +701,14 @@ def loader_body(spec):
   }}
   function go_(){{
     if(BATCH_LOCK) return;
-    if(!BASE){{ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }}
-    BATCH_LOCK = true; setStatus("wait","提交中…");
+    if(!BASE){{ showError("未连接到后端（file:// 模式）"); return; }}
+    BATCH_LOCK = true; showLoading("提交中…");
     var url = buildUrl(gatherInputs());
     var t0 = Date.now();
-    fetch(BASE+url, {{method:"POST",cache:"no-store"}})
+    fetchT(BASE+url, {{method:"POST",cache:"no-store"}})
       .then(function(r){{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }})
       .then(function(j){{ var el=(Date.now()-t0); j.elapsed_ms=el; setStatus(j.ok?"ok":"bad", (j.ok?"完成":"失败")+" · "+el+"ms"); render("{mode}", j); }})
-      .catch(function(e){{ setStatus("bad","失败: "+e.message); out.innerHTML='<div class="err">失败: '+esc(e.message)+'</div>'; }})
+      .catch(function(e){{ showError("失败: "+e.message); }})
       .then(function(){{ BATCH_LOCK = false; }});
   }}
   function batch_(){{
@@ -698,7 +720,7 @@ def loader_body(spec):
     var tAll = Date.now();
     syms.forEach(function(s){{
       var t0 = Date.now();
-      fetch(BASE+"/api/refresh?symbol="+encodeURIComponent(s.symbol)+"&exchange="+encodeURIComponent(s.exchange), {{method:"POST",cache:"no-store"}})
+      fetchT(BASE+"/api/refresh?symbol="+encodeURIComponent(s.symbol)+"&exchange="+encodeURIComponent(s.exchange), {{method:"POST",cache:"no-store"}})
         .then(function(r){{ return r.json().catch(function(){{ return {{ok:false,symbol:s.symbol,exchange:s.exchange,msg:"解析失败"}}; }}); }})
         .then(function(j){{ j.elapsed_ms = Date.now()-t0; rows.push(j); }})
         .catch(function(e){{ rows.push({{ok:false,symbol:s.symbol,exchange:s.exchange,msg:String(e.message||e),elapsed_ms:Date.now()-t0}}); }})
@@ -730,7 +752,7 @@ def loader_body(spec):
     if(!BASE) return;
     setStatus("wait","重试 "+symbol+"…");
     var t0 = Date.now();
-    fetch(BASE+"/api/refresh?symbol="+encodeURIComponent(symbol)+"&exchange="+encodeURIComponent(exchange), {{method:"POST",cache:"no-store"}})
+    fetchT(BASE+"/api/refresh?symbol="+encodeURIComponent(symbol)+"&exchange="+encodeURIComponent(exchange), {{method:"POST",cache:"no-store"}})
       .then(function(r){{ return r.json().catch(function(){{ return {{ok:false,symbol:symbol,exchange:exchange,msg:"解析失败"}}; }}); }})
       .then(function(j){{
         j.elapsed_ms = Date.now()-t0; setStatus(j.ok?"ok":"bad", (j.ok?"重试成功 ":"重试失败 ")+symbol);
@@ -827,25 +849,25 @@ def loader_body(spec):
         system = spec.get("system", "")
         return ('''
   function go_(){{
-    if(!BASE){{ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }}
-    setStatus("wait","思考中…");
+    if(!BASE){{ showError("未连接到后端（file:// 模式）"); return; }}
     var q = (inputs["{qid}"].value||"").trim();
-    if(!q){{ out.innerHTML='<div class="empty">请输入你的问题</div>'; return; }}
-    fetch(BASE+ENDPOINT, {{method:"POST",headers:{{"Content-Type":"application/json"}},cache:"no-store",
+    if(!q){{ showError("请输入你的问题"); return; }}
+    showLoading("思考中…");
+    fetchT(BASE+ENDPOINT, {{method:"POST",headers:{{"Content-Type":"application/json"}},cache:"no-store",
       body:JSON.stringify({{system:"{system}", user:q}})}})
       .then(function(r){{ if(!r.ok) return r.json().then(function(e){{ throw new Error(e.error||("HTTP "+r.status)); }}); return r.json(); }})
       .then(function(j){{ setStatus("ok","已回答"); render("{mode}", j); }})
-      .catch(function(e){{ setStatus("bad","请求失败: "+e.message); out.innerHTML='<div class="err">请求失败: '+esc(e.message)+'</div>'; }});
+      .catch(function(e){{ showError("请求失败: "+e.message); }});
   }}''').format(qid=qid, system=system, mode=spec["mode"])
     # single
     return '''
   function go_(){{
-    if(!BASE){{ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }}
-    setStatus("wait","加载中…");
+    if(!BASE){{ showError("未连接到后端（file:// 模式）"); return; }}
+    showLoading("加载中…");
     var url = buildUrl(gatherInputs());
-    fetch(BASE+url, {{cache:"no-store"}}).then(function(r){{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }})
+    fetchT(BASE+url, {{cache:"no-store"}}).then(function(r){{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }})
       .then(function(j){{ setStatus("ok","已加载"); render("{mode}", j); }})
-      .catch(function(e){{ setStatus("bad","加载失败: "+e.message); out.innerHTML='<div class="err">加载失败: '+esc(e.message)+'</div>'; }});
+      .catch(function(e){{ showError("加载失败: "+e.message); }});
   }}'''.format(mode=spec["mode"])
 
 def make_html(spec):
@@ -882,6 +904,12 @@ def make_test(spec):
     extra = ""
     if spec.get("loader") == "multi":
         extra = 'ok("批量加载逻辑存在", src.indexOf("fetch(BASE+\\"/api/quote")>=0);'
+    elif spec.get("loader") == "post":
+        extra = 'ok("POST 助手 fetchT/showError 存在", src.indexOf("fetchT(")>=0 && src.indexOf("function showError")>=0);'
+        if spec.get("postKind") == "llm-multi":
+            extra += 'ok("多轮 QA_HISTORY 存在", src.indexOf("QA_HISTORY")>=0);'
+        if spec.get("postKind") == "args-batch":
+            extra += 'ok("批量锁 BATCH_LOCK 存在", src.indexOf("BATCH_LOCK")>=0);'
     return '''// 自动生成 (tools/gen_microapps.py) — {name}
 const {{ runAppTest }} = require("../../tools/test-scaffold.js");
 runAppTest(__dirname, ({{ sandbox, ok, eq, arrEq, src, err }}) => {{
