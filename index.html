@@ -345,6 +345,9 @@ const APPS = [
   {dir:"futures-board",     name:"期货总览",       ico:"📈", cat:"fin",  tag:"期货行情",       desc:"消费 /api/futures，展示期货品种总览行情。"},
   {dir:"data-explorer",     name:"数据浏览器",     ico:"🗂️", cat:"tool", tag:"数据条目",       desc:"消费 /api/data，浏览后端数据条目。"},
   {dir:"search-box",        name:"智能搜索",       ico:"🔎", cat:"tool", tag:"全局搜索",       desc:"消费 /api/search，输入关键词搜索。"},
+  // —— R21 新接入的 POST 端点消费者 ——
+  {dir:"market-qa",         name:"AI 投研问答",    ico:"💬", cat:"tool", tag:"LLM 问答",        desc:"消费 /api/llm 统一大模型网关，输入问题获取 AI 投研回答（后端可接 Ollama / DeepSeek / OpenAI）。"},
+  {dir:"inv-refresh",       name:"库存刷新台",     ico:"🔄", cat:"fin",  tag:"库存刷新",        desc:"消费 /api/refresh，触发单个期货品种的真实库存刷新（东方财富），查看刷新结果与最新库存。"},
 ];
 
 /* ====================== 渲染 ====================== */

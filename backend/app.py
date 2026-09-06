@@ -1944,6 +1944,9 @@ def serve_frontend(path):
     full = os.path.join(APP_ROOT, norm)
     if os.path.isfile(full):
         return send_from_directory(APP_ROOT, norm)
+    # 目录风格路径(如 /market-qa/) 自动补 index.html, 提升直接访问/书签体验(对所有 App 生效)
+    if os.path.isdir(full):
+        return send_from_directory(APP_ROOT, norm.rstrip("/") + "/index.html")
     return abort(404)
 
 

@@ -68,6 +68,20 @@ SPECS = [
          endpoint="/api/search", loader="single",
          inputs=[dict(id="q", label="关键词", ph="茅台 利润", default="茅台")],
          mode="rows"),
+    # —— 本轮新增: 消费 POST 端点(统一 LLM 网关 / 库存刷新) ——
+    dict(dir="market-qa", name="AI 投研问答", ico="💬", cat="tool", tag="LLM 问答",
+         desc="消费 /api/llm 统一大模型网关，输入问题获取 AI 投研回答（后端可接 Ollama / DeepSeek / OpenAI）。",
+         endpoint="/api/llm", loader="post", postKind="llm",
+         system="你是一个专业的 A股与期货投研助手，回答简洁、用中文、给出可操作的信息；涉及具体标的时注明数据来源与不确定性。",
+         inputs=[dict(id="q", label="你的问题", ph="最近市场情绪如何？白酒板块还能拿吗？",
+                      default="最近 A股 市场情绪如何，后市怎么看？", area=True)],
+         mode="kv"),
+    dict(dir="inv-refresh", name="库存刷新台", ico="🔄", cat="fin", tag="库存刷新",
+         desc="消费 /api/refresh，触发单个期货品种的真实库存刷新（东方财富），查看刷新结果与最新库存。",
+         endpoint="/api/refresh", loader="post", postKind="args",
+         inputs=[dict(id="symbol", label="品种代码", ph="cu", default="cu"),
+                 dict(id="exchange", label="交易所", ph="SHFE", default="SHFE")],
+         mode="kv"),
 ]
 
 # 每个 App 的定制可视化:
@@ -308,6 +322,40 @@ CUSTOM = {
         '<div class="cc" style="color:' + col + '">' + (v != null ? fmtNum(v) : "") + '</div></div>';
     }).join("") + '</div>' + tableHtml(rows);
     return true;'''),
+    "market-qa": dict(render=r'''
+    var jj = (j && typeof j === "object") ? j : null;
+    if(!jj || typeof jj.content !== "string") return false;
+    var src = jj.source ? String(jj.source) : "";
+    var cached = jj.cached ? "（缓存）" : "";
+    out.innerHTML = '<div class="qa"><div class="qab">' +
+      '<div class="qaa">' + esc(jj.content) + '</div>' +
+      (src ? '<div class="qas">来源: ' + esc(src) + cached + '</div>' : '') +
+      '</div></div>';
+    return true;''',
+    css=r'''
+    .qa{margin-top:8px}
+    .qab{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+    .qaa{white-space:pre-wrap;line-height:1.7;font-size:14px}
+    .qas{margin-top:10px;color:var(--sub);font-size:12px}'''),
+    "inv-refresh": dict(render=r'''
+    var jj = (j && typeof j === "object") ? j : null;
+    if(!jj || typeof jj.ok !== "boolean") return false;
+    var okc = jj.ok ? "var(--green)" : "var(--red)";
+    var rows = (jj.rows && Array.isArray(jj.rows)) ? jj.rows : null;
+    var html = '<div class="rb" style="border-left:4px solid ' + okc + '">' +
+      '<div class="rbt" style="color:' + okc + '">' + (jj.ok ? "刷新成功" : "刷新失败") + '</div>' +
+      '<div class="rbm">品种: ' + esc(jj.exchange || "") + ':' + esc(jj.symbol || "") + '</div>' +
+      (jj.last_inventory != null ? '<div class="rbm">最新库存: ' + fmtNum(jj.last_inventory) + '</div>' : '') +
+      (jj.filled != null ? '<div class="rbm">填充: ' + fmtNum(jj.filled) + '</div>' : '') +
+      (jj.msg ? '<div class="rbm">消息: ' + esc(jj.msg) + '</div>' : '') +
+      '</div>';
+    if(rows) html += tableHtml(rows.slice(0, 12));
+    out.innerHTML = html;
+    return true;''',
+    css=r'''
+    .rb{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:8px}
+    .rbt{font-weight:700;font-size:15px;margin-bottom:6px}
+    .rbm{color:var(--sub);font-size:13px;margin:2px 0}'''),
 }
 
 TPL = '''<!DOCTYPE html>
@@ -330,6 +378,8 @@ TPL = '''<!DOCTYPE html>
   .controls label{{display:flex;flex-direction:column;gap:4px;color:var(--sub);font-size:12px}}
   .controls input{{background:var(--panel);border:1px solid var(--line);color:var(--text);
     border-radius:8px;padding:8px 10px;font-size:13px;min-width:180px}}
+  .controls textarea{{background:var(--panel);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:8px 10px;font-size:13px;min-width:320px;min-height:64px;font-family:inherit;resize:vertical}}
   button{{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:8px 16px;
     font-size:13px;cursor:pointer;font-weight:600}}
   button.ghost{{background:var(--panel2);color:var(--text);border:1px solid var(--line)}}
@@ -535,8 +585,12 @@ def controls_html(spec):
     h = []
     for inp in spec.get("inputs", []):
         # 注意: 必须输出成 JS 字符串拼接( html += '...' )，否则裸 HTML 会被当 JS 语法
-        h.append("html += '<label>{label}<input id=\"{id}\" placeholder=\"{ph}\" value=\"{default}\"></label>';"
-                 .format(label=inp["label"], id=inp["id"], ph=inp["ph"], default=inp.get("default","")))
+        if inp.get("area"):
+            h.append("html += '<label>{label}<br><textarea id=\"{id}\" placeholder=\"{ph}\">{default}</textarea></label>';"
+                     .format(label=inp["label"], id=inp["id"], ph=inp["ph"], default=inp.get("default","")))
+        else:
+            h.append("html += '<label>{label}<input id=\"{id}\" placeholder=\"{ph}\" value=\"{default}\"></label>';"
+                     .format(label=inp["label"], id=inp["id"], ph=inp["ph"], default=inp.get("default","")))
     return "\n    ".join(h)
 
 def loader_body(spec):
@@ -560,6 +614,34 @@ def loader_body(spec):
     setStatus(fail? "bad":"ok", "已加载 "+rows.length+" 项"+(fail?(" · "+fail+" 项失败"):""));
     renderRows(rows);
   }}'''.format(mi=mi)
+    # post: 提交到 POST 端点(支持 args=查询参数 / llm=JSON body 两种形态)
+    if spec.get("loader") == "post":
+        if spec.get("postKind") == "args":
+            return ('''
+  function go_(){{
+    if(!BASE){{ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }}
+    setStatus("wait","提交中…");
+    var url = buildUrl(gatherInputs());
+    fetch(BASE+url, {{method:"POST",cache:"no-store"}})
+      .then(function(r){{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }})
+      .then(function(j){{ setStatus(j.ok?"ok":"bad", j.ok?"完成":"失败"); render("{mode}", j); }})
+      .catch(function(e){{ setStatus("bad","失败: "+e.message); out.innerHTML='<div class="err">失败: '+esc(e.message)+'</div>'; }});
+  }}''').format(mode=spec["mode"])
+        # llm: POST JSON body {{system, user}}
+        qid = (spec.get("inputs") or [{}])[0].get("id", "q")
+        system = spec.get("system", "")
+        return ('''
+  function go_(){{
+    if(!BASE){{ out.innerHTML='<div class="err">未连接到后端（file:// 模式）</div>'; return; }}
+    setStatus("wait","思考中…");
+    var q = (inputs["{qid}"].value||"").trim();
+    if(!q){{ out.innerHTML='<div class="empty">请输入你的问题</div>'; return; }}
+    fetch(BASE+ENDPOINT, {{method:"POST",headers:{{"Content-Type":"application/json"}},cache:"no-store",
+      body:JSON.stringify({{system:"{system}", user:q}})}})
+      .then(function(r){{ if(!r.ok) return r.json().then(function(e){{ throw new Error(e.error||("HTTP "+r.status)); }}); return r.json(); }})
+      .then(function(j){{ setStatus("ok","已回答"); render("{mode}", j); }})
+      .catch(function(e){{ setStatus("bad","请求失败: "+e.message); out.innerHTML='<div class="err">请求失败: '+esc(e.message)+'</div>'; }});
+  }}''').format(qid=qid, system=system, mode=spec["mode"])
     # single
     return '''
   function go_(){{
