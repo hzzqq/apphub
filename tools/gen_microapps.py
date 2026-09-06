@@ -955,7 +955,7 @@ def loader_body(spec):
   var QA_CTRL = null;
   function renderQA(){{
     var msel = document.getElementById("modelSel"); var who = (QA_MODELS[(msel?msel.selectedIndex:0)] || QA_MODELS[0]);
-    if(!QA_HISTORY.length){{ out.innerHTML = '<div class="empty">还没有对话，输入问题开始。</div>'; return; }}
+    if(!QA_HISTORY.length){{ out.innerHTML = '<div class="qhead">🤖 当前模型：'+esc(who?who.label:"模型")+'</div><div class="empty">还没有对话，输入问题开始。</div>'; return; }}
     var htm = '<div class="qhead">🤖 当前模型：'+esc(who?who.label:"模型")+'</div><div class="qa">';
     QA_HISTORY.forEach(function(h, idx){{
       var failed = (h.a && h.a.indexOf("（请求失败")===0);
@@ -1051,7 +1051,7 @@ def loader_body(spec):
   var QA_CTRL = null;
   function renderQA(){{
     var who = (TRAIT_PERSONAS[TRAIT_IDX] && TRAIT_PERSONAS[TRAIT_IDX].label) || "交易大师";
-    if(!QA_HISTORY.length){{ out.innerHTML = '<div class="empty">还没有对话，输入问题开始（你将与「'+who+'」对话）。</div>'; return; }}
+    if(!QA_HISTORY.length){{ out.innerHTML = '<div class="qhead">🎭 正在与「'+esc(who)+'」对话</div><div class="empty">还没有对话，输入问题开始（你将与「'+who+'」对话）。</div>'; return; }}
     var htm = '<div class="qhead">🎭 正在与「'+esc(who)+'」对话</div><div class="qa">';
     QA_HISTORY.forEach(function(h, idx){{
       var failed = (h.a && h.a.indexOf("（请求失败")===0);
