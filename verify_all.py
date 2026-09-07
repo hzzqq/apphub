@@ -9,6 +9,8 @@ App Hub 全量校验脚本 (一次性质量基线 + 回归门禁)
      同时检测破坏「零依赖单文件」承诺的外部 <script src=...> 引用。
   2. 后端: import backend.app, 用 test_client 冒烟全部 13 个端点(离线模式, 无需联网)。
   3. 一致性: 检测 data/ 目录 JSON 与 /api/data 白名单是否一一对应。
+  4. 真实数据后端覆盖(R57): 若检测到运行中的后端, 逐一探测全部后端依赖 App 的
+     /api/* 端点, 确保无「真实数据」链路断点(防 R51 徽章回归); 后端离线则跳过。
 
 用法 (在隔离 venv 的 python 下):
     python verify_all.py
@@ -398,6 +400,51 @@ def check_endpoint_consistency():
     return errs
 
 
+# ─────────────── 6. 真实数据后端覆盖（R57，接 R56 审计） ───────────────
+def check_realdada_coverage():
+    """真实数据后端覆盖（R57，接 R56 审计工具）：若检测到运行中的后端，则逐一探测
+       全部后端依赖 App 的 /api/* 端点，确保无「真实数据」链路断点（防 R51 徽章回归）。
+       未检测到后端在线时跳过（不阻断纯前端/本地开发）。直接复用 tools/audit_backend_data 的
+       APP_ENDPOINTS / DATA_FILE / probe，避免逻辑双份维护。"""
+    print("─" * 60)
+    print("【真实数据覆盖】探测后端依赖 App 的 /api/* 端点（需后端在线）")
+    try:
+        import tools.audit_backend_data as audit_mod
+    except Exception:
+        sys.path.insert(0, os.path.join(ROOT, "tools"))
+        try:
+            import audit_backend_data as audit_mod
+        except Exception as e:
+            print("  [提示] 无法导入审计模块: %s，跳过" % e)
+            return 0
+    import urllib.request
+    base = "http://127.0.0.1:8787"
+    # 检测后端是否在线：离线则跳过（不阻断纯前端开发）
+    try:
+        urllib.request.urlopen(base + "/api/health", timeout=3)
+    except Exception:
+        print("  未检测到运行中的后端（%s），跳过真实数据覆盖检查" % base)
+        return 0
+    errs = 0
+    broken = []
+    total_eps = 0
+    for app, eps in sorted(audit_mod.APP_ENDPOINTS.items()):
+        for ep in eps:
+            total_eps += 1
+            kind, msg = audit_mod.probe(base, ep, app)
+            if kind == "ERR":
+                errs += 1
+                broken.append((app, ep, msg))
+    if broken:
+        for app, ep, msg in broken:
+            print("  [真实数据断点] %s -> %s (%s)" % (app, ep, msg))
+        print("  ⚠ 发现 %d 个真实数据链路断点，R51「真实数据」徽章可能不再诚实" % errs)
+    else:
+        print("  ✓ 全部后端依赖 App 的 /api/* 端点可用，真实数据链路无断点")
+    print("  真实数据覆盖：探测 %d 个 App 端点，断点 %d" % (total_eps, errs))
+    return errs
+
+
 def main():
     print("=" * 60)
     print("App Hub 全量校验 @ %s" % ROOT)
@@ -409,10 +456,11 @@ def main():
     e3 = check_data_whitelist()
     e4 = check_app_dirs()
     e5 = check_endpoint_consistency()
-    total = e1 + e1b + e1c + e2 + e3 + e4 + e5
+    e6 = check_realdada_coverage()
+    total = e1 + e1b + e1c + e2 + e3 + e4 + e5 + e6
     print("─" * 60)
-    print("汇总: 前端错误 %d, 前端单测失败 %d, 前端运行时 %d, 后端错误 %d, 一致性错误 %d, 目录卫生 %d, 端点一致性 %d, 总计 %d"
-          % (e1, e1b, e1c, e2, e3, e4, e5, total))
+    print("汇总: 前端错误 %d, 前端单测失败 %d, 前端运行时 %d, 后端错误 %d, 一致性错误 %d, 目录卫生 %d, 端点一致性 %d, 真实数据覆盖 %d, 总计 %d"
+          % (e1, e1b, e1c, e2, e3, e4, e5, e6, total))
     if total == 0:
         print("✅ 全部通过")
     else:
