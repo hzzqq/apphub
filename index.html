@@ -122,6 +122,13 @@
   .localbadge{font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;white-space:nowrap;
     border:1px solid #3a4a6a;color:#8aa7ff;background:var(--card2);cursor:pointer}
   .needapi:hover,.localbadge:hover{filter:brightness(1.25)}
+  /* R59：数据新鲜度小标（仅期货缓存类 App 展示） */
+  .freshpill{font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;white-space:nowrap;
+    border:1px solid var(--line);color:var(--sub);background:var(--card2)}
+  .freshpill.fresh{border-color:#2a5a4a;color:var(--down)}
+  .freshpill.warn{border-color:#5a4a2a;color:#ffb74d}
+  .freshpill.stale{border-color:#5a2a2a;color:#ff6b6b}
+  .freshpill.nodata{border-color:#3a3a6a;color:#8aa7ff}
 
   /* ===== 端点详情弹窗（R52） ===== */
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;justify-content:center;z-index:60}
@@ -563,6 +570,7 @@ function render(){
       '<div class="desc">' + a.desc +
         (needsBackend(a.dir)
           ? ' <span class="needapi' + (backendUp ? "" : " off") + '" onclick="showAppEndpoints(event,\'' + a.dir + '\')" title="点击查看该应用依赖的后端接口">' + backendBadgeText(backendUp) + '</span>'
+            + (isFreshApp(a.dir) ? ' <span class="freshpill" id="fresh-' + a.dir + '"></span>' : '')
           : ' <span class="localbadge" onclick="showAppEndpoints(event,\'' + a.dir + '\')" title="点击查看说明">🖥 本地运行</span>') +
       '</div>' +
       '<div class="cact">' +
@@ -582,6 +590,7 @@ function render(){
   document.getElementById("cntLife").textContent = cLife;
   document.getElementById("cntTool").textContent = cTool;
   applySel();
+  updateFreshnessBadges();   // R59：卡片重建后填充数据新鲜度小标
 }
 
 /* 视图切换 / 排序 / 键盘导航 事件绑定 */
@@ -718,6 +727,15 @@ const APP_ENDPOINTS = {
   "variety-screener": ["/api/futures_varieties"]
 };
 
+/* R59：数据新鲜度——哪些后端 App 的底层数据是「期货缓存」（/api/data_status 覆盖的范畴）。
+   仅这些 App 才展示新鲜度小标，避免对非期货数据源（牧羊人/报价/ETF 等）谎报新鲜度。 */
+const FRESH_EPS = {
+  "/api/futures": 1, "/api/futures_chain": 1, "/api/futures_varieties": 1,
+  "/api/futures_spread": 1, "/api/futures_events": 1, "/api/inventory_overview": 1,
+  "/api/corr_top": 1, "/api/futures_sector_matrix": 1
+};
+function isFreshApp(dir){ return (APP_ENDPOINTS[dir] || []).some(function(ep){ return FRESH_EPS[ep]; }); }
+
 /* 端点简短说明（弹窗展示用；缺失则用通用文案） */
 const EP_DESC = {
   "/api/llm": "统一大模型网关（可接 Ollama / DeepSeek / OpenAI）",
@@ -753,6 +771,7 @@ function needsBackend(dir){ return NEEDS_BACKEND.indexOf(dir) >= 0; }
 function backendBadgeText(up){ return up ? "🔌 真实数据" : "⚠ 本地样本"; }
 
 let backendUp = false;   // 由 initApi 的 probe() 探测结果维护
+let DATA_STATUS = null;  // R59：后端 /api/data_status 响应（期货缓存新鲜度），驱动卡片新鲜度小标
 
 /* 注：openApp 已在文件上方统一定义（链接点击与键盘 Enter 两种调用形式），此处不再重复定义，
    避免同名函数覆盖导致键盘打开失效的回归。 */
@@ -761,6 +780,23 @@ function updateBackendBadges(){
   document.querySelectorAll(".needapi").forEach(function(el){
     el.textContent = backendBadgeText(backendUp);
     el.className = "needapi" + (backendUp ? "" : " off");
+  });
+}
+
+/* R59：数据新鲜度小标——把「真实数据」从「有/无」推进到「新鲜/陈旧」。
+   仅对底层读期货缓存的 App（isFreshApp）展示；数据源非期货缓存的 App 不谎报新鲜度。 */
+function updateFreshnessBadges(){
+  if(!DATA_STATUS){ return; }
+  const newest = DATA_STATUS.newest_age_days, stale = DATA_STATUS.stale_count || 0;
+  document.querySelectorAll(".freshpill").forEach(function(el){
+    const dir = (el.id || "").replace(/^fresh-/, "");
+    if(!isFreshApp(dir)) return;
+    let txt, cls;
+    if(stale > 0){ txt = "⚠ 滞后 " + stale + " 品种"; cls = "stale"; }
+    else if(newest == null){ txt = "暂无数据日期"; cls = "nodata"; }
+    else if(newest <= 7){ txt = "🟢 数据 " + newest + " 天前"; cls = "fresh"; }
+    else { txt = "🟡 数据 " + newest + " 天前"; cls = "warn"; }
+    el.textContent = txt; el.className = "freshpill " + cls;
   });
 }
 
@@ -891,6 +927,7 @@ document.addEventListener("keydown", function(e){
           clearTimeout(tt);
           const f = formatDataStatus(ds);
           if(dsEl){ dsEl.textContent = f.text; dsEl.className = "apistate" + (f.cls ? " " + f.cls : ""); }
+          DATA_STATUS = ds; updateFreshnessBadges();   // R59：缓存新鲜度并刷新卡片小标
         }catch(e){
           if(dsEl){ dsEl.textContent = ""; dsEl.className = "apistate"; }
         }

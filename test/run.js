@@ -141,6 +141,12 @@ console.log("\n[Round 3e] 端点弹窗复制全部端点按钮（R55）");
 ok("index.html 含 copyAllEndpoints 复制函数", /function copyAllEndpoints\(/.test(html));
 ok("弹窗含「复制全部端点」按钮", /复制全部端点/.test(html));
 
+console.log("\n[Round 3f] 数据新鲜度小标（R59）");
+ok("index.html 含 FRESH_EPS 期货缓存端点集", /const FRESH_EPS/.test(html));
+ok("index.html 含 isFreshApp 判定", /function isFreshApp\(/.test(html));
+ok("index.html 含 updateFreshnessBadges 函数", /function updateFreshnessBadges\(/.test(html));
+ok("卡片模板含 freshpill 占位", /class="freshpill" id="fresh-/.test(html));
+
 /* ============================================================
  *  Round 4: openApp 参数兼容（防同名函数覆盖导致键盘打开失效的回归）
  * ============================================================ */
