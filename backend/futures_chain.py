@@ -1628,10 +1628,17 @@ def _svg_line(data, w=920, h=300, pad=40):
              X(lo_i), Y(lo), X(lo_i), Y(lo) + 18, lo, xs[lo_i][5:]))
     ml = ""
     seen = set()
+    last_x = -999
     for i, d in enumerate(xs):
-        if d[5:7] not in seen:
-            seen.add(d[5:7])
-            ml += '<text x="%.1f" y="%d" fill="#9aa7b4" font-size="10" text-anchor="middle">%s月</text>' % (X(i), h - 10, d[5:7])
+        ym = d[:7]  # 按年+月去重，避免跨年月份重复
+        if ym not in seen:
+            seen.add(ym)
+            xx = X(i)
+            if xx - last_x < 40:
+                continue
+            last_x = xx
+            label = "%s-%s" % (d[2:4], d[5:7])  # 24-08
+            ml += '<text x="%.1f" y="%d" fill="#9aa7b4" font-size="10" text-anchor="middle">%s</text>' % (xx, h - 10, label)
     return ('<svg viewBox="0 0 %d %d" width="100%%" preserveAspectRatio="xMidYMid meet">%s'
             '<polygon points="%s" fill="#e85d4e" opacity="0.08"/>'
             '<path d="%s" fill="none" stroke="#e85d4e" stroke-width="2"/>%s%s</svg>'

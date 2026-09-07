@@ -1007,7 +1007,7 @@ def loader_body(spec):
     fetch(BASE+ENDPOINT, {{method:"POST",headers:{{"Content-Type":"application/json"}},cache:"no-store",
       signal: (QA_CTRL ? QA_CTRL.signal : undefined),
       body:JSON.stringify({{system:QA_MODEL, user:prompt}})}})
-      .then(function(r){{ if(!r.ok) return r.json().then(function(e){{ throw new Error(e.error||("HTTP "+r.status)); }}); return r.json(); }})
+      .then(function(r){{ if(r.ok) return r.json(); if(r.status===404) throw new Error("后端未提供该接口(HTTP 404)：后端版本过旧或未启动，请重启到最新版；接真实 LLM 需配置 Ollama/DeepSeek/OpenAI。"); return r.json().then(function(e){{ throw new Error(e.error||("HTTP "+r.status)); }}, function(){{ throw new Error("HTTP "+r.status); }}); }})
       .then(function(j){{
         var ans = (j && typeof j.content==="string") ? j.content : "(无回答)";
         QA_HISTORY[QA_HISTORY.length-1].a = ans; saveQA(); renderQA(); setStatus("ok","已回答");
@@ -1114,7 +1114,7 @@ def loader_body(spec):
     fetch(BASE+ENDPOINT, {{method:"POST",headers:{{"Content-Type":"application/json"}},cache:"no-store",
       signal: (QA_CTRL ? QA_CTRL.signal : undefined),
       body:JSON.stringify({{system:QA_MODEL, user:prompt, persona:who}})}})
-      .then(function(r){{ if(!r.ok) return r.json().then(function(e){{ throw new Error(e.error||("HTTP "+r.status)); }}); return r.json(); }})
+      .then(function(r){{ if(r.ok) return r.json(); if(r.status===404) throw new Error("后端未提供该接口(HTTP 404)：后端版本过旧或未启动，请重启到最新版；接真实 LLM 需配置 Ollama/DeepSeek/OpenAI。"); return r.json().then(function(e){{ throw new Error(e.error||("HTTP "+r.status)); }}, function(){{ throw new Error("HTTP "+r.status); }}); }})
       .then(function(j){{
         var ans = (j && typeof j.content==="string") ? j.content : "(无回答)";
         QA_HISTORY[QA_HISTORY.length-1].a = ans; saveQA(); renderQA(); setStatus("ok","已回答");
@@ -1144,7 +1144,7 @@ def loader_body(spec):
     showLoading("思考中…");
     fetchT(BASE+ENDPOINT, {{method:"POST",headers:{{"Content-Type":"application/json"}},cache:"no-store",
       body:JSON.stringify({{system:"{system}", user:q}})}})
-      .then(function(r){{ if(!r.ok) return r.json().then(function(e){{ throw new Error(e.error||("HTTP "+r.status)); }}); return r.json(); }})
+      .then(function(r){{ if(r.ok) return r.json(); if(r.status===404) throw new Error("后端未提供该接口(HTTP 404)：后端版本过旧或未启动，请重启到最新版；接真实 LLM 需配置 Ollama/DeepSeek/OpenAI。"); return r.json().then(function(e){{ throw new Error(e.error||("HTTP "+r.status)); }}, function(){{ throw new Error("HTTP "+r.status); }}); }})
       .then(function(j){{ setStatus("ok","已回答"); render("{mode}", j); }})
       .catch(function(e){{ showError("请求失败: "+e.message); }});
   }}''').format(qid=qid, system=system, mode=spec["mode"])
