@@ -136,6 +136,9 @@
   .modal .box .epnote{font-size:12px;color:var(--sub);margin:12px 0 0;line-height:1.6}
   .modal .box .epsrc{font-size:11.5px;color:var(--sub);margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
   .modal .box .epsrc code{background:rgba(255,255,255,.06);padding:1px 6px;border-radius:5px;color:var(--txt)}
+  .modal .box ul .epcopy{margin-left:8px;background:var(--card2);border:1px solid var(--line);color:var(--sub);
+    border-radius:8px;padding:1px 8px;font-size:11px;cursor:pointer;transition:border-color .2s,color .2s}
+  .modal .box ul .epcopy:hover{border-color:var(--accent);color:var(--txt)}
   .desc{font-size:12.5px;color:var(--sub);line-height:1.6;flex:1;min-height:42px}
   .cact{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .open{display:inline-flex;align-items:center;justify-content:center;gap:6px;
@@ -777,7 +780,8 @@ function showAppEndpoints(e, dir){
     eps.forEach(function(ep){
       const li = document.createElement("li");
       const d  = EP_DESC[ep] || "后端数据接口";
-      li.innerHTML = '<span class="ep">' + ep + '</span> — ' + d;
+      li.innerHTML = '<span class="ep">' + ep + '</span> — ' + d +
+        ' <button type="button" class="epcopy" onclick="copyEndpoint(event,\'' + ep + '\')">复制</button>';
       list.appendChild(li);
     });
     note.textContent = "这些接口由大厅「真实数据接口」配置的统一后端提供；未连接时该 App 显示本地样本 / 离线演示。";
@@ -793,6 +797,17 @@ function showAppEndpoints(e, dir){
 function closeEpModal(){
   const modal = document.getElementById("epModal");
   if(modal) modal.classList.remove("on");
+}
+/* 端点弹窗内「复制」按钮：复制单条 /api/* 路径到剪贴板（R53） */
+function copyEndpoint(e, text){
+  e.stopPropagation();
+  const btn = e.currentTarget, old = btn.textContent;
+  function done(txt){ btn.textContent = txt; setTimeout(function(){ btn.textContent = old; }, 1200); }
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ done("已复制"); }, function(){ done("复制失败"); });
+    } else { done("不可用"); }
+  }catch(err){ done("复制失败"); }
 }
 // 点击遮罩（非内容区）关闭
 document.addEventListener("click", function(e){

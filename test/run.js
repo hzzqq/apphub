@@ -129,6 +129,10 @@ ok("每个后端 App 都列出非空端点清单", napi.NEEDS_BACKEND.every(func
 ok("期库镜列出 7 个端点", (napi.APP_ENDPOINTS["futures-inventory"] || []).length === 7);
 ok("交易大师仅 /api/llm", JSON.stringify(napi.APP_ENDPOINTS["trader-avatars"]) === JSON.stringify(["/api/llm"]));
 
+console.log("\n[Round 3c] 端点弹窗复制按钮（R53）");
+ok("index.html 含 copyEndpoint 复制函数", /function copyEndpoint\(/.test(html));
+ok("弹窗列表项含 epcopy 复制按钮", /class="epcopy"/.test(html));
+
 /* ============================================================
  *  Round 4: openApp 参数兼容（防同名函数覆盖导致键盘打开失效的回归）
  * ============================================================ */
