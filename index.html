@@ -139,6 +139,7 @@
   .modal .box ul .epcopy{margin-left:8px;background:var(--card2);border:1px solid var(--line);color:var(--sub);
     border-radius:8px;padding:1px 8px;font-size:11px;cursor:pointer;transition:border-color .2s,color .2s}
   .modal .box ul .epcopy:hover{border-color:var(--accent);color:var(--txt)}
+  .modal .box .epactions{margin:2px 0 6px;display:flex;gap:8px}
   .desc{font-size:12.5px;color:var(--sub);line-height:1.6;flex:1;min-height:42px}
   .cact{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .open{display:inline-flex;align-items:center;justify-content:center;gap:6px;
@@ -771,11 +772,18 @@ function showAppEndpoints(e, dir){
   const list  = document.getElementById("epList");
   const note  = document.getElementById("epNote");
   const base  = document.getElementById("epBase");
+  const actions = document.getElementById("epActions");
   if(!modal || !list) return;
   const isBk = needsBackend(dir);
   const eps  = APP_ENDPOINTS[dir] || [];
   title.textContent = (isBk ? "🔌 真实数据接口 · " : "🖥 本地运行 · ") + dir;
   list.innerHTML = "";
+  if(actions){
+    if(isBk && eps.length){
+      actions.innerHTML = '<button type="button" class="epcopy" onclick="copyAllEndpoints(event,\'' + dir + '\')">复制全部端点</button>';
+      actions.style.display = "";
+    } else { actions.innerHTML = ""; actions.style.display = "none"; }
+  }
   if(isBk && eps.length){
     eps.forEach(function(ep){
       const li = document.createElement("li");
@@ -820,6 +828,20 @@ function copyBackendAddr(e){
   try{
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(addr).then(function(){ done("已复制"); }, function(){ done("复制失败"); });
+    } else { done("不可用"); }
+  }catch(err){ done("复制失败"); }
+}
+/* 端点弹窗内「复制全部端点」按钮：一次性复制当前 App 的全部 /api/* 路径（R55） */
+function copyAllEndpoints(e, dir){
+  e.stopPropagation();
+  const eps = (APP_ENDPOINTS[dir] || []);
+  const btn = e.currentTarget, old = btn.textContent;
+  function done(txt){ btn.textContent = txt; setTimeout(function(){ btn.textContent = old; }, 1200); }
+  if(!eps.length){ done("无端点"); return; }
+  const text = eps.join("\n");
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ done("已复制 " + eps.length + " 条"); }, function(){ done("复制失败"); });
     } else { done("不可用"); }
   }catch(err){ done("复制失败"); }
 }
@@ -1038,6 +1060,7 @@ renderRecent();
     <div class="box">
       <span class="x" onclick="closeEpModal()" title="关闭" aria-label="关闭">×</span>
       <h3 id="epTitle">数据接口</h3>
+      <div class="epactions" id="epActions" style="display:none"></div>
       <ul id="epList"></ul>
       <p class="epnote" id="epNote"></p>
       <div class="epsrc">数据源：统一后端 <code id="epBase">—</code>（见大厅「真实数据接口」配置）</div>
