@@ -117,10 +117,25 @@
   .cat.life{color:var(--down);border-color:#2a5a4a}
   .cat.tool{color:var(--g1);border-color:#3a3a6a}
   .needapi{font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;white-space:nowrap;
-    border:1px solid #2a5a4a;color:var(--down);background:var(--card2);cursor:help}
+    border:1px solid #2a5a4a;color:var(--down);background:var(--card2);cursor:pointer}
   .needapi.off{border-color:#5a4a2a;color:#ffb74d}
   .localbadge{font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;white-space:nowrap;
-    border:1px solid #3a4a6a;color:#8aa7ff;background:var(--card2);cursor:help}
+    border:1px solid #3a4a6a;color:#8aa7ff;background:var(--card2);cursor:pointer}
+  .needapi:hover,.localbadge:hover{filter:brightness(1.25)}
+
+  /* ===== 端点详情弹窗（R52） ===== */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;justify-content:center;z-index:60}
+  .modal.on{display:flex}
+  .modal .box{position:relative;background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:22px 24px;max-width:480px;width:90%;box-shadow:var(--shadow-hover);animation:fadeUp .25s ease both}
+  .modal .box h3{margin:0 0 12px;font-size:17px}
+  .modal .box .x{position:absolute;top:12px;right:16px;cursor:pointer;color:var(--sub);font-size:20px;line-height:1}
+  .modal .box .x:hover{color:var(--txt)}
+  .modal .box ul{margin:6px 0 0;padding-left:18px;color:var(--sub);font-size:13px;line-height:1.95}
+  .modal .box ul .ep{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--accent)}
+  .modal .box .epnote{font-size:12px;color:var(--sub);margin:12px 0 0;line-height:1.6}
+  .modal .box .epsrc{font-size:11.5px;color:var(--sub);margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+  .modal .box .epsrc code{background:rgba(255,255,255,.06);padding:1px 6px;border-radius:5px;color:var(--txt)}
   .desc{font-size:12.5px;color:var(--sub);line-height:1.6;flex:1;min-height:42px}
   .cact{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .open{display:inline-flex;align-items:center;justify-content:center;gap:6px;
@@ -543,8 +558,8 @@ function render(){
       '</div>' +
       '<div class="desc">' + a.desc +
         (needsBackend(a.dir)
-          ? ' <span class="needapi' + (backendUp ? "" : " off") + '" title="该应用需要后端才有真实数据；未连接时显示本地样本/离线演示">' + backendBadgeText(backendUp) + '</span>'
-          : ' <span class="localbadge" title="纯前端工具，无需后端，本地即可完整运行">🖥 本地运行</span>') +
+          ? ' <span class="needapi' + (backendUp ? "" : " off") + '" onclick="showAppEndpoints(event,\'' + a.dir + '\')" title="点击查看该应用依赖的后端接口">' + backendBadgeText(backendUp) + '</span>'
+          : ' <span class="localbadge" onclick="showAppEndpoints(event,\'' + a.dir + '\')" title="点击查看说明">🖥 本地运行</span>') +
       '</div>' +
       '<div class="cact">' +
         '<a class="open" href="' + a.dir + '/index.html" target="_blank" rel="noopener" onclick="return openApp(event,\'' + a.dir + '\')">打开应用 →</a>' +
@@ -658,6 +673,76 @@ const NEEDS_BACKEND = [
   "smart-order", "spread-viewer", "trader-avatars", "trading-agents", "variety-screener"
 ];
 
+/* 每个后端 App 实际调用的 /api/* 端点（由 R51 扫描各 App index.html 实证得出，供徽章点击弹窗展示）。
+   与 NEEDS_BACKEND 一一对应：键集合 === NEEDS_BACKEND 集合。 */
+const APP_ENDPOINTS = {
+  "cache-insight": ["/api/cache/stats", "/api/cache/clear", "/api/cache/warm"],
+  "code-teacher": ["/api/llm"],
+  "corr-explorer": ["/api/corr_top"],
+  "data-explorer": ["/api/data"],
+  "data-status-dash": ["/api/data_status"],
+  "eia-watch": ["/api/eia_crude"],
+  "etf-picker": ["/api/etf"],
+  "futures-board": ["/api/futures"],
+  "futures-chain": ["/api/futures_chain", "/api/futures_varieties"],
+  "futures-events": ["/api/futures_events"],
+  "futures-inventory": ["/api/corr_top", "/api/eia_crude", "/api/futures", "/api/futures_events", "/api/inventory_overview", "/api/refresh", "/api/search"],
+  "futures-spread": ["/api/futures_spread"],
+  "health-board": ["/api/health"],
+  "holdings-check": ["/api/data"],
+  "holdings-health": ["/api/quote"],
+  "info-board": ["/api/info"],
+  "inv-refresh": ["/api/refresh"],
+  "inventory-watch": ["/api/inventory_overview"],
+  "itinerary": ["/api/itinerary/generate"],
+  "itinerary-view": ["/api/itinerary/generate"],
+  "kpattern": ["/api/data"],
+  "market-cube": ["/api/market_cube"],
+  "market-mood": ["/api/shepherd"],
+  "market-qa": ["/api/llm"],
+  "price-alert": ["/api/quote"],
+  "quote-board": ["/api/quote"],
+  "search-box": ["/api/search"],
+  "sector-heat": ["/api/sector"],
+  "sector-matrix": ["/api/futures_sector_matrix"],
+  "sector-rotation": ["/api/sector"],
+  "shepherd-index": ["/api/health", "/api/shepherd"],
+  "smart-order": ["/api/quote"],
+  "spread-viewer": ["/api/futures_spread"],
+  "trader-avatars": ["/api/llm"],
+  "trading-agents": ["/api/llm"],
+  "variety-screener": ["/api/futures_varieties"]
+};
+
+/* 端点简短说明（弹窗展示用；缺失则用通用文案） */
+const EP_DESC = {
+  "/api/llm": "统一大模型网关（可接 Ollama / DeepSeek / OpenAI）",
+  "/api/futures": "期货品种总览行情",
+  "/api/futures_chain": "产业链联动 / 相关性分析",
+  "/api/futures_varieties": "期货品种列表",
+  "/api/futures_spread": "跨期价差（近月-远月）",
+  "/api/futures_events": "期货品种事件",
+  "/api/corr_top": "最强相关性标的对",
+  "/api/eia_crude": "EIA 原油库存周报",
+  "/api/inventory_overview": "库存概览",
+  "/api/refresh": "触发真实库存刷新（东方财富）",
+  "/api/search": "全局搜索",
+  "/api/data": "通用数据条目",
+  "/api/data_status": "数据覆盖 / 新鲜度",
+  "/api/etf": "ETF 数据",
+  "/api/quote": "实时报价",
+  "/api/sector": "板块强弱",
+  "/api/futures_sector_matrix": "板块共振矩阵",
+  "/api/shepherd": "牧羊人情绪指数",
+  "/api/health": "后端健康检查",
+  "/api/info": "API 端点清单",
+  "/api/itinerary/generate": "AI 行程生成",
+  "/api/cache/stats": "进程内缓存观测（命中/未命中/年龄）",
+  "/api/cache/clear": "清空后端进程内缓存",
+  "/api/cache/warm": "预热缓存",
+  "/api/market_cube": "市场数据魔方 OLAP"
+};
+
 /* 该 App 是否需要后端才能看到真实数据（顶层导出以便单测） */
 function needsBackend(dir){ return NEEDS_BACKEND.indexOf(dir) >= 0; }
 /* 徽标文案（顶层导出以便单测） */
@@ -674,6 +759,54 @@ function updateBackendBadges(){
     el.className = "needapi" + (backendUp ? "" : " off");
   });
 }
+
+/* ====================== 徽章点击：端点详情弹窗（R52） ====================== */
+function showAppEndpoints(e, dir){
+  e.stopPropagation(); e.preventDefault();
+  const modal = document.getElementById("epModal");
+  const title = document.getElementById("epTitle");
+  const list  = document.getElementById("epList");
+  const note  = document.getElementById("epNote");
+  const base  = document.getElementById("epBase");
+  if(!modal || !list) return;
+  const isBk = needsBackend(dir);
+  const eps  = APP_ENDPOINTS[dir] || [];
+  title.textContent = (isBk ? "🔌 真实数据接口 · " : "🖥 本地运行 · ") + dir;
+  list.innerHTML = "";
+  if(isBk && eps.length){
+    eps.forEach(function(ep){
+      const li = document.createElement("li");
+      const d  = EP_DESC[ep] || "后端数据接口";
+      li.innerHTML = '<span class="ep">' + ep + '</span> — ' + d;
+      list.appendChild(li);
+    });
+    note.textContent = "这些接口由大厅「真实数据接口」配置的统一后端提供；未连接时该 App 显示本地样本 / 离线演示。";
+  } else {
+    const li = document.createElement("li");
+    li.textContent = "纯前端工具，无需后端，本地即可完整运行（数据存于浏览器 localStorage，不上传）。";
+    list.appendChild(li);
+    note.textContent = "";
+  }
+  if(base){ try{ base.textContent = localStorage.getItem("hub_api") || location.origin || "—"; }catch(err){ base.textContent = "—"; } }
+  modal.classList.add("on");
+}
+function closeEpModal(){
+  const modal = document.getElementById("epModal");
+  if(modal) modal.classList.remove("on");
+}
+// 点击遮罩（非内容区）关闭
+document.addEventListener("click", function(e){
+  const modal = document.getElementById("epModal");
+  if(modal && modal.classList.contains("on") && e.target === modal) closeEpModal();
+});
+// Esc 关闭（弹窗打开时拦截，避免与搜索框内 Esc 冲突——搜索框聚焦时本监听器仍会触发，
+// 但 showAppEndpoints 仅在弹窗打开时显示内容，空操作无害）
+document.addEventListener("keydown", function(e){
+  if(e.key === "Escape"){
+    const modal = document.getElementById("epModal");
+    if(modal && modal.classList.contains("on")){ closeEpModal(); e.stopPropagation(); }
+  }
+});
 
 // 真实数据接口（统一后端）配置：写入 localStorage.hub_api，所有 App 共用
 // 部署即同源：通过 http(s) 打开站点时，后端已托管前端，API 默认走同源(location.origin)，
@@ -870,5 +1003,17 @@ renderSort();
 render();
 renderRecent();
 </script>
+
+  <!-- 端点详情弹窗（R52）：点击卡片「真实数据 / 本地运行」徽章，查看该 App 依赖的后端接口 -->
+  <div class="modal" id="epModal" role="dialog" aria-modal="true" aria-label="数据接口详情">
+    <div class="box">
+      <span class="x" onclick="closeEpModal()" title="关闭" aria-label="关闭">×</span>
+      <h3 id="epTitle">数据接口</h3>
+      <ul id="epList"></ul>
+      <p class="epnote" id="epNote"></p>
+      <div class="epsrc">数据源：统一后端 <code id="epBase">—</code>（见大厅「真实数据接口」配置）</div>
+    </div>
+  </div>
+
 </body>
 </html>

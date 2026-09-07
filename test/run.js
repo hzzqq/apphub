@@ -97,10 +97,11 @@ ok("缺字段不崩溃(可选字段缺失仍出文案)", (() => {
 const m3 = html.match(/const NEEDS_BACKEND = \[[\s\S]*?\];/);
 const m4 = html.match(/function needsBackend\(dir\)\{[^}]*?\}/);
 const m5 = html.match(/function backendBadgeText\(up\)\{[^}]*?\}/);
-if (!m3 || !m4 || !m5) throw new Error("index.html 中未找到后端依赖标注相关定义");
+const m7 = html.match(/const APP_ENDPOINTS = \{[\s\S]*?\};/);
+if (!m3 || !m4 || !m5 || !m7) throw new Error("index.html 中未找到后端依赖标注相关定义");
 const napi = vm.runInContext(
-  m3[0] + "\n" + m4[0] + "\n" + m5[0] +
-  "\n;({ needsBackend: needsBackend, backendBadgeText: backendBadgeText, NEEDS_BACKEND: NEEDS_BACKEND })",
+  m3[0] + "\n" + m4[0] + "\n" + m5[0] + "\n" + m7[0] +
+  "\n;({ needsBackend: needsBackend, backendBadgeText: backendBadgeText, NEEDS_BACKEND: NEEDS_BACKEND, APP_ENDPOINTS: APP_ENDPOINTS })",
   sandbox
 );
 
@@ -118,6 +119,15 @@ ok("依赖清单含 36 个 App", napi.NEEDS_BACKEND.length === 36);
 ok("依赖清单无重复", new Set(napi.NEEDS_BACKEND).size === napi.NEEDS_BACKEND.length);
 ok("已连后端 -> 真实数据徽标", napi.backendBadgeText(true) === "🔌 真实数据");
 ok("未连后端 -> 本地样本徽标", napi.backendBadgeText(false) === "⚠ 本地样本");
+
+console.log("\n[Round 3b] 端点映射 APP_ENDPOINTS 覆盖性（R52 弹窗数据源）");
+ok("存在 APP_ENDPOINTS 端点映射对象", napi.APP_ENDPOINTS && typeof napi.APP_ENDPOINTS === "object");
+ok("端点映射覆盖全部 36 个后端 App", Object.keys(napi.APP_ENDPOINTS).length === napi.NEEDS_BACKEND.length);
+ok("每个后端 App 都列出非空端点清单", napi.NEEDS_BACKEND.every(function(d){
+  return Array.isArray(napi.APP_ENDPOINTS[d]) && napi.APP_ENDPOINTS[d].length > 0;
+}));
+ok("期库镜列出 7 个端点", (napi.APP_ENDPOINTS["futures-inventory"] || []).length === 7);
+ok("交易大师仅 /api/llm", JSON.stringify(napi.APP_ENDPOINTS["trader-avatars"]) === JSON.stringify(["/api/llm"]));
 
 /* ============================================================
  *  Round 4: openApp 参数兼容（防同名函数覆盖导致键盘打开失效的回归）
