@@ -28,7 +28,6 @@ _jscheck*.js
 OFFLINE
 temp
 Artifacts/
-_fe_smoke.js
 _fe_test.js
 _gen_samples.py
 backend/_hub_run.pyw

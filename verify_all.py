@@ -170,6 +170,27 @@ def check_frontend_tests():
 
 
 # ──────────── 2c. 前端运行时验证（Node + DOM 模拟实跑前端脚本） ────────────
+def _ensure_runtime_harness():
+    """前端运行时桩（_fe_smoke.js）已纳入仓库；若工作树缺失，自动从 git HEAD 还原，
+    避免门禁因桩文件被误删而静默退化（曾因清理误删导致 52 个 App 全部 MODULE_NOT_FOUND）。"""
+    for fn in ("_fe_smoke.js", "_fe_test.js"):
+        p = os.path.join(ROOT, fn)
+        if os.path.isfile(p):
+            continue
+        try:
+            with open(p, "w", encoding="utf-8") as f:
+                rc = subprocess.run(["git", "show", "HEAD:%s" % fn], cwd=ROOT,
+                                    stdout=f, stderr=subprocess.DEVNULL, timeout=30)
+            if rc.returncode == 0 and os.path.getsize(p) > 0:
+                print("  [自修复] 从 git 还原缺失的 %s" % fn)
+            else:
+                if os.path.exists(p):
+                    os.remove(p)
+                print("  [提示] %s 不在 git HEAD，跳过（门禁将优雅跳过该项）" % fn)
+        except Exception as e:
+            print("  [提示] 还原 %s 失败: %s" % (fn, e))
+
+
 def check_frontend_runtime():
     """前端运行时验证（Node + DOM 模拟实跑各 App 前端脚本）：
        - sector-matrix：跑专项 _fe_test.js（深度业务断言：渲染/排序/视图筛选/概览注入/CSV）。
@@ -177,6 +198,7 @@ def check_frontend_runtime():
        _fe_test.js 自包含（优先 /tmp/matrix_test.json，缺失回落内嵌 fixture）；_fe_smoke.js 用鲁棒 DOM/Canvas 桩。"""
     print("─" * 60)
     print("【前端运行时】Node + DOM 模拟实跑各 App 前端脚本（专项 + 通用冒烟）")
+    _ensure_runtime_harness()
     errs = 0
     smoke = os.path.join(ROOT, "_fe_smoke.js")
 
