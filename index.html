@@ -119,6 +119,8 @@
   .needapi{font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;white-space:nowrap;
     border:1px solid #2a5a4a;color:var(--down);background:var(--card2);cursor:help}
   .needapi.off{border-color:#5a4a2a;color:#ffb74d}
+  .localbadge{font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;white-space:nowrap;
+    border:1px solid #3a4a6a;color:#8aa7ff;background:var(--card2);cursor:help}
   .desc{font-size:12.5px;color:var(--sub);line-height:1.6;flex:1;min-height:42px}
   .cact{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .open{display:inline-flex;align-items:center;justify-content:center;gap:6px;
@@ -542,7 +544,7 @@ function render(){
       '<div class="desc">' + a.desc +
         (needsBackend(a.dir)
           ? ' <span class="needapi' + (backendUp ? "" : " off") + '" title="该应用需要后端才有真实数据；未连接时显示本地样本/离线演示">' + backendBadgeText(backendUp) + '</span>'
-          : '') +
+          : ' <span class="localbadge" title="纯前端工具，无需后端，本地即可完整运行">🖥 本地运行</span>') +
       '</div>' +
       '<div class="cact">' +
         '<a class="open" href="' + a.dir + '/index.html" target="_blank" rel="noopener" onclick="return openApp(event,\'' + a.dir + '\')">打开应用 →</a>' +
@@ -639,13 +641,22 @@ function formatDataStatus(j){
   return { text:text, cls:cls };
 }
 
-/* ====================== 后端依赖标注（cycle 53） ======================
+/* ====================== 后端依赖标注（cycle 53 → R51 扩展） ======================
  * 背景：老板曾困惑"为什么期库镜显示的是合成数据" —— 根因之一是不清楚
  * 哪些 App 必须连后端才有真实数据。此处把这份依赖显式化到卡片上。
+ * R51: 通过扫描每个 App index.html 中实际调用的 /api/* 端点，把 36 个依赖后端的
+ * App 全部纳入 NEEDS_BACKEND；其余 19 个纯前端 App 显示"本地运行"徽章。
  * 列表由代码实证得出：这些 App 会读取 hub_api / 各自的 *_api 地址并发起请求;
  * 其余 App 纯本地运行，不联网也有完整功能。 */
-const NEEDS_BACKEND = ["code-teacher", "etf-picker", "futures-inventory", "futures-spread",
-  "futures-chain", "holdings-check", "kpattern", "sector-rotation", "shepherd-index", "smart-order", "trading-agents"];
+const NEEDS_BACKEND = [
+  "cache-insight", "code-teacher", "corr-explorer", "data-explorer", "data-status-dash",
+  "eia-watch", "etf-picker", "futures-board", "futures-chain", "futures-events",
+  "futures-inventory", "futures-spread", "health-board", "holdings-check", "holdings-health",
+  "info-board", "inv-refresh", "inventory-watch", "itinerary", "itinerary-view",
+  "kpattern", "market-cube", "market-mood", "market-qa", "price-alert", "quote-board",
+  "search-box", "sector-heat", "sector-matrix", "sector-rotation", "shepherd-index",
+  "smart-order", "spread-viewer", "trader-avatars", "trading-agents", "variety-screener"
+];
 
 /* 该 App 是否需要后端才能看到真实数据（顶层导出以便单测） */
 function needsBackend(dir){ return NEEDS_BACKEND.indexOf(dir) >= 0; }
