@@ -445,6 +445,34 @@ def check_realdada_coverage():
     return errs
 
 
+# ─────────────── 7. futures-inventory 提交保护（硬规则） ───────────────
+def check_futures_inventory_guard():
+    """提交保护（R58）：项目硬规则——futures-inventory/index.html 永远不得提交
+       （它是被生成器重建、且需从每次提交中排除的专项文件）。
+       若该文件在工作树有改动，门禁直接失败并给出还原命令，防止被误提交。"""
+    print("─" * 60)
+    print("【保护】futures-inventory/index.html 不得提交（项目硬规则）")
+    fi = os.path.join(ROOT, "futures-inventory", "index.html")
+    if not os.path.isfile(fi):
+        print("  [跳过] 未发现 futures-inventory/index.html")
+        return 0
+    try:
+        r = subprocess.run(["git", "status", "--porcelain", fi],
+                           cwd=ROOT, capture_output=True, text=True, timeout=15)
+        if r.returncode != 0:
+            print("  [提示] 无法调用 git，跳过保护检查")
+            return 0
+        if r.stdout.strip():
+            print("  [禁止] futures-inventory/index.html 在工作树有改动，按项目规则禁止提交！")
+            print("        请先执行: git checkout -- futures-inventory/index.html  再提交")
+            return 1
+    except Exception as e:
+        print("  [提示] 保护检查异常: %s，跳过" % e)
+        return 0
+    print("  ✓ futures-inventory/index.html 工作树干净（未被修改，可安全提交）")
+    return 0
+
+
 def main():
     print("=" * 60)
     print("App Hub 全量校验 @ %s" % ROOT)
@@ -457,10 +485,11 @@ def main():
     e4 = check_app_dirs()
     e5 = check_endpoint_consistency()
     e6 = check_realdada_coverage()
-    total = e1 + e1b + e1c + e2 + e3 + e4 + e5 + e6
+    e7 = check_futures_inventory_guard()
+    total = e1 + e1b + e1c + e2 + e3 + e4 + e5 + e6 + e7
     print("─" * 60)
-    print("汇总: 前端错误 %d, 前端单测失败 %d, 前端运行时 %d, 后端错误 %d, 一致性错误 %d, 目录卫生 %d, 端点一致性 %d, 真实数据覆盖 %d, 总计 %d"
-          % (e1, e1b, e1c, e2, e3, e4, e5, e6, total))
+    print("汇总: 前端错误 %d, 前端单测失败 %d, 前端运行时 %d, 后端错误 %d, 一致性错误 %d, 目录卫生 %d, 端点一致性 %d, 真实数据覆盖 %d, 期货保护 %d, 总计 %d"
+          % (e1, e1b, e1c, e2, e3, e4, e5, e6, e7, total))
     if total == 0:
         print("✅ 全部通过")
     else:
