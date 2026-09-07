@@ -779,6 +779,8 @@ __CUSTOM_ROWS__
     if(clearBtn && typeof QA_HISTORY !== "undefined") clearBtn.addEventListener("click", function(){{ QA_HISTORY=[]; if(typeof saveQA==="function") saveQA(); renderQA(); setStatus("wait","已清空对话"); }});
     var stopBtn = document.getElementById("stopBtn");
     if(stopBtn && typeof QA_CTRL !== "undefined") stopBtn.addEventListener("click", function(){{ if(QA_CTRL && QA_CTRL.abort) QA_CTRL.abort(); }});
+    var exportBtn = document.getElementById("exportBtn");
+    if(exportBtn && typeof QA_HISTORY !== "undefined" && typeof exportChat === "function") exportBtn.addEventListener("click", function(){{ exportChat(); }});
     (document.getElementById("{first_input}")||go).addEventListener("keydown", function(e){{ if(e.key==="Enter" && !e.shiftKey){{ e.preventDefault(); go_(); }} }});
   }}
   function gatherInputs(){{
@@ -953,6 +955,16 @@ def loader_body(spec):
     return parts.join("\\n\\n");
   }}
   var QA_CTRL = null;
+  function exportChat(){{
+    if(!QA_HISTORY.length){{ setStatus("wait","还没有可导出的对话"); return; }}
+    var msel = document.getElementById("modelSel"); var who = (QA_MODELS[(msel?msel.selectedIndex:0)] || QA_MODELS[0]);
+    var title = "模型「" + (who?who.label:"模型") + "」的对话";
+    var lines = QA_HISTORY.map(function(h, i){{ return (i+1)+". 用户：" + h.q + "\\n" + (h.a!=null ? h.a : "（未完成）"); }});
+    var txt = title + "\\n\\n" + lines.join("\\n\\n");
+    try {{ if(navigator.clipboard) navigator.clipboard.writeText(txt); }} catch(e) {{}}
+    try {{ var blob = new Blob([txt], {{type:"text/plain;charset=utf-8"}}); var url = URL.createObjectURL(blob); var a = document.createElement("a"); a.href=url; a.download="对话导出.txt"; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }} catch(e) {{}}
+    setStatus("ok","已复制并下载对话（"+QA_HISTORY.length+" 条）");
+  }}
   function renderQA(){{
     var msel = document.getElementById("modelSel"); var who = (QA_MODELS[(msel?msel.selectedIndex:0)] || QA_MODELS[0]);
     if(!QA_HISTORY.length){{ out.innerHTML = '<div class="qhead">🤖 当前模型：'+esc(who?who.label:"模型")+'</div><div class="empty">还没有对话，输入问题开始。</div>'; return; }}
@@ -1035,6 +1047,16 @@ def loader_body(spec):
     var parts = [];
     QA_HISTORY.forEach(function(h){{ if(h.a!=null && h.a.indexOf("（请求失败")!==0) parts.push("用户: "+h.q+"\\n助手: "+h.a); }});
     return parts.join("\\n\\n");
+  }}
+  function exportChat(){{
+    if(!QA_HISTORY.length){{ setStatus("wait","还没有可导出的对话"); return; }}
+    var who = (TRAIT_PERSONAS[TRAIT_IDX] && TRAIT_PERSONAS[TRAIT_IDX].label) || "交易大师";
+    var title = "与「" + who + "」的对话";
+    var lines = QA_HISTORY.map(function(h, i){{ return (i+1)+". 用户：" + h.q + "\\n" + (h.a!=null ? h.a : "（未完成）"); }});
+    var txt = title + "\\n\\n" + lines.join("\\n\\n");
+    try {{ if(navigator.clipboard) navigator.clipboard.writeText(txt); }} catch(e) {{}}
+    try {{ var blob = new Blob([txt], {{type:"text/plain;charset=utf-8"}}); var url = URL.createObjectURL(blob); var a = document.createElement("a"); a.href=url; a.download="对话导出.txt"; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }} catch(e) {{}}
+    setStatus("ok","已复制并下载对话（"+QA_HISTORY.length+" 条）");
   }}
   function renderBio(){{
     var p = TRAIT_PERSONAS[TRAIT_IDX]; if(!p) return;
@@ -1148,14 +1170,16 @@ def make_html(spec):
         opts = "".join('<option value="%s">%s</option>' % (m["id"], m["label"]) for m in models)
         extra_buttons = ('<select id="modelSel" class="ghost">' + opts + '</select>' +
                          '<button id="stopBtn" class="ghost">停止</button>' +
-                         '<button id="clearBtn" class="ghost">清空对话</button>')
+                         '<button id="clearBtn" class="ghost">清空对话</button>' +
+                         '<button id="exportBtn" class="ghost">导出对话</button>')
     elif spec.get("postKind") == "llm-persona":
         personas = spec.get("personas") or [{"id":"default","label":"默认","avatar":"🧑","method":"","system":spec.get("system","")}]
         opts = "".join('<option value="%s">%s %s</option>' % (p["id"], p.get("avatar",""), p["label"]) for p in personas)
         extra_buttons = ('<select id="personaSel" class="ghost">' + opts + '</select>' +
                          '<div id="bio" style="flex-basis:100%;margin-top:6px"></div>' +
                          '<button id="stopBtn" class="ghost">停止</button>' +
-                         '<button id="clearBtn" class="ghost">清空对话</button>')
+                         '<button id="clearBtn" class="ghost">清空对话</button>' +
+                         '<button id="exportBtn" class="ghost">导出对话</button>')
     html = TPL.format(
         name=spec["name"], ico=spec["ico"], tag=spec["tag"], dir=spec["dir"],
         endpoint=spec["endpoint"], mode=spec["mode"],
@@ -1183,10 +1207,12 @@ def make_test(spec):
         if spec.get("postKind") == "llm-multi":
             extra += 'ok("多轮 QA_HISTORY 存在", src.indexOf("QA_HISTORY")>=0);'
             extra += 'ok("按模型隔离历史键 qaKey 存在", src.indexOf("function qaKey")>=0 && src.indexOf("qa_history_")>=0);'
+            extra += 'ok("导出对话 exportChat 存在", src.indexOf("function exportChat")>=0 && src.indexOf("对话导出.txt")>=0);'
         if spec.get("postKind") == "llm-persona":
             extra += 'ok("人格列表 TRAIT_PERSONAS 存在", src.indexOf("TRAIT_PERSONAS")>=0);'
             extra += 'ok("多轮 QA_HISTORY 存在", src.indexOf("QA_HISTORY")>=0);'
             extra += 'ok("按人格隔离历史键 qaKey 存在", src.indexOf("function qaKey")>=0 && src.indexOf("qa_history_")>=0);'
+            extra += 'ok("导出对话 exportChat 存在", src.indexOf("function exportChat")>=0 && src.indexOf("对话导出.txt")>=0);'
         if spec.get("postKind") == "args-batch":
             extra += 'ok("批量锁 BATCH_LOCK 存在", src.indexOf("BATCH_LOCK")>=0);'
     return '''// 自动生成 (tools/gen_microapps.py) — {name}

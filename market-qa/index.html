@@ -242,7 +242,7 @@
     var html = "";
     html += '<label>你的问题<br><textarea id="q" placeholder="最近市场情绪如何？白酒板块还能拿吗？">最近 A股 市场情绪如何，后市怎么看？</textarea></label>';
     document.getElementById("controls").innerHTML = html +
-      '<button id="goBtn">发送</button><select id="modelSel" class="ghost"><option value="general">通用投研</option><option value="risk">风控视角</option><option value="trader">交易员视角</option></select><button id="stopBtn" class="ghost">停止</button><button id="clearBtn" class="ghost">清空对话</button>';
+      '<button id="goBtn">发送</button><select id="modelSel" class="ghost"><option value="general">通用投研</option><option value="risk">风控视角</option><option value="trader">交易员视角</option></select><button id="stopBtn" class="ghost">停止</button><button id="clearBtn" class="ghost">清空对话</button><button id="exportBtn" class="ghost">导出对话</button>';
     var controlIds = [["q"]];
     controlIds.forEach(function(id){ inputs[id]=document.getElementById(id); });
     var go = document.getElementById("goBtn");
@@ -265,6 +265,8 @@
     if(clearBtn && typeof QA_HISTORY !== "undefined") clearBtn.addEventListener("click", function(){ QA_HISTORY=[]; if(typeof saveQA==="function") saveQA(); renderQA(); setStatus("wait","已清空对话"); });
     var stopBtn = document.getElementById("stopBtn");
     if(stopBtn && typeof QA_CTRL !== "undefined") stopBtn.addEventListener("click", function(){ if(QA_CTRL && QA_CTRL.abort) QA_CTRL.abort(); });
+    var exportBtn = document.getElementById("exportBtn");
+    if(exportBtn && typeof QA_HISTORY !== "undefined" && typeof exportChat === "function") exportBtn.addEventListener("click", function(){ exportChat(); });
     (document.getElementById("q")||go).addEventListener("keydown", function(e){ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); go_(); } });
   }
   function gatherInputs(){
@@ -289,6 +291,16 @@
     return parts.join("\n\n");
   }
   var QA_CTRL = null;
+  function exportChat(){
+    if(!QA_HISTORY.length){ setStatus("wait","还没有可导出的对话"); return; }
+    var msel = document.getElementById("modelSel"); var who = (QA_MODELS[(msel?msel.selectedIndex:0)] || QA_MODELS[0]);
+    var title = "模型「" + (who?who.label:"模型") + "」的对话";
+    var lines = QA_HISTORY.map(function(h, i){ return (i+1)+". 用户：" + h.q + "\n" + (h.a!=null ? h.a : "（未完成）"); });
+    var txt = title + "\n\n" + lines.join("\n\n");
+    try { if(navigator.clipboard) navigator.clipboard.writeText(txt); } catch(e) {}
+    try { var blob = new Blob([txt], {type:"text/plain;charset=utf-8"}); var url = URL.createObjectURL(blob); var a = document.createElement("a"); a.href=url; a.download="对话导出.txt"; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); } catch(e) {}
+    setStatus("ok","已复制并下载对话（"+QA_HISTORY.length+" 条）");
+  }
   function renderQA(){
     var msel = document.getElementById("modelSel"); var who = (QA_MODELS[(msel?msel.selectedIndex:0)] || QA_MODELS[0]);
     if(!QA_HISTORY.length){ out.innerHTML = '<div class="qhead">🤖 当前模型：'+esc(who?who.label:"模型")+'</div><div class="empty">还没有对话，输入问题开始。</div>'; return; }

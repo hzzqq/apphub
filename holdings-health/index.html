@@ -264,6 +264,8 @@
     if(clearBtn && typeof QA_HISTORY !== "undefined") clearBtn.addEventListener("click", function(){ QA_HISTORY=[]; if(typeof saveQA==="function") saveQA(); renderQA(); setStatus("wait","已清空对话"); });
     var stopBtn = document.getElementById("stopBtn");
     if(stopBtn && typeof QA_CTRL !== "undefined") stopBtn.addEventListener("click", function(){ if(QA_CTRL && QA_CTRL.abort) QA_CTRL.abort(); });
+    var exportBtn = document.getElementById("exportBtn");
+    if(exportBtn && typeof QA_HISTORY !== "undefined" && typeof exportChat === "function") exportBtn.addEventListener("click", function(){ exportChat(); });
     (document.getElementById("codes")||go).addEventListener("keydown", function(e){ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); go_(); } });
   }
   function gatherInputs(){

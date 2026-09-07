@@ -245,7 +245,7 @@
     var html = "";
     html += '<label>你的问题<br><textarea id="q" placeholder="帮我分析一下 600519 贵州茅台 现在能不能买？">帮我分析一下 600519 贵州茅台 现在还能不能买？</textarea></label>';
     document.getElementById("controls").innerHTML = html +
-      '<button id="goBtn">发送</button><select id="personaSel" class="ghost"><option value="livermore">📈 杰西·利弗莫尔（趋势投机）</option><option value="buffett">🏰 沃伦·巴菲特（价值投资）</option><option value="soros">🌐 乔治·索罗斯（反身性）</option><option value="simons">🤖 詹姆斯·西蒙斯（量化）</option><option value="dalio">⚖️ 雷·达里奥（全天候）</option><option value="ptj">🌊 保罗·都铎·琼斯（宏观择时）</option><option value="lynch">🏪 彼得·林奇（成长股）</option><option value="druckenmiller">🎯 斯坦利·德鲁肯米勒（集中下注）</option><option value="graham">🛡️ 本杰明·格雷厄姆（安全边际）</option><option value="munger">🧠 查理·芒格（多元思维）</option><option value="klarman">📕 赛斯·卡拉曼（绝对收益）</option><option value="templeton">🔭 约翰·坦普顿（逆向全球）</option><option value="fuhaitang">🌾 傅海棠（国内期货·天道基本面）</option><option value="geweidong">🌀 葛卫东（国内期货·混沌宏观）</option><option value="linguangmao">🌿 林广茂（国内期货·棉花作手）</option><option value="tepper">🦅 大卫·泰珀（逆向宏观）</option></select><div id="bio" style="flex-basis:100%;margin-top:6px"></div><button id="stopBtn" class="ghost">停止</button><button id="clearBtn" class="ghost">清空对话</button>';
+      '<button id="goBtn">发送</button><select id="personaSel" class="ghost"><option value="livermore">📈 杰西·利弗莫尔（趋势投机）</option><option value="buffett">🏰 沃伦·巴菲特（价值投资）</option><option value="soros">🌐 乔治·索罗斯（反身性）</option><option value="simons">🤖 詹姆斯·西蒙斯（量化）</option><option value="dalio">⚖️ 雷·达里奥（全天候）</option><option value="ptj">🌊 保罗·都铎·琼斯（宏观择时）</option><option value="lynch">🏪 彼得·林奇（成长股）</option><option value="druckenmiller">🎯 斯坦利·德鲁肯米勒（集中下注）</option><option value="graham">🛡️ 本杰明·格雷厄姆（安全边际）</option><option value="munger">🧠 查理·芒格（多元思维）</option><option value="klarman">📕 赛斯·卡拉曼（绝对收益）</option><option value="templeton">🔭 约翰·坦普顿（逆向全球）</option><option value="fuhaitang">🌾 傅海棠（国内期货·天道基本面）</option><option value="geweidong">🌀 葛卫东（国内期货·混沌宏观）</option><option value="linguangmao">🌿 林广茂（国内期货·棉花作手）</option><option value="tepper">🦅 大卫·泰珀（逆向宏观）</option></select><div id="bio" style="flex-basis:100%;margin-top:6px"></div><button id="stopBtn" class="ghost">停止</button><button id="clearBtn" class="ghost">清空对话</button><button id="exportBtn" class="ghost">导出对话</button>';
     var controlIds = [["q"]];
     controlIds.forEach(function(id){ inputs[id]=document.getElementById(id); });
     var go = document.getElementById("goBtn");
@@ -268,6 +268,8 @@
     if(clearBtn && typeof QA_HISTORY !== "undefined") clearBtn.addEventListener("click", function(){ QA_HISTORY=[]; if(typeof saveQA==="function") saveQA(); renderQA(); setStatus("wait","已清空对话"); });
     var stopBtn = document.getElementById("stopBtn");
     if(stopBtn && typeof QA_CTRL !== "undefined") stopBtn.addEventListener("click", function(){ if(QA_CTRL && QA_CTRL.abort) QA_CTRL.abort(); });
+    var exportBtn = document.getElementById("exportBtn");
+    if(exportBtn && typeof QA_HISTORY !== "undefined" && typeof exportChat === "function") exportBtn.addEventListener("click", function(){ exportChat(); });
     (document.getElementById("q")||go).addEventListener("keydown", function(e){ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); go_(); } });
   }
   function gatherInputs(){
@@ -291,6 +293,16 @@
     var parts = [];
     QA_HISTORY.forEach(function(h){ if(h.a!=null && h.a.indexOf("（请求失败")!==0) parts.push("用户: "+h.q+"\n助手: "+h.a); });
     return parts.join("\n\n");
+  }
+  function exportChat(){
+    if(!QA_HISTORY.length){ setStatus("wait","还没有可导出的对话"); return; }
+    var who = (TRAIT_PERSONAS[TRAIT_IDX] && TRAIT_PERSONAS[TRAIT_IDX].label) || "交易大师";
+    var title = "与「" + who + "」的对话";
+    var lines = QA_HISTORY.map(function(h, i){ return (i+1)+". 用户：" + h.q + "\n" + (h.a!=null ? h.a : "（未完成）"); });
+    var txt = title + "\n\n" + lines.join("\n\n");
+    try { if(navigator.clipboard) navigator.clipboard.writeText(txt); } catch(e) {}
+    try { var blob = new Blob([txt], {type:"text/plain;charset=utf-8"}); var url = URL.createObjectURL(blob); var a = document.createElement("a"); a.href=url; a.download="对话导出.txt"; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); } catch(e) {}
+    setStatus("ok","已复制并下载对话（"+QA_HISTORY.length+" 条）");
   }
   function renderBio(){
     var p = TRAIT_PERSONAS[TRAIT_IDX]; if(!p) return;
