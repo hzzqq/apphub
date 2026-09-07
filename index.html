@@ -809,6 +809,20 @@ function copyEndpoint(e, text){
     } else { done("不可用"); }
   }catch(err){ done("复制失败"); }
 }
+/* 端点弹窗内「复制后端地址」按钮：复制大厅统一后端地址（localStorage.hub_api），便于粘贴到其他 App 配置（R54） */
+function copyBackendAddr(e){
+  e.stopPropagation();
+  let addr = "";
+  try{ addr = localStorage.getItem("hub_api") || location.origin || ""; }catch(err){ addr = ""; }
+  if(!addr){ const btn = e.currentTarget; btn.textContent = "未配置"; setTimeout(function(){ btn.textContent = "复制地址"; }, 1200); return; }
+  const btn = e.currentTarget, old = btn.textContent;
+  function done(txt){ btn.textContent = txt; setTimeout(function(){ btn.textContent = old; }, 1200); }
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(addr).then(function(){ done("已复制"); }, function(){ done("复制失败"); });
+    } else { done("不可用"); }
+  }catch(err){ done("复制失败"); }
+}
 // 点击遮罩（非内容区）关闭
 document.addEventListener("click", function(e){
   const modal = document.getElementById("epModal");

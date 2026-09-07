@@ -133,6 +133,10 @@ console.log("\n[Round 3c] 端点弹窗复制按钮（R53）");
 ok("index.html 含 copyEndpoint 复制函数", /function copyEndpoint\(/.test(html));
 ok("弹窗列表项含 epcopy 复制按钮", /class="epcopy"/.test(html));
 
+console.log("\n[Round 3d] 端点弹窗复制后端地址按钮（R54）");
+ok("index.html 含 copyBackendAddr 复制函数", /function copyBackendAddr\(/.test(html));
+ok("弹窗含「复制地址」按钮", /复制地址/.test(html));
+
 /* ============================================================
  *  Round 4: openApp 参数兼容（防同名函数覆盖导致键盘打开失效的回归）
  * ============================================================ */
