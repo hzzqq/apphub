@@ -89,6 +89,10 @@
   .help .foot .link{color:var(--accent);cursor:pointer}
   .palette .pfoot{margin-top:8px;padding:9px 12px;font-size:12px;color:var(--accent);cursor:pointer;border-top:1px solid var(--line);text-align:center}
   .card.flash{outline:2px solid var(--accent);box-shadow:0 0 0 5px rgba(120,140,255,.18);transition:box-shadow .3s,outline-color .3s}
+  .favbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-height:34px}
+  .favchip{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border:1px solid var(--line);border-radius:999px;background:var(--card2);color:var(--txt);font-size:13px;cursor:pointer;transition:border-color .2s,transform .1s}
+  .favchip:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .favempty{color:var(--sub);font-size:12.5px}
   .hint{font-size:11.5px;color:var(--sub);margin-top:10px;line-height:1.6}
   .hint code{background:rgba(255,255,255,.06);padding:1px 6px;border-radius:6px;color:var(--txt)}
 
@@ -288,6 +292,14 @@
       </div>
       <div class="apistate" id="bkState"></div>
       <div class="hint">数据只存在本设备浏览器，换设备 / 清缓存前请先导出</div>
+    </section>
+  </div>
+
+  <!-- ===== 收藏快捷区（R68） ===== -->
+  <div class="bento">
+    <section class="tile s4" id="favTile">
+      <div class="tilelabel">⭐ 收藏快捷区</div>
+      <div class="favbar" id="favbar"></div>
     </section>
   </div>
 
@@ -585,7 +597,28 @@ function toggleFav(e, dir){
   if(fav.indexOf(dir) >= 0) fav = fav.filter(function(d){ return d!==dir; });
   else fav.push(dir);
   localStorage.setItem("hub_fav", JSON.stringify(fav));
+  renderFavBar();
   render();
+}
+/* R68: 收藏快捷区 —— 顶部常驻收藏条，零点击直达高频应用（数据驱动，供单测校验） */
+function favBarItems(favArr){
+  var fav = favArr || getFav();
+  return fav.map(function(dir){
+    var a = APPS.filter(function(x){ return x.dir === dir; })[0];
+    return a ? { dir:a.dir, ico:a.ico, name:a.name } : { dir:dir, ico:"•", name:dir };
+  });
+}
+function renderFavBar(){
+  var box = document.getElementById("favbar");
+  if(!box) return;
+  var items = favBarItems();
+  if(!items.length){ box.innerHTML = '<span class="favempty">还没有收藏，点卡片右上角 ☆ 即可收藏</span>'; return; }
+  box.innerHTML = items.map(function(it){
+    return '<span class="favchip" data-dir="'+it.dir+'" title="打开 '+it.name+'">'+it.ico+' '+it.name+'</span>';
+  }).join("");
+  box.querySelectorAll(".favchip").forEach(function(c){
+    c.addEventListener("click", function(){ openApp(c.dataset.dir); });
+  });
 }
 
 function tagFilter(e, tag){
@@ -674,6 +707,7 @@ function render(){
   document.getElementById("cntTool").textContent = cTool;
   applySel();
   updateFreshnessBadges();   // R59：卡片重建后填充数据新鲜度小标
+  renderFavBar();            // R68：收藏快捷区随渲染刷新
 }
 
 /* 视图切换 / 排序 / 键盘导航 事件绑定 */

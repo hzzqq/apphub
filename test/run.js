@@ -303,6 +303,21 @@ ok("筛选快捷项置于末尾(低分-1不抢占应用排序)", (() => {
 })());
 ok("空查询不含筛选快捷项(避免干扰)", paletteFilter("", MOCK).every(x => x.nm.indexOf("筛选") < 0));
 
+/* ============================================================
+ *  Round 11: 收藏快捷区数据驱动 favBarItems（R68）
+ * ============================================================ */
+const m14 = html.match(/function favBarItems\(favArr\)\{[\s\S]*?\n\}/);
+if (!m14) throw new Error("index.html 中未找到 favBarItems");
+const favBarItems = vm.runInContext(m14[0] + "\n;favBarItems", sandbox);
+
+console.log("\n[Round 11] 收藏快捷区 favBarItems (R68)");
+ok("favBarItems 已知目录解析出 dir", favBarItems(["futures-inventory","etf-picker"])[0].dir === "futures-inventory");
+ok("favBarItems 未知目录回退为 dir 本身", (() => {
+  const r = favBarItems(["zzz-unknown"]);
+  return r.length === 1 && r[0].dir === "zzz-unknown" && r[0].ico === "•" && r[0].name === "zzz-unknown";
+})());
+ok("favBarItems 空数组返回空", favBarItems([]).length === 0);
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }
