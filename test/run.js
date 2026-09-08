@@ -318,6 +318,24 @@ ok("favBarItems 未知目录回退为 dir 本身", (() => {
 })());
 ok("favBarItems 空数组返回空", favBarItems([]).length === 0);
 
+/* ============================================================
+ *  Round 12: 真实数据概览 dataStatText（R69，纯函数）
+ * ============================================================ */
+const m15 = html.match(/function dataStatText\(backendUp, n\)\{[\s\S]*?\n\}/);
+if (!m15) throw new Error("index.html 中未找到 dataStatText");
+const dataStatText = vm.runInContext(m15[0] + "\n;dataStatText", sandbox);
+
+console.log("\n[Round 12] 真实数据概览 dataStatText (R69)");
+ok("dataStatText 后端连通 → n=全量且文案含'已接入'", (() => {
+  const s = dataStatText(true, 36);
+  return s.n === 36 && /已接入实时数据/.test(s.text);
+})());
+ok("dataStatText 后端未连 → n=0 且文案含'待连后端'", (() => {
+  const s = dataStatText(false, 36);
+  return s.n === 0 && /待连后端/.test(s.text);
+})());
+ok("dataStatText 个数随入参变化", dataStatText(true, 10).n === 10 && dataStatText(false, 10).n === 0);
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }

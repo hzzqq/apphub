@@ -50,6 +50,8 @@
   .stat .b{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;
     padding:8px 16px;font-size:12.5px;color:var(--sub)}
   .stat .b b{color:var(--txt);font-size:19px;margin-right:4px}
+  .stat .b b.live{color:var(--down)}   /* R69：后端已连 → 实时数据可用 */
+  .stat .b b.off{color:var(--inv)}     /* R69：后端未连 → 提示待连后端 */
 
   /* ---------- 控件 ---------- */
   .searchbar{display:flex;gap:10px;align-items:center}
@@ -259,6 +261,7 @@
         <div class="b"><b id="cntFin">0</b>金融</div>
         <div class="b"><b id="cntLife">0</b>生活</div>
         <div class="b"><b id="cntTool">0</b>效率</div>
+        <div class="b" id="dataStatChip"><b id="dataStatN" class="off">0</b><span id="dataStatLbl">个应用待连后端</span></div>
       </div>
     </section>
   </div>
@@ -708,6 +711,7 @@ function render(){
   applySel();
   updateFreshnessBadges();   // R59：卡片重建后填充数据新鲜度小标
   renderFavBar();            // R68：收藏快捷区随渲染刷新
+  renderDataStat();          // R69：初始/每次重绘同步 hero 实时数据概览 chip
 }
 
 /* 视图切换 / 排序 / 键盘导航 事件绑定 */
@@ -904,6 +908,7 @@ function updateBackendBadges(){
     el.textContent = backendBadgeText(backendUp);
     el.className = "needapi" + (backendUp ? "" : " off");
   });
+  renderDataStat();   // R69：后端连通状态变化时同步 hero 实时数据概览 chip
 }
 
 /* R59：数据新鲜度小标——把「真实数据」从「有/无」推进到「新鲜/陈旧」。
@@ -921,6 +926,26 @@ function updateFreshnessBadges(){
     else { txt = "🟡 数据 " + newest + " 天前"; cls = "warn"; }
     el.textContent = txt; el.className = "freshpill " + cls;
   });
+}
+
+/* R69：真实数据概览——hero 区「实时应用」chip 反映后端连通状态。
+   纯函数以便单测：输入 backendUp(bool) 与后端 App 数 n，输出 {n, text}。
+   连上后端则 n=全量（实时数据可用），未连则 n=0（本地样本）。 */
+function dataStatText(backendUp, n){
+  return backendUp
+    ? { n: n, text: "🔌 " + n + " 个应用已接入实时数据" }
+    : { n: 0, text: "⚠ " + n + " 个应用待连后端（当前用本地样本）" };
+}
+
+/* R69：把 dataStatText 结论渲染到 hero chip（数字取 dataStatText 单一来源，标签为呈现层）。 */
+function renderDataStat(){
+  const nEl = document.getElementById("dataStatN");
+  const lEl = document.getElementById("dataStatLbl");
+  if(!nEl || !lEl) return;
+  const s = dataStatText(backendUp, NEEDS_BACKEND.length);
+  nEl.textContent = s.n;
+  nEl.className = backendUp ? "live" : "off";
+  lEl.textContent = backendUp ? "个应用已接入实时数据" : "个应用待连后端";
 }
 
 /* ====================== 徽章点击：端点详情弹窗（R52） ====================== */
