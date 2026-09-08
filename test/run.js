@@ -229,6 +229,22 @@ ok("helpShortcuts 含命令面板(Ctrl/Cmd+K)条目", HS.some(s => /Ctrl|Cmd/.te
 ok("helpShortcuts 含搜索框聚焦(/)条目", HS.some(s => s.key.indexOf("/") >= 0));
 ok("helpShortcuts 每条含 key 与 desc", HS.every(s => typeof s.key === "string" && typeof s.desc === "string" && s.key && s.desc));
 
+/* ============================================================
+ *  Round 7: URL hash 深链解析（R64）
+ * ============================================================ */
+const m11 = html.match(/function parseHashDir\(hash\)\{[\s\S]*?\n\}/);
+if (!m11) throw new Error("index.html 中未找到 parseHashDir");
+// parseHashDir 依赖全局 APPS 做「已知目录」校验；单测沙箱注入最小 APPS 即可验证识别逻辑
+sandbox.APPS = [{ dir:"futures-inventory" }, { dir:"etf-picker" }];
+const parseHashDir = vm.runInContext(m11[0] + "\n;parseHashDir", sandbox);
+
+console.log("\n[Round 7] URL hash 深链解析 parseHashDir (R64)");
+ok("parseHashDir('#futures-inventory') 解析出目录", parseHashDir("#futures-inventory") === "futures-inventory");
+ok("parseHashDir('#/futures-inventory') 兼容斜杠前缀", parseHashDir("#/futures-inventory") === "futures-inventory");
+ok("parseHashDir('#') 空 hash 返回 null", parseHashDir("#") === null);
+ok("parseHashDir('') 无 hash 返回 null", parseHashDir("") === null);
+ok("parseHashDir('#nope') 未知目录返回 null", parseHashDir("#nope") === null);
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }

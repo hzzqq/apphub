@@ -86,6 +86,7 @@
   .help .key{font-family:inherit;min-width:118px;text-align:center;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:4px 10px;color:var(--txt);font-size:12px;white-space:nowrap}
   .help .desc{font-size:13px;color:var(--sub)}
   .help .foot{margin-top:14px;font-size:11.5px;color:var(--sub);text-align:center}
+  .card.flash{outline:2px solid var(--accent);box-shadow:0 0 0 5px rgba(120,140,255,.18);transition:box-shadow .3s,outline-color .3s}
   .hint{font-size:11.5px;color:var(--sub);margin-top:10px;line-height:1.6}
   .hint code{background:rgba(255,255,255,.06);padding:1px 6px;border-radius:6px;color:var(--txt)}
 
@@ -509,9 +510,39 @@ function openApp(a, b){
     }
   }
   pushRecent(dir);
+  try{ if(location.hash.replace(/^#\/?/,"") !== dir){ ignoreHashOnce = true; location.hash = dir; } }catch(e){}
   if(!ev) window.open(dir + "/index.html", "_blank", "noopener");   // 键盘调用需自行打开
   return true;
 }
+
+/* R64: URL hash 深链 —— 分享链接 #dir 直接定位应用；openApp 同步写 hash 支持后退 */
+function parseHashDir(hash){
+  if(!hash) return null;
+  var raw = decodeURIComponent(String(hash).replace(/^#\/?/, "")).trim();
+  if(!raw) return null;
+  var known = APPS.some(function(a){ return a.dir === raw; });
+  return known ? raw : null;
+}
+function revealApp(dir){
+  if(!dir) return;
+  curCat = "all"; curQ = "";
+  var s = document.getElementById("search"); if(s) s.value = "";
+  render();
+  var card = document.querySelector('#grid .card[data-dir="'+dir+'"]');
+  if(card){
+    try{ card.scrollIntoView({block:"center"}); }catch(e){}
+    card.classList.add("flash");
+    setTimeout(function(){ try{ card.classList.remove("flash"); }catch(e){} }, 1600);
+    var cards = Array.prototype.slice.call(document.querySelectorAll("#grid .card"));
+    selIdx = cards.indexOf(card); applySel();
+  }
+}
+function applyHash(){ var d = parseHashDir(location.hash); if(d) revealApp(d); }
+var ignoreHashOnce = false;
+window.addEventListener("hashchange", function(){
+  if(ignoreHashOnce){ ignoreHashOnce = false; return; }
+  applyHash();
+});
 
 function copyPath(e, dir){
   const btn = e.currentTarget;
@@ -1191,7 +1222,8 @@ function helpShortcuts(){
     {key:"Esc", desc:"取消选择 / 关闭弹层"},
     {key:"F", desc:"收藏 / 取消收藏当前卡片（焦点在卡片时）"},
     {key:"Ctrl / Cmd + K", desc:"打开命令面板（模糊搜索应用 + 快捷操作）"},
-    {key:"?", desc:"打开本快捷键帮助"}
+    {key:"?", desc:"打开本快捷键帮助"},
+    {key:"#应用目录", desc:"网址后加 #应用目录 可直接定位应用（如 #futures-inventory）"}
   ];
 }
 function renderHelp(){
@@ -1220,6 +1252,7 @@ document.addEventListener("keydown", function(e){
   if(hbtn) hbtn.addEventListener("click", openHelp);
 })();
 renderRecent();
+applyHash();   // R64: 首次加载若 URL 带 #dir 深链，直接定位该应用
 </script>
 
   <!-- 端点详情弹窗（R52）：点击卡片「真实数据 / 本地运行」徽章，查看该 App 依赖的后端接口 -->
