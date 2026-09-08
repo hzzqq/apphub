@@ -52,6 +52,10 @@
   .stat .b b{color:var(--txt);font-size:19px;margin-right:4px}
   .stat .b b.live{color:var(--down)}   /* R69：后端已连 → 实时数据可用 */
   .stat .b b.off{color:var(--inv)}     /* R69：后端未连 → 提示待连后端 */
+  .stat .b.clickable{cursor:pointer;transition:border-color .2s,filter .2s}        /* R72：chip 可点击 */
+  .stat .b.clickable:hover{border-color:var(--accent);filter:brightness(1.12)}
+  .pneed{font-size:10px;padding:1px 6px;border-radius:20px;white-space:nowrap;margin-left:6px;opacity:.9}
+  .pneed.back{color:var(--down)} .pneed.local{color:var(--sub)}                    /* R70：面板真实数据标识 */
 
   /* ---------- 控件 ---------- */
   .searchbar{display:flex;gap:10px;align-items:center}
@@ -261,7 +265,7 @@
         <div class="b"><b id="cntFin">0</b>金融</div>
         <div class="b"><b id="cntLife">0</b>生活</div>
         <div class="b"><b id="cntTool">0</b>效率</div>
-        <div class="b" id="dataStatChip"><b id="dataStatN" class="off">0</b><span id="dataStatLbl">个应用待连后端</span></div>
+        <div class="b clickable" id="dataStatChip" title="点击查看数据状态大屏 data-status-dash" onclick="openApp(event, dataStatTarget())"><b id="dataStatN" class="off">0</b><span id="dataStatLbl">个应用待连后端</span></div>
       </div>
     </section>
   </div>
@@ -666,7 +670,7 @@ function render(){
     if(a.cat==="fin") cFin++; else if(a.cat==="life") cLife++; else cTool++;
     const matchCat = (curCat==="all") || (curCat==="fav" ? favSet.has(a.dir) : a.cat===curCat);
     const matchQ = !q || a.name.toLowerCase().includes(q) || a.tag.toLowerCase().includes(q)
-                   || CAT_LABEL[a.cat].includes(q) || a.desc.toLowerCase().includes(q);
+                   || CAT_LABEL[a.cat].includes(q) || a.desc.toLowerCase().includes(q) || semanticMatch(q, a.dir);
     if(!(matchCat && matchQ)) return;
     shown++;
     const el = document.createElement("div");
@@ -896,6 +900,23 @@ const EP_DESC = {
 function needsBackend(dir){ return NEEDS_BACKEND.indexOf(dir) >= 0; }
 /* 徽标文案（顶层导出以便单测） */
 function backendBadgeText(up){ return up ? "🔌 真实数据" : "⚠ 本地样本"; }
+
+/* R70/R71/R72：命令面板真实数据标识 + 语义搜索 + hero chip 直达（纯函数，顶层导出以便单测） */
+function paletteAppNeed(dir, backendUp){
+  if(!needsBackend(dir)) return { need:false, text:"🖥 本地运行" };
+  return { need:true, text: backendBadgeText(backendUp) };
+}
+function dataStatTarget(){ return "data-status-dash"; }   // R72：hero 实时数据 chip 点击直达的应用
+function semanticMatch(q, dir){
+  if(!q) return false;
+  q = String(q).toLowerCase();
+  const bq = ["真实数据","后端","在线","实时","api","接口"];
+  const lq = ["本地","离线","样本","纯前端"];
+  const need = needsBackend(dir);
+  for(let i=0;i<bq.length;i++){ if(q.indexOf(bq[i])>=0 && need) return true; }
+  for(let i=0;i<lq.length;i++){ if(q.indexOf(lq[i])>=0 && !need) return true; }
+  return false;
+}
 
 let backendUp = false;   // 由 initApi 的 probe() 探测结果维护
 let DATA_STATUS = null;  // R59：后端 /api/data_status 响应（期货缓存新鲜度），驱动卡片新鲜度小标
@@ -1264,7 +1285,8 @@ function paletteFilter(q, list){
   list.forEach(function(a){
     if(a.hidden) return;
     var s = fuzzyScore(q, a.name) + fuzzyScore(q, a.tag)*0.6 + fuzzyScore(q, a.desc)*0.3 + fuzzyScore(q, CAT_LABEL[a.cat]||"")*0.5;
-    if(s > 0) out.push({type:"app", dir:a.dir, ico:a.ico, nm:a.name, ds:a.tag, score:s, run:function(){ openApp(a.dir); }});
+    if(semanticMatch(q, a.dir)) s += 40;   // R71：语义关键词（真实数据/本地等）提升相关 App 排名
+    if(s > 0) out.push({type:"app", dir:a.dir, ico:a.ico, nm:a.name, ds:a.tag, need:needsBackend(a.dir), score:s, run:function(){ openApp(a.dir); }});
   });
   acts.forEach(function(ac){
     var s = fuzzyScore(q, ac.label);
@@ -1282,8 +1304,10 @@ function renderPalette(){
   if(!box) return;
   if(!paletteItems.length){ box.innerHTML = '<div class="empty">无匹配结果</div>'; return; }
   box.innerHTML = paletteItems.map(function(it, i){
+    var extra = "";
+    if(it.type==="app"){ var m = paletteAppNeed(it.dir, backendUp); extra = ' <span class="pneed '+(m.need?"back":"local")+'">'+m.text+'</span>'; }
     return '<div class="it'+(i===paletteSel?" sel":"")+'" data-i="'+i+'" onmousedown="paletteChoose('+i+')">'+
-      '<div class="ico">'+it.ico+'</div><div class="nm">'+it.nm+'</div><div class="ds">'+it.ds+'</div></div>';
+      '<div class="ico">'+it.ico+'</div><div class="nm">'+it.nm+'</div><div class="ds">'+it.ds+extra+'</div></div>';
   }).join("");
 }
 function paletteChoose(i){

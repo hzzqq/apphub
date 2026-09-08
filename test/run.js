@@ -120,6 +120,15 @@ ok("依赖清单无重复", new Set(napi.NEEDS_BACKEND).size === napi.NEEDS_BACK
 ok("已连后端 -> 真实数据徽标", napi.backendBadgeText(true) === "🔌 真实数据");
 ok("未连后端 -> 本地样本徽标", napi.backendBadgeText(false) === "⚠ 本地样本");
 
+/* 提前注入 R70/R71/R72 纯函数到沙箱：paletteFilter 运行时依赖 semanticMatch，须在 Round 10 调用前就绪 */
+const mR70 = html.match(/function paletteAppNeed\(dir, backendUp\)\{[\s\S]*?\n\}/);
+const mR71 = html.match(/function semanticMatch\(q, dir\)\{[\s\S]*?\n\}/);
+const mR72 = html.match(/function dataStatTarget\(\)\{[\s\S]*?\n\}/);
+if (!mR70 || !mR71 || !mR72) throw new Error("index.html 中未找到 paletteAppNeed/semanticMatch/dataStatTarget");
+const paletteAppNeed = vm.runInContext(mR70[0] + "\n;paletteAppNeed", sandbox);
+const semanticMatch  = vm.runInContext(mR71[0] + "\n;semanticMatch", sandbox);
+const dataStatTarget = vm.runInContext(mR72[0] + "\n;dataStatTarget", sandbox);
+
 console.log("\n[Round 3b] 端点映射 APP_ENDPOINTS 覆盖性（R52 弹窗数据源）");
 ok("存在 APP_ENDPOINTS 端点映射对象", napi.APP_ENDPOINTS && typeof napi.APP_ENDPOINTS === "object");
 ok("端点映射覆盖全部 36 个后端 App", Object.keys(napi.APP_ENDPOINTS).length === napi.NEEDS_BACKEND.length);
@@ -335,6 +344,43 @@ ok("dataStatText 后端未连 → n=0 且文案含'待连后端'", (() => {
   return s.n === 0 && /待连后端/.test(s.text);
 })());
 ok("dataStatText 个数随入参变化", dataStatText(true, 10).n === 10 && dataStatText(false, 10).n === 0);
+
+/* ============================================================
+ *  Round 13: 命令面板真实数据标识 paletteAppNeed（R70，纯函数）
+ * ============================================================ */
+console.log("\n[Round 13] 面板真实数据标识 paletteAppNeed (R70)");
+ok("后端 App + 已连 → 真实数据", (() => {
+  const r = paletteAppNeed("futures-board", true);
+  return r.need === true && r.text === "🔌 真实数据";
+})());
+ok("后端 App + 未连 → 本地样本", (() => {
+  const r = paletteAppNeed("futures-board", false);
+  return r.need === true && r.text === "⚠ 本地样本";
+})());
+ok("纯前端 App → 本地运行（need=false）", (() => {
+  const r = paletteAppNeed("todo-list", true);
+  return r.need === false && r.text === "🖥 本地运行";
+})());
+
+/* ============================================================
+ *  Round 14: 语义搜索 semanticMatch（R71，纯函数）
+ * ============================================================ */
+console.log("\n[Round 14] 语义搜索 semanticMatch (R71)");
+ok("'真实数据' 命中后端 App", semanticMatch("真实数据", "futures-board") === true);
+ok("'后端' 命中后端 App", semanticMatch("后端", "etf-picker") === true);
+ok("'在线' 命中后端 App", semanticMatch("在线", "market-mood") === true);
+ok("'api' 命中后端 App（大小写无关）", semanticMatch("API", "quote-board") === true);
+ok("'本地' 命中纯前端 App", semanticMatch("本地", "todo-list") === true);
+ok("'真实数据' 不命中纯前端 App", semanticMatch("真实数据", "todo-list") === false);
+ok("'本地' 不命中后端 App", semanticMatch("本地", "futures-board") === false);
+ok("空查询不误命中", semanticMatch("", "futures-board") === false);
+ok("无关词不误命中", semanticMatch("宠物", "futures-board") === false);
+
+/* ============================================================
+ *  Round 15: hero 实时数据 chip 直达 dataStatTarget（R72，纯函数）
+ * ============================================================ */
+console.log("\n[Round 15] hero chip 直达 dataStatTarget (R72)");
+ok("dataStatTarget 指向 data-status-dash", dataStatTarget() === "data-status-dash");
 
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
