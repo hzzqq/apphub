@@ -214,6 +214,21 @@ ok("paletteFilter 结果上限 8 条", (() => {
   return paletteFilter("", big).length <= 8;
 })());
 
+/* ============================================================
+ *  Round 6: 键盘快捷键帮助（R63）
+ * ============================================================ */
+const m10 = html.match(/function helpShortcuts\(\)\{[\s\S]*?\n\}/);
+if (!m10) throw new Error("index.html 中未找到 helpShortcuts");
+const helpShortcuts = vm.runInContext(m10[0] + "\n;helpShortcuts", sandbox);
+
+console.log("\n[Round 6] 键盘快捷键帮助 helpShortcuts (R63)");
+const HS = helpShortcuts();
+ok("helpShortcuts 返回非空数组", Array.isArray(HS) && HS.length >= 5);
+ok("helpShortcuts 含 ? 打开帮助条目", HS.some(s => s.key.indexOf("?") >= 0));
+ok("helpShortcuts 含命令面板(Ctrl/Cmd+K)条目", HS.some(s => /Ctrl|Cmd/.test(s.key)));
+ok("helpShortcuts 含搜索框聚焦(/)条目", HS.some(s => s.key.indexOf("/") >= 0));
+ok("helpShortcuts 每条含 key 与 desc", HS.every(s => typeof s.key === "string" && typeof s.desc === "string" && s.key && s.desc));
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }

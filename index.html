@@ -76,6 +76,16 @@
   .palette .it.sel{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff}
   .palette .it.sel .ds{color:rgba(255,255,255,.85)}
   .palette .empty{padding:22px;text-align:center;color:var(--sub);font-size:13px}
+  .help{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:60}
+  .help.on{display:flex}
+  .help .box{width:min(560px,92vw);max-height:82vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.5);padding:20px 22px}
+  .help h3{margin:0 0 14px;font-size:16px;color:var(--txt);display:flex;align-items:center;gap:8px}
+  .help .x{float:right;cursor:pointer;color:var(--sub);font-size:20px;line-height:1}
+  .help .row{display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .help .row:last-child{border-bottom:0}
+  .help .key{font-family:inherit;min-width:118px;text-align:center;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:4px 10px;color:var(--txt);font-size:12px;white-space:nowrap}
+  .help .desc{font-size:13px;color:var(--sub)}
+  .help .foot{margin-top:14px;font-size:11.5px;color:var(--sub);text-align:center}
   .hint{font-size:11.5px;color:var(--sub);margin-top:10px;line-height:1.6}
   .hint code{background:rgba(255,255,255,.06);padding:1px 6px;border-radius:6px;color:var(--txt)}
 
@@ -262,6 +272,7 @@
         <button class="randbtn" id="randBtn" title="随机打开一个应用">🎲 随便逛逛</button>
         <button class="randbtn" id="viewBtn" title="切换网格 / 列表视图">▦ 网格</button>
         <button class="randbtn" id="paletteBtn" title="命令面板 (Ctrl/Cmd+K)">⌘ 命令面板</button>
+        <button class="randbtn" id="helpBtn" title="键盘快捷键帮助 (?)">？ 快捷键</button>
       </div>
     </section>
 
@@ -627,9 +638,12 @@ function render(){
   document.addEventListener("keydown", function(e){
     const pal = document.getElementById("palette");
     if(pal && pal.classList.contains("on")) return;
+    const hp = document.getElementById("help");
+    if(hp && hp.classList.contains("on")){ if(e.key==="Escape") closeHelp(); return; }
     const ae = document.activeElement;
     const inInput = ae && (ae.tagName==="INPUT" || ae.tagName==="TEXTAREA" || ae.tagName==="SELECT" || ae.isContentEditable);
     if(e.key==="/" && !inInput){ e.preventDefault(); const s=document.getElementById("search"); if(s) s.focus(); return; }
+    if(e.key==="?" && !inInput){ e.preventDefault(); openHelp(); return; }
     // 焦点在搜索框内时按 Esc 应先清空搜索(符合直觉); 此前被下方的 inInput 直接放行而无法清空
     if(e.key==="Escape" && inInput){
       const s = document.getElementById("search");
@@ -1168,6 +1182,27 @@ function closePalette(){
   var p = document.getElementById("palette"); if(p) p.classList.remove("on");
 }
 function togglePalette(){ if(paletteOpen) closePalette(); else openPalette(); }
+function helpShortcuts(){
+  // 快捷键数据源（单一事实来源）：既驱动弹窗内容，也供单测校验
+  return [
+    {key:"/", desc:"聚焦搜索框"},
+    {key:"↑ ↓ ← →", desc:"在应用卡片间移动选择"},
+    {key:"Enter", desc:"打开选中的应用"},
+    {key:"Esc", desc:"取消选择 / 关闭弹层"},
+    {key:"F", desc:"收藏 / 取消收藏当前卡片（焦点在卡片时）"},
+    {key:"Ctrl / Cmd + K", desc:"打开命令面板（模糊搜索应用 + 快捷操作）"},
+    {key:"?", desc:"打开本快捷键帮助"}
+  ];
+}
+function renderHelp(){
+  var box = document.getElementById("helpList"); if(!box) return;
+  var rows = helpShortcuts().map(function(s){
+    return '<div class="row"><span class="key">'+s.key+'</span><span class="desc">'+s.desc+'</span></div>';
+  }).join("");
+  box.innerHTML = rows;
+}
+function openHelp(){ renderHelp(); var h = document.getElementById("help"); if(h) h.classList.add("on"); }
+function closeHelp(){ var h = document.getElementById("help"); if(h) h.classList.remove("on"); }
 document.addEventListener("keydown", function(e){
   if((e.ctrlKey || e.metaKey) && (e.key==="k" || e.key==="K")){ e.preventDefault(); togglePalette(); return; }
   if(!paletteOpen) return;
@@ -1181,6 +1216,8 @@ document.addEventListener("keydown", function(e){
   if(inp) inp.addEventListener("input", function(){ paletteSel=0; paletteItems = paletteFilter(inp.value, APPS); renderPalette(); });
   var btn = document.getElementById("paletteBtn");
   if(btn) btn.addEventListener("click", openPalette);
+  var hbtn = document.getElementById("helpBtn");
+  if(hbtn) hbtn.addEventListener("click", openHelp);
 })();
 renderRecent();
 </script>
@@ -1206,6 +1243,16 @@ renderRecent();
         <kbd>Esc</kbd>
       </div>
       <div class="list" id="paletteList"></div>
+    </div>
+  </div>
+
+  <!-- 键盘快捷键帮助弹窗（R63）：按 ? 打开，列出全部快捷键 -->
+  <div class="help" id="help" role="dialog" aria-modal="true" aria-label="键盘快捷键帮助">
+    <div class="box">
+      <span class="x" onclick="closeHelp()" title="关闭" aria-label="关闭">×</span>
+      <h3>⌨️ 键盘快捷键</h3>
+      <div id="helpList"></div>
+      <div class="foot">按 <kbd>?</kbd> 或 <kbd>Esc</kbd> 关闭</div>
     </div>
   </div>
 
