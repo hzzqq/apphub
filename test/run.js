@@ -288,6 +288,21 @@ ok("含 help→palette 跳转", CL.some(c => c.from === "help" && c.to === "pale
 ok("含 palette→help 跳转", CL.some(c => c.from === "palette" && c.to === "help" && c.label));
 ok("每条跳转 label 非空", CL.every(c => typeof c.label === "string" && c.label.trim()));
 
+/* ============================================================
+ *  Round 10: 搜索 ↔ 命令面板 联动（R67）
+ * ============================================================ */
+console.log("\n[Round 10] 搜索↔面板联动 paletteFilter (R67)");
+ok("paletteFilter('etf') 含「在列表中筛选」快捷项", (() => {
+  const r = paletteFilter("etf", MOCK);
+  return r.some(x => x.type === "act" && x.nm.indexOf("筛选") >= 0);
+})());
+ok("筛选快捷项置于末尾(低分-1不抢占应用排序)", (() => {
+  const r = paletteFilter("etf", MOCK);
+  const idx = r.findIndex(x => x.type === "act" && x.nm.indexOf("筛选") >= 0);
+  return idx >= 0 && idx === r.length - 1;
+})());
+ok("空查询不含筛选快捷项(避免干扰)", paletteFilter("", MOCK).every(x => x.nm.indexOf("筛选") < 0));
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }

@@ -1193,7 +1193,8 @@ function fuzzyScore(q, text){
 }
 function paletteFilter(q, list){
   list = list || APPS;
-  q = (q||"").trim().toLowerCase();
+  var rawQ = (q||"").trim();
+  q = rawQ.toLowerCase();
   var acts = [
     {label:"🎲 随机打开一个应用", ds:"快捷操作", run:function(){ var a=APPS[Math.floor(Math.random()*APPS.length)]; openApp(a.dir); }},
     {label:"🧹 清空最近打开", ds:"快捷操作", run:function(){ clearRecent(); }},
@@ -1210,6 +1211,10 @@ function paletteFilter(q, list){
     var s = fuzzyScore(q, ac.label);
     if(s > 0) out.push({type:"act", ico:"⚡", nm:ac.label, ds:ac.ds, score:s*0.9, run:ac.run});
   });
+  // R67: 非空查询时追加「在列表中筛选」快捷项，置于末尾（低分，不抢占应用排序）
+  if(rawQ){
+    out.push({type:"act", ico:"🔎", nm:"在列表中筛选「"+rawQ+"」", ds:"快捷操作", score:-1, run:function(){ curQ = rawQ; var s=document.getElementById("search"); if(s) s.value = rawQ; render(); closePalette(); }});
+  }
   out.sort(function(x,y){ return y.score - x.score; });
   return out.slice(0, 8);
 }
@@ -1230,8 +1235,8 @@ function openPalette(){
   paletteOpen = true; paletteSel = 0;
   var p = document.getElementById("palette"); if(!p) return;
   p.classList.add("on");
-  var inp = document.getElementById("paletteInput"); if(inp){ inp.value=""; inp.focus(); }
-  paletteItems = paletteFilter("", APPS); renderPalette();
+  var inp = document.getElementById("paletteInput"); if(inp){ inp.value = curQ || ""; inp.focus(); }
+  paletteItems = paletteFilter(curQ, APPS); renderPalette();
 }
 function closePalette(){
   paletteOpen = false;
