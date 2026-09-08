@@ -245,6 +245,35 @@ ok("parseHashDir('#') 空 hash 返回 null", parseHashDir("#") === null);
 ok("parseHashDir('') 无 hash 返回 null", parseHashDir("") === null);
 ok("parseHashDir('#nope') 未知目录返回 null", parseHashDir("#nope") === null);
 
+/* ============================================================
+ *  Round 8: 使用计数「常用」排序（R65）
+ * ============================================================ */
+const m12 = html.match(/function sortByCount\(list, counts\)\{[\s\S]*?\n\}/);
+if (!m12) throw new Error("index.html 中未找到 sortByCount");
+const sortByCount = vm.runInContext(m12[0] + "\n;sortByCount", sandbox);
+
+console.log("\n[Round 8] 使用计数排序 sortByCount (R65)");
+const SL = [
+  { dir:"a", name:"阿" }, { dir:"b", name:"波" }, { dir:"c", name:"次" },
+];
+ok("无计数时退化为按名称升序", (() => {
+  const r = sortByCount(SL, {});
+  return r.map(x => x.dir).join(",") === "a,b,c";
+})());
+ok("计数高者排在最前", (() => {
+  const r = sortByCount(SL, { b:5, a:1, c:2 });
+  return r[0].dir === "b";
+})());
+ok("次数相同按名称升序", (() => {
+  const r = sortByCount(SL, { a:3, c:3, b:3 });
+  return r.map(x => x.dir).join(",") === "a,b,c";
+})());
+ok("不修改原数组（纯函数）", (() => {
+  const before = SL.map(x => x.dir).join(",");
+  sortByCount(SL, { b:9 });
+  return SL.map(x => x.dir).join(",") === before;
+})());
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }

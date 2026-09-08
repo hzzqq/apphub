@@ -315,6 +315,7 @@
         <button data-sort="name" class="on">名称</button>
         <button data-sort="recent">最近打开</button>
         <button data-sort="cat">分类</button>
+        <button data-sort="count">常用</button>
       </div>
     </section>
   </div>
@@ -489,6 +490,25 @@ function loadPrefs(){
   curSort = localStorage.getItem("hub_sort") || "name";
 }
 
+/* R65: 使用计数排序 —— localStorage 记录打开次数，提供「常用」排序维度 */
+const COUNT_KEY = "hub_counts";
+function getCounts(){
+  try{ return JSON.parse(localStorage.getItem(COUNT_KEY) || "{}"); }catch(e){ return {}; }
+}
+function bumpCount(dir){
+  if(!dir) return;
+  var m = getCounts(); m[dir] = (m[dir]||0) + 1;
+  try{ localStorage.setItem(COUNT_KEY, JSON.stringify(m)); }catch(e){}
+}
+function sortByCount(list, counts){
+  // 按打开次数降序；次数相同按名称升序（纯函数、已单测）
+  return list.slice().sort(function(a,b){
+    var ca = counts[a.dir]||0, cb = counts[b.dir]||0;
+    if(cb !== ca) return cb - ca;
+    return a.name.localeCompare(b.name, "zh");
+  });
+}
+
 /* 解析 openApp 的两种调用形式（顶层导出以便单测）:
  *   1) 链接 onclick: openApp(event, dir)   2) 键盘 Enter: openApp(dir) */
 function parseOpenArgs(a, b){
@@ -510,6 +530,7 @@ function openApp(a, b){
     }
   }
   pushRecent(dir);
+  bumpCount(dir);
   try{ if(location.hash.replace(/^#\/?/,"") !== dir){ ignoreHashOnce = true; location.hash = dir; } }catch(e){}
   if(!ev) window.open(dir + "/index.html", "_blank", "noopener");   // 键盘调用需自行打开
   return true;
@@ -601,7 +622,8 @@ function render(){
   if(curSort==="name") list.sort(function(a,b){ return a.name.localeCompare(b.name,"zh"); });
   else if(curSort==="recent"){ const r = getRecent(); const rank = function(d){ const i = r.indexOf(d); return i < 0 ? Infinity : i; }; list.sort(function(a,b){ return rank(a.dir) - rank(b.dir); }); }
   else if(curSort==="cat"){ const ord = {fin:0, life:1, tool:2}; list.sort(function(a,b){ const d = ord[a.cat]-ord[b.cat]; return d!==0 ? d : a.name.localeCompare(b.name,"zh"); }); }
-  if(curCat==="all"){ list.sort(function(a,b){ return (favSet.has(b.dir)?1:0) - (favSet.has(a.dir)?1:0); }); }
+  else if(curSort==="count"){ const c = getCounts(); list = sortByCount(list, c); }
+  if(curCat==="all" && curSort!=="count"){ list.sort(function(a,b){ return (favSet.has(b.dir)?1:0) - (favSet.has(a.dir)?1:0); }); }
   list.forEach(function(a){
     if(a.cat==="fin") cFin++; else if(a.cat==="life") cLife++; else cTool++;
     const matchCat = (curCat==="all") || (curCat==="fav" ? favSet.has(a.dir) : a.cat===curCat);
@@ -715,6 +737,7 @@ document.getElementById("randBtn").addEventListener("click", ()=>{
   if(!list.length) return;
   const a = list[Math.floor(Math.random()*list.length)];
   pushRecent(a.dir);
+  bumpCount(a.dir);
   window.open(a.dir+"/index.html", "_blank", "noopener");
 });
 
