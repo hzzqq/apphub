@@ -191,6 +191,12 @@ def main():
         print("真实数据链路有断点的 App: %d" % len(broken))
         for b in broken:
             print("   - %s" % b)
+        # CI 门禁：存在 ERR（4xx/5xx/连接失败）= 真实数据链路断点，视为失败
+        if counts.get("ERR", 0) > 0 or broken:
+            print("\n[audit] 真实数据覆盖校验未通过：ERR=%d 断点App=%d" % (
+                counts.get("ERR", 0), len(broken)))
+            sys.exit(1)
+        print("\n[audit] 真实数据覆盖校验通过 ✅")
     finally:
         if proc:
             proc.terminate()

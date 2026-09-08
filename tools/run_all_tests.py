@@ -5,12 +5,13 @@ App Hub 全量前端单测 + 可选后端 pytest 一键运行器。
 
 - 发现仓库根下所有 */test/run.js（零依赖 Node vm 沙箱单测），逐个用 managed node 跑，
   收集每个套件的退出码与最后几行输出，打印 ✓/✗ 汇总。
-- 可选 --backend：额外用隔离 venv 的 pytest 跑 backend/test_app.py + backend/test_cache.py。
+- 可选 --backend：额外用隔离 venv 的 pytest 跑 backend/test_app.py + backend/test_cache.py，
+  并强制跑 tools/audit_backend_data.py「真实数据覆盖」审计（自带/复用后端，校验真实数据链路无断点）。
 - 任一测试失败则进程退出码非 0（可直接挂 CI / pre-push）。
 
 用法:
     python tools/run_all_tests.py            # 仅前端单测
-    python tools/run_all_tests.py --backend  # 前端单测 + 后端 pytest
+    python tools/run_all_tests.py --backend  # 前端单测 + 后端 pytest + 真实数据审计
     python tools/run_all_tests.py --quiet    # 仅打印失败项
 """
 import os
@@ -18,6 +19,8 @@ import sys
 import glob
 import shutil
 import subprocess
+import urllib.request
+import urllib.error
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -84,6 +87,28 @@ def run_backend():
     ok = r.returncode == 0
     print(r.stdout.strip().splitlines()[-3:] and "\n".join(r.stdout.strip().splitlines()[-3:]) or r.stderr.strip()[-3:])
     return ok
+
+
+def run_audit():
+    # R59b：把 R56「真实数据覆盖」审计接进 --backend 流程。
+    # 自带启动 Flask 后端（若已在线则复用 --no-boot），强制校验真实数据链路无断点。
+    py = find_venv_python() or sys.executable
+    audit = os.path.join(ROOT, "tools", "audit_backend_data.py")
+    cmd = [py, audit]
+    # 若后端已在线则复用，避免重复启动抢占端口
+    try:
+        urllib.request.urlopen("http://127.0.0.1:8787/api/health", timeout=3)
+        cmd.append("--no-boot")
+    except Exception:
+        pass
+    try:
+        r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=180)
+        out = (r.stdout + r.stderr).strip()
+        print(out[-2200:] if len(out) > 2200 else out)
+        return r.returncode == 0
+    except subprocess.TimeoutExpired:
+        print("  ✗ 真实数据覆盖审计超时（>180s）")
+        return False
 
 
 def main():
