@@ -168,6 +168,52 @@ ok("缺 dir 时返回 undefined 供调用方拦截", parseOpenArgs(undefined).di
 // 关键回归防线: 曾因重复定义 openApp 导致键盘 Enter 打开应用失效
 ok("index.html 中 openApp 只定义一次", (html.match(/function openApp\(/g) || []).length === 1);
 
+/* ============================================================
+ *  Round 5: 命令面板模糊匹配（R62）
+ * ============================================================ */
+const m8 = html.match(/function fuzzyScore\(q, text\)\{[\s\S]*?\n\}/);
+const m9 = html.match(/function paletteFilter\(q, list\)\{[\s\S]*?\n\}/);
+if (!m8) throw new Error("index.html 中未找到 fuzzyScore");
+if (!m9) throw new Error("index.html 中未找到 paletteFilter");
+// paletteFilter 内部引用 CAT_LABEL（仅打分用），测试沙箱需提供，避免 ReferenceError
+sandbox.CAT_LABEL = { fin:"金融", life:"生活", tool:"效率", fav:"收藏" };
+const fuzzyScore = vm.runInContext(m8[0] + "\n;fuzzyScore", sandbox);
+const paletteFilter = vm.runInContext(m9[0] + "\n;paletteFilter", sandbox);
+
+const MOCK = [
+  { dir:"futures-board", name:"期货看板", ico:"📈", cat:"fin", tag:"期货盯盘", desc:"期货实时行情与持仓" },
+  { dir:"futures-inventory", name:"期库镜", ico:"🗄", cat:"fin", tag:"库存", desc:"期货库存透视" },
+  { dir:"etf-picker", name:"ETF 选基", ico:"🧺", cat:"fin", tag:"ETF", desc:"ETF 筛选" },
+  { dir:"pet-diary", name:"宠物日记", ico:"🐾", cat:"life", tag:"宠物", desc:"记录宠物日常" },
+  { dir:"todo-list", name:"待办清单", ico:"✅", cat:"tool", tag:"效率", desc:"任务管理" },
+];
+
+console.log("\n[Round 5] 命令面板模糊匹配 paletteFilter / fuzzyScore (R62)");
+ok("fuzzyScore 前缀匹配得分高于无关项", fuzzyScore("期货","期货看板") > fuzzyScore("期货","宠物日记"));
+ok("fuzzyScore 命中>0 且未命中=0", fuzzyScore("etf","ETF 选基") > 0 && fuzzyScore("zzz","ETF 选基") === 0);
+ok("paletteFilter 空查询包含全部应用项", (() => {
+  const r = paletteFilter("", MOCK);
+  const dirs = r.map(x => x.dir);
+  return MOCK.every(a => dirs.indexOf(a.dir) >= 0);
+})());
+ok("paletteFilter('etf') 把 ETF 选基排第一", (() => {
+  const r = paletteFilter("etf", MOCK);
+  return r.length > 0 && r[0].dir === "etf-picker";
+})());
+ok("paletteFilter('期货') 优先命中期货类应用", (() => {
+  const r = paletteFilter("期货", MOCK);
+  return r[0].dir === "futures-board" || r[0].dir === "futures-inventory";
+})());
+ok("paletteFilter('随机') 命中快捷操作项", (() => {
+  const r = paletteFilter("随机", MOCK);
+  return r.some(x => x.type === "act");
+})());
+ok("paletteFilter 结果上限 8 条", (() => {
+  const big = [];
+  for (let i=0;i<40;i++) big.push({ dir:"a"+i, name:"应用"+i, ico:"•", cat:"tool", tag:"t", desc:"d" });
+  return paletteFilter("", big).length <= 8;
+})());
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }

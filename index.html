@@ -60,6 +60,22 @@
   .randbtn{background:var(--card2);border:1px solid var(--line);color:var(--txt);
     border-radius:14px;padding:11px 14px;font-size:13.5px;cursor:pointer;white-space:nowrap;transition:all .2s}
   .randbtn:hover{border-color:var(--accent);filter:brightness(1.15)}
+  /* 命令面板 (R62) */
+  .palette{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding-top:13vh;z-index:60}
+  .palette.on{display:flex}
+  .palette .box{width:min(640px,92vw);background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.5);overflow:hidden}
+  .palette .pin{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .palette .pin .ico{font-size:16px;color:var(--sub)}
+  .palette .pin input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--txt);font-size:15px}
+  .palette .pin kbd{background:var(--card2);border:1px solid var(--line);border-radius:7px;padding:2px 8px;color:var(--sub);font-size:11px}
+  .palette .list{max-height:46vh;overflow:auto;padding:6px}
+  .palette .it{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;cursor:pointer}
+  .palette .it .ico{font-size:18px;width:24px;text-align:center}
+  .palette .it .nm{font-size:14px;color:var(--txt)}
+  .palette .it .ds{font-size:12px;color:var(--sub);margin-left:auto}
+  .palette .it.sel{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff}
+  .palette .it.sel .ds{color:rgba(255,255,255,.85)}
+  .palette .empty{padding:22px;text-align:center;color:var(--sub);font-size:13px}
   .hint{font-size:11.5px;color:var(--sub);margin-top:10px;line-height:1.6}
   .hint code{background:rgba(255,255,255,.06);padding:1px 6px;border-radius:6px;color:var(--txt)}
 
@@ -245,6 +261,7 @@
       <div class="btnrow">
         <button class="randbtn" id="randBtn" title="随机打开一个应用">🎲 随便逛逛</button>
         <button class="randbtn" id="viewBtn" title="切换网格 / 列表视图">▦ 网格</button>
+        <button class="randbtn" id="paletteBtn" title="命令面板 (Ctrl/Cmd+K)">⌘ 命令面板</button>
       </div>
     </section>
 
@@ -608,6 +625,8 @@ function render(){
     renderSort(); render();
   });
   document.addEventListener("keydown", function(e){
+    const pal = document.getElementById("palette");
+    if(pal && pal.classList.contains("on")) return;
     const ae = document.activeElement;
     const inInput = ae && (ae.tagName==="INPUT" || ae.tagName==="TEXTAREA" || ae.tagName==="SELECT" || ae.isContentEditable);
     if(e.key==="/" && !inInput){ e.preventDefault(); const s=document.getElementById("search"); if(s) s.focus(); return; }
@@ -1089,6 +1108,80 @@ loadPrefs();
 syncViewBtn();
 renderSort();
 render();
+/* ============ R62 全局命令面板 (Ctrl/Cmd+K) ============ */
+var paletteOpen = false, paletteSel = 0, paletteItems = [];
+function fuzzyScore(q, text){
+  if(!q) return 1;
+  q = String(q).toLowerCase(); text = (text==null?"":String(text)).toLowerCase();
+  if(!text) return 0;
+  var i = text.indexOf(q);
+  if(i === 0) return 100 - q.length;
+  if(i > 0) return 60 - i*0.5;
+  var qs = q.split(/\s+/), hit = 0;
+  qs.forEach(function(t){ if(t && text.indexOf(t) >= 0) hit++; });
+  return hit ? 30 + hit*5 : 0;
+}
+function paletteFilter(q, list){
+  list = list || APPS;
+  q = (q||"").trim().toLowerCase();
+  var acts = [
+    {label:"🎲 随机打开一个应用", ds:"快捷操作", run:function(){ var a=APPS[Math.floor(Math.random()*APPS.length)]; openApp(a.dir); }},
+    {label:"🧹 清空最近打开", ds:"快捷操作", run:function(){ clearRecent(); }},
+    {label:"▦ 切换网格 / 列表视图", ds:"快捷操作", run:function(){ var b=document.getElementById("viewBtn"); if(b) b.click(); }},
+    {label:"🔍 聚焦搜索框", ds:"快捷操作", run:function(){ var s=document.getElementById("search"); if(s) s.focus(); }}
+  ];
+  var out = [];
+  list.forEach(function(a){
+    if(a.hidden) return;
+    var s = fuzzyScore(q, a.name) + fuzzyScore(q, a.tag)*0.6 + fuzzyScore(q, a.desc)*0.3 + fuzzyScore(q, CAT_LABEL[a.cat]||"")*0.5;
+    if(s > 0) out.push({type:"app", dir:a.dir, ico:a.ico, nm:a.name, ds:a.tag, score:s, run:function(){ openApp(a.dir); }});
+  });
+  acts.forEach(function(ac){
+    var s = fuzzyScore(q, ac.label);
+    if(s > 0) out.push({type:"act", ico:"⚡", nm:ac.label, ds:ac.ds, score:s*0.9, run:ac.run});
+  });
+  out.sort(function(x,y){ return y.score - x.score; });
+  return out.slice(0, 8);
+}
+function renderPalette(){
+  var box = document.getElementById("paletteList");
+  if(!box) return;
+  if(!paletteItems.length){ box.innerHTML = '<div class="empty">无匹配结果</div>'; return; }
+  box.innerHTML = paletteItems.map(function(it, i){
+    return '<div class="it'+(i===paletteSel?" sel":"")+'" data-i="'+i+'" onmousedown="paletteChoose('+i+')">'+
+      '<div class="ico">'+it.ico+'</div><div class="nm">'+it.nm+'</div><div class="ds">'+it.ds+'</div></div>';
+  }).join("");
+}
+function paletteChoose(i){
+  var it = paletteItems[i]; if(!it) return;
+  closePalette(); it.run();
+}
+function openPalette(){
+  paletteOpen = true; paletteSel = 0;
+  var p = document.getElementById("palette"); if(!p) return;
+  p.classList.add("on");
+  var inp = document.getElementById("paletteInput"); if(inp){ inp.value=""; inp.focus(); }
+  paletteItems = paletteFilter("", APPS); renderPalette();
+}
+function closePalette(){
+  paletteOpen = false;
+  var p = document.getElementById("palette"); if(p) p.classList.remove("on");
+}
+function togglePalette(){ if(paletteOpen) closePalette(); else openPalette(); }
+document.addEventListener("keydown", function(e){
+  if((e.ctrlKey || e.metaKey) && (e.key==="k" || e.key==="K")){ e.preventDefault(); togglePalette(); return; }
+  if(!paletteOpen) return;
+  if(e.key==="ArrowDown"){ e.preventDefault(); paletteSel = Math.min(paletteItems.length-1, paletteSel+1); renderPalette(); }
+  else if(e.key==="ArrowUp"){ e.preventDefault(); paletteSel = Math.max(0, paletteSel-1); renderPalette(); }
+  else if(e.key==="Enter"){ e.preventDefault(); paletteChoose(paletteSel); }
+  else if(e.key==="Escape"){ e.preventDefault(); closePalette(); }
+});
+(function(){
+  var inp = document.getElementById("paletteInput");
+  if(inp) inp.addEventListener("input", function(){ paletteSel=0; paletteItems = paletteFilter(inp.value, APPS); renderPalette(); });
+  var btn = document.getElementById("paletteBtn");
+  if(btn) btn.addEventListener("click", openPalette);
+})();
 renderRecent();
 </script>
 
@@ -1101,6 +1194,18 @@ renderRecent();
       <ul id="epList"></ul>
       <p class="epnote" id="epNote"></p>
       <div class="epsrc">数据源：统一后端 <code id="epBase">—</code>（见大厅「真实数据接口」配置）</div>
+    </div>
+  </div>
+
+  <!-- 命令面板 (R62)：Ctrl/Cmd+K 全局唤起，模糊搜索应用 + 快捷操作 -->
+  <div class="palette" id="palette" role="dialog" aria-modal="true" aria-label="命令面板">
+    <div class="box">
+      <div class="pin">
+        <span class="ico">⌘</span>
+        <input id="paletteInput" placeholder="搜索应用或执行快捷操作，如 期货 / ETF / 随机 / 清空最近 …" autocomplete="off" aria-label="命令面板搜索">
+        <kbd>Esc</kbd>
+      </div>
+      <div class="list" id="paletteList"></div>
     </div>
   </div>
 
