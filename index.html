@@ -86,6 +86,8 @@
   .help .key{font-family:inherit;min-width:118px;text-align:center;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:4px 10px;color:var(--txt);font-size:12px;white-space:nowrap}
   .help .desc{font-size:13px;color:var(--sub)}
   .help .foot{margin-top:14px;font-size:11.5px;color:var(--sub);text-align:center}
+  .help .foot .link{color:var(--accent);cursor:pointer}
+  .palette .pfoot{margin-top:8px;padding:9px 12px;font-size:12px;color:var(--accent);cursor:pointer;border-top:1px solid var(--line);text-align:center}
   .card.flash{outline:2px solid var(--accent);box-shadow:0 0 0 5px rgba(120,140,255,.18);transition:box-shadow .3s,outline-color .3s}
   .hint{font-size:11.5px;color:var(--sub);margin-top:10px;line-height:1.6}
   .hint code{background:rgba(255,255,255,.06);padding:1px 6px;border-radius:6px;color:var(--txt)}
@@ -1258,6 +1260,21 @@ function renderHelp(){
 }
 function openHelp(){ renderHelp(); var h = document.getElementById("help"); if(h) h.classList.add("on"); }
 function closeHelp(){ var h = document.getElementById("help"); if(h) h.classList.remove("on"); }
+/* R66: 帮助 ↔ 命令面板 交叉跳转（数据驱动，单一事实来源，供单测校验） */
+function crossLinks(){
+  return [
+    { from:"help",   to:"palette", label:"⌘ 打开命令面板" },
+    { from:"palette", to:"help",   label:"？ 键盘快捷键" }
+  ];
+}
+function renderCrossLinks(){
+  var pl = crossLinks().filter(function(c){ return c.from==="palette"; })[0];
+  var pf = document.getElementById("paletteFoot");
+  if(pf && pl){ pf.textContent = pl.label; pf.title = "查看键盘快捷键"; pf.onclick = function(){ closePalette(); openHelp(); }; }
+  var hl = crossLinks().filter(function(c){ return c.from==="help"; })[0];
+  var hf = document.getElementById("helpFoot");
+  if(hf && hl){ hf.textContent = hl.label; hf.title = "打开命令面板"; hf.onclick = function(){ closeHelp(); openPalette(); }; }
+}
 document.addEventListener("keydown", function(e){
   if((e.ctrlKey || e.metaKey) && (e.key==="k" || e.key==="K")){ e.preventDefault(); togglePalette(); return; }
   if(!paletteOpen) return;
@@ -1276,6 +1293,7 @@ document.addEventListener("keydown", function(e){
 })();
 renderRecent();
 applyHash();   // R64: 首次加载若 URL 带 #dir 深链，直接定位该应用
+renderCrossLinks();   // R66: 渲染帮助↔命令面板交叉跳转入口
 </script>
 
   <!-- 端点详情弹窗（R52）：点击卡片「真实数据 / 本地运行」徽章，查看该 App 依赖的后端接口 -->
@@ -1299,6 +1317,7 @@ applyHash();   // R64: 首次加载若 URL 带 #dir 深链，直接定位该应�
         <kbd>Esc</kbd>
       </div>
       <div class="list" id="paletteList"></div>
+      <div class="pfoot" id="paletteFoot"></div>
     </div>
   </div>
 
@@ -1308,6 +1327,7 @@ applyHash();   // R64: 首次加载若 URL 带 #dir 深链，直接定位该应�
       <span class="x" onclick="closeHelp()" title="关闭" aria-label="关闭">×</span>
       <h3>⌨️ 键盘快捷键</h3>
       <div id="helpList"></div>
+      <div class="foot"><span class="link" id="helpFoot"></span></div>
       <div class="foot">按 <kbd>?</kbd> 或 <kbd>Esc</kbd> 关闭</div>
     </div>
   </div>

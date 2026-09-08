@@ -274,6 +274,20 @@ ok("不修改原数组（纯函数）", (() => {
   return SL.map(x => x.dir).join(",") === before;
 })());
 
+/* ============================================================
+ *  Round 9: 帮助 ↔ 命令面板 交叉跳转（R66，数据驱动）
+ * ============================================================ */
+const m13 = html.match(/function crossLinks\(\)\{[\s\S]*?\n\}/);
+if (!m13) throw new Error("index.html 中未找到 crossLinks");
+const crossLinks = vm.runInContext(m13[0] + "\n;crossLinks", sandbox);
+
+console.log("\n[Round 9] 帮助↔命令面板交叉跳转 crossLinks (R66)");
+const CL = crossLinks();
+ok("crossLinks 返回两条交叉跳转", CL.length === 2);
+ok("含 help→palette 跳转", CL.some(c => c.from === "help" && c.to === "palette" && c.label));
+ok("含 palette→help 跳转", CL.some(c => c.from === "palette" && c.to === "help" && c.label));
+ok("每条跳转 label 非空", CL.every(c => typeof c.label === "string" && c.label.trim()));
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }
