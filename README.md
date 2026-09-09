@@ -201,3 +201,22 @@ python verify_all.py
 - **部署成一个网站（只分享网址）**：见 [`DEPLOY.md`](DEPLOY.md)。后端**同源托管前端**，
   打开 `http://<host>/` 即进入大厅，各 App 自动走同源 API（免填地址、无 CORS），
   并按 `REFRESH_HOURS` 后台自动刷新真实数据，访客零操作即可看到最新数据。
+
+---
+
+## 🏗️ 架构
+
+```mermaid
+flowchart TB
+    B[浏览器] --> APP[31 个零依赖单文件 HTML 微应用]
+    subgraph 微应用分组
+      APP --> F1[金融投研 15 款 · 行情/选股/回测/PE魔方]
+      APP --> F2[效率工具 16 款 · 待办/笔记/格式转换]
+    end
+    APP -->|fetch 同源 API| BE[Flask 后端 HubBackend<br/>统一真实数据中枢]
+    BE --> DH[数据中枢]
+    DH --> SRC[akshare 真实行情]
+    DH --> CACHE[本地样本缓存 · 离线降级]
+```
+
+> 设计要点：**零依赖单文件 HTML**（双击即开、内联 CSS/JS）+ 统一 Flask 后端提供真实数据；断网时自动降级本地样本并实时标注数据状态，访客永远看得到真实数据而非假图。
