@@ -930,6 +930,13 @@ function endpointMatch(q, dir){
   }
   return false;
 }
+/* R75：空查询时命令面板的个性化默认列表——最近打开优先、收藏去重追加（纯函数，复用 R65 常用/R68 收藏 数据） */
+function defaultAppDirs(recentArr, favArr){
+  const seen = {}; const out = [];
+  (recentArr||[]).forEach(function(d){ if(!seen[d]){ seen[d]=1; out.push(d); } });
+  (favArr||[]).forEach(function(d){ if(!seen[d]){ seen[d]=1; out.push(d); } });
+  return out;
+}
 
 let backendUp = false;   // 由 initApi 的 probe() 探测结果维护
 let DATA_STATUS = null;  // R59：后端 /api/data_status 响应（期货缓存新鲜度），驱动卡片新鲜度小标
@@ -1295,13 +1302,25 @@ function paletteFilter(q, list){
     {label:"🔍 聚焦搜索框", ds:"快捷操作", run:function(){ var s=document.getElementById("search"); if(s) s.focus(); }}
   ];
   var out = [];
-  list.forEach(function(a){
-    if(a.hidden) return;
-    var s = fuzzyScore(q, a.name) + fuzzyScore(q, a.tag)*0.6 + fuzzyScore(q, a.desc)*0.3 + fuzzyScore(q, CAT_LABEL[a.cat]||"")*0.5;
-    if(semanticMatch(q, a.dir)) s += 40;   // R71：语义关键词（真实数据/本地等）提升相关 App 排名
-    if(endpointMatch(q, a.dir)) s += 35;    // R73：按后端 API 路径反查消费该端点的 App
-    if(s > 0) out.push({type:"app", dir:a.dir, ico:a.ico, nm:a.name, ds:a.tag, need:needsBackend(a.dir), score:s, run:function(){ openApp(a.dir); }});
-  });
+  if(!rawQ){
+    // R75：空查询默认展示「最近打开 + 收藏」个性化列表（复用 R65/R68 数据），而非按基础分随便取前 8
+    var rec = [], fav = [];
+    try { rec = getRecent(); } catch(e){}
+    try { fav = getFav(); } catch(e){}
+    defaultAppDirs(rec, fav).forEach(function(d){
+      var a = list.find(function(x){ return x.dir===d; });
+      if(!a) return;
+      out.push({type:"app", dir:a.dir, ico:a.ico, nm:a.name, ds:a.tag, need:needsBackend(a.dir), score:50, run:function(){ openApp(a.dir); }});
+    });
+  } else {
+    list.forEach(function(a){
+      if(a.hidden) return;
+      var s = fuzzyScore(q, a.name) + fuzzyScore(q, a.tag)*0.6 + fuzzyScore(q, a.desc)*0.3 + fuzzyScore(q, CAT_LABEL[a.cat]||"")*0.5;
+      if(semanticMatch(q, a.dir)) s += 40;   // R71：语义关键词（真实数据/本地等）提升相关 App 排名
+      if(endpointMatch(q, a.dir)) s += 35;    // R73：按后端 API 路径反查消费该端点的 App
+      if(s > 0) out.push({type:"app", dir:a.dir, ico:a.ico, nm:a.name, ds:a.tag, need:needsBackend(a.dir), score:s, run:function(){ openApp(a.dir); }});
+    });
+  }
   acts.forEach(function(ac){
     var s = fuzzyScore(q, ac.label);
     if(s > 0) out.push({type:"act", ico:"⚡", nm:ac.label, ds:ac.ds, score:s*0.9, run:ac.run});

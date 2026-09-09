@@ -127,11 +127,16 @@ const mR72 = html.match(/function dataStatTarget\(\)\{[\s\S]*?\n\}/);
 const mEP  = html.match(/const APP_ENDPOINTS = \{[\s\S]*?\};/);
 const mEPD = html.match(/const EP_DESC = \{[\s\S]*?\n\};/);
 const mR73 = html.match(/function endpointMatch\(q, dir\)\{[\s\S]*?\n\}/);
-if (!mR70 || !mR71 || !mR72 || !mEP || !mEPD || !mR73) throw new Error("index.html 中未找到 paletteAppNeed/semanticMatch/dataStatTarget/endpointMatch/APP_ENDPOINTS/EP_DESC");
+const mR75 = html.match(/function defaultAppDirs\(recentArr, favArr\)\{[\s\S]*?\n\}/);
+if (!mR70 || !mR71 || !mR72 || !mEP || !mEPD || !mR73 || !mR75) throw new Error("index.html 中未找到 paletteAppNeed/semanticMatch/dataStatTarget/endpointMatch/defaultAppDirs/APP_ENDPOINTS/EP_DESC");
 const paletteAppNeed = vm.runInContext(mR70[0] + "\n;paletteAppNeed", sandbox);
 const semanticMatch  = vm.runInContext(mR71[0] + "\n;semanticMatch", sandbox);
 const dataStatTarget = vm.runInContext(mR72[0] + "\n;dataStatTarget", sandbox);
 const endpointMatch  = vm.runInContext(mEPD[0] + "\n" + mR73[0] + "\n;endpointMatch", sandbox);
+const defaultAppDirs = vm.runInContext(mR75[0] + "\n;defaultAppDirs", sandbox);
+/* R75 测试桩：注入最近/收藏数据，使空查询个性化默认列表可确定性验证 */
+sandbox.getRecent = function(){ return ["etf-picker","futures-board"]; };
+sandbox.getFav = function(){ return ["futures-inventory"]; };
 
 console.log("\n[Round 3b] 端点映射 APP_ENDPOINTS 覆盖性（R52 弹窗数据源）");
 ok("存在 APP_ENDPOINTS 端点映射对象", napi.APP_ENDPOINTS && typeof napi.APP_ENDPOINTS === "object");
@@ -204,10 +209,11 @@ const MOCK = [
 console.log("\n[Round 5] 命令面板模糊匹配 paletteFilter / fuzzyScore (R62)");
 ok("fuzzyScore 前缀匹配得分高于无关项", fuzzyScore("期货","期货看板") > fuzzyScore("期货","宠物日记"));
 ok("fuzzyScore 命中>0 且未命中=0", fuzzyScore("etf","ETF 选基") > 0 && fuzzyScore("zzz","ETF 选基") === 0);
-ok("paletteFilter 空查询包含全部应用项", (() => {
+ok("paletteFilter 空查询返回个性化最近+收藏列表（非全部）", (() => {
   const r = paletteFilter("", MOCK);
-  const dirs = r.map(x => x.dir);
-  return MOCK.every(a => dirs.indexOf(a.dir) >= 0);
+  const dirs = r.map(x => x.dir).filter(Boolean);
+  // R75：空查询应只列「最近打开 + 收藏」中真实存在的 App，而非全部 MOCK
+  return dirs.length > 0 && dirs.length < MOCK.length && dirs.indexOf("etf-picker") >= 0;
 })());
 ok("paletteFilter('etf') 把 ETF 选基排第一", (() => {
   const r = paletteFilter("etf", MOCK);
@@ -398,6 +404,14 @@ ok("'refresh' 命中 inv-refresh", endpointMatch("refresh", "inv-refresh") === t
 ok("'etf' 不命中纯前端 todo-list", endpointMatch("etf", "todo-list") === false);
 ok("后端 App 但无关端点不误命中", endpointMatch("zzz-nope", "etf-picker") === false);
 ok("空查询不误命中", endpointMatch("", "etf-picker") === false);
+
+/* ============================================================
+ *  Round 17: 空查询个性化默认列表 defaultAppDirs（R75，纯函数）
+ * ============================================================ */
+console.log("\n[Round 17] 空查询个性化默认 defaultAppDirs (R75)");
+ok("最近置前、收藏去重追加", JSON.stringify(defaultAppDirs(["a","b"],["b","c"])) === JSON.stringify(["a","b","c"]));
+ok("空输入返回空", defaultAppDirs([],[]).length === 0);
+ok("容错非数组输入", defaultAppDirs(null, undefined).length === 0);
 
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
