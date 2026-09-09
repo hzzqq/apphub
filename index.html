@@ -735,7 +735,8 @@ function render(){
     if(a.cat==="fin") cFin++; else if(a.cat==="life") cLife++; else cTool++;
     const matchCat = (curCat==="all") || (curCat==="fav" ? favSet.has(a.dir) : a.cat===curCat);
     const matchQ = !q || a.name.toLowerCase().includes(q) || a.tag.toLowerCase().includes(q)
-                   || CAT_LABEL[a.cat].includes(q) || a.desc.toLowerCase().includes(q) || semanticMatch(q, a.dir) || endpointMatch(q, a.dir);
+                   || CAT_LABEL[a.cat].includes(q) || a.desc.toLowerCase().includes(q) || semanticMatch(q, a.dir) || endpointMatch(q, a.dir)
+                   || nearTokens(q, a.name, 1) || nearTokens(q, a.tag, 1);   // R77：错别字容错（漏字/错字/换位仍命中）
     if(!(matchCat && matchQ)) return;
     shown++;
     const el = document.createElement("div");
@@ -1356,6 +1357,67 @@ function fuzzyScore(q, text){
   qs.forEach(function(t){ if(t && text.indexOf(t) >= 0) hit++; });
   return hit ? 30 + hit*5 : 0;
 }
+
+/* R77: 搜索相关性升级 ——
+ *   1) levenshtein / nearTokens：错别字容错（"etf"↔"eft"、"期货"↔"欺货" 仍命中），纯函数已单测；
+ *   2) recencyBoost：最近打开/收藏的应用在「已相关」结果中加权靠前，复用 R65/R68 数据。
+ * 设计边界：网格 matchQ 用 nearTokens 做「硬包含」放宽（错别字也不漏），命令面板用 nearTokens 做「软提权」，
+ *           recencyBoost 仅对已命中的结果做重排，绝不把无关 App 凭收藏顶上来。 */
+function levenshtein(a, b){
+  // Damerau–Levenshtein（OSA）：相邻换位算 1 步，更符合「错别字」直觉（etf↔eft=1）
+  a = String(a); b = String(b);
+  var m = a.length, n = b.length;
+  if(!m) return n; if(!n) return m;
+  var d = [];
+  for(var i=0;i<=m;i++){ d[i] = new Array(n+1); d[i][0] = i; }
+  for(var j=0;j<=n;j++) d[0][j] = j;
+  for(i=1;i<=m;i++){
+    for(j=1;j<=n;j++){
+      var cost = a.charAt(i-1) === b.charAt(j-1) ? 0 : 1;
+      d[i][j] = Math.min(d[i-1][j]+1, d[i][j-1]+1, d[i-1][j-1]+cost);
+      if(i>1 && j>1 && a.charAt(i-1) === b.charAt(j-2) && a.charAt(i-2) === b.charAt(j-1)){
+        d[i][j] = Math.min(d[i][j], d[i-2][j-2]+1);
+      }
+    }
+  }
+  return d[m][n];
+}
+function nearTokens(q, text, maxDist){
+  if(!q || !text) return 0;
+  q = String(q).toLowerCase(); text = String(text).toLowerCase();
+  if(!q.length) return 0;
+  var max = maxDist || 1;
+  if(q.length > text.length + 1) return 0;     // 查询不可能被文本包含（含漏 1 字情形）
+  var best = 0;
+  // 1) 分词匹配（空格/斜杠/· 分隔的英文标签，如 ETF / corr / api）
+  var tokens = text.split(/[\s/·\-_·]+/).filter(Boolean);
+  tokens.forEach(function(t){
+    if(t.indexOf(q) >= 0) return;              // 精确子串 → 交 fuzzyScore，不重复加分
+    var d = levenshtein(q, t);
+    if(d <= max){ var sc = max + 1 - d; if(sc > best) best = sc; }
+  });
+  // 2) 滑动窗口：查询作为定长窗口在文本上滑动取最小距离 —— 捕捉「欺货」∈「期货行情」等连续/CJK 串
+  var L = q.length, i, j;
+  for(i=0; i+L <= text.length; i++){
+    var win = text.substr(i, L);
+    if(win.indexOf(q) >= 0) return best;       // 精确子串 → 交 fuzzyScore
+    var d = levenshtein(q, win);
+    if(d <= max){ var sc = max + 1 - d; if(sc > best) best = sc; }
+  }
+  for(j=0; j+L+1 <= text.length; j++){          // 允许查询比窗口少 1 字（漏字）
+    var win2 = text.substr(j, L+1);
+    var d2 = levenshtein(q, win2);
+    if(d2 <= max){ var sc2 = max + 1 - d2; if(sc2 > best) best = sc2; }
+  }
+  return best;
+}
+function recencyBoost(dir, rec, fav){
+  rec = rec || []; fav = fav || [];
+  var ri = rec.indexOf(dir), b = 0;
+  if(ri >= 0) b += 10 - Math.min(ri, 9) * 0.8;   // 越近打开加权越高（封顶前 10）
+  if(fav.indexOf(dir) >= 0) b += 6;              // 收藏再加成
+  return b;
+}
 function paletteFilter(q, list){
   list = list || APPS;
   var rawQ = (q||"").trim();
@@ -1378,12 +1440,18 @@ function paletteFilter(q, list){
       out.push({type:"app", dir:a.dir, ico:a.ico, nm:a.name, ds:a.tag, need:needsBackend(a.dir), score:50, run:function(){ openApp(a.dir); }});
     });
   } else {
+    var rec = [], favSet = [];
+    try { rec = getRecent(); } catch(e){}
+    try { favSet = getFav(); } catch(e){}
     list.forEach(function(a){
       if(a.hidden) return;
       var s = fuzzyScore(q, a.name) + fuzzyScore(q, a.tag)*0.6 + fuzzyScore(q, a.desc)*0.3 + fuzzyScore(q, CAT_LABEL[a.cat]||"")*0.5;
       if(semanticMatch(q, a.dir)) s += 40;   // R71：语义关键词（真实数据/本地等）提升相关 App 排名
       if(endpointMatch(q, a.dir)) s += 35;    // R73：按后端 API 路径反查消费该端点的 App
-      if(s > 0) out.push({type:"app", dir:a.dir, ico:a.ico, nm:a.name, ds:a.tag, need:needsBackend(a.dir), score:s, run:function(){ openApp(a.dir); }});
+      var near = nearTokens(q, a.name, 1) + nearTokens(q, a.tag, 1)*0.6;   // R77：错别字容错软提权
+      if(near > 0) s += near * 8;
+      if(s > 0){ s += recencyBoost(a.dir, rec, favSet);   // R77：最近/收藏对已命中结果重排
+        out.push({type:"app", dir:a.dir, ico:a.ico, nm:a.name, ds:a.tag, need:needsBackend(a.dir), score:s, run:function(){ openApp(a.dir); }}); }
     });
   }
   acts.forEach(function(ac){

@@ -134,6 +134,12 @@ const semanticMatch  = vm.runInContext(mR71[0] + "\n;semanticMatch", sandbox);
 const dataStatTarget = vm.runInContext(mR72[0] + "\n;dataStatTarget", sandbox);
 const endpointMatch  = vm.runInContext(mEPD[0] + "\n" + mR73[0] + "\n;endpointMatch", sandbox);
 const defaultAppDirs = vm.runInContext(mR75[0] + "\n;defaultAppDirs", sandbox);
+const mR77a = html.match(/function levenshtein\(a, b\)\{[\s\S]*?\n\}/);
+const mR77b = html.match(/function nearTokens\(q, text, maxDist\)\{[\s\S]*?\n\}/);
+const mR77c = html.match(/function recencyBoost\(dir, rec, fav\)\{[\s\S]*?\n\}/);
+if (!mR77a || !mR77b || !mR77c) throw new Error("index.html 中未找到 levenshtein/nearTokens/recencyBoost");
+const R77 = vm.runInContext(mR77a[0] + "\n" + mR77b[0] + "\n" + mR77c[0] + "\n;({levenshtein:levenshtein, nearTokens:nearTokens, recencyBoost:recencyBoost})", sandbox);
+const levenshtein = R77.levenshtein, nearTokens = R77.nearTokens, recencyBoost = R77.recencyBoost;
 /* R75 测试桩：注入最近/收藏数据，使空查询个性化默认列表可确定性验证 */
 sandbox.getRecent = function(){ return ["etf-picker","futures-board"]; };
 sandbox.getFav = function(){ return ["futures-inventory"]; };
@@ -437,6 +443,24 @@ ok("空 hash 返回 null", parseHashView("") === null);
 ok("中文 q 正常解析", parseHashView("#view?q=你好").q === "你好");
 ok("build→parse 往返一致", (() => { var b = parseHashView(buildViewHash({cat:"fin",q:"etf",sort:"count",view:"list"})); return b && b.cat==="fin" && b.q==="etf" && b.sort==="count" && b.view==="list"; })());
 ok("buildViewHash 编码特殊字符", buildViewHash({q:"a b&c"}).indexOf("q=") >= 0 && buildViewHash({q:"a b&c"}).indexOf("&") === buildViewHash({q:"a b&c"}).lastIndexOf("&"));
+
+/* ============================================================
+ *  Round 19: 搜索相关性升级 levenshtein / nearTokens / recencyBoost（R77，纯函数）
+ *  注：三个函数已在 Round 3b 前的早期注入块编译进 sandbox（供 paletteFilter 调用），此处直接断言。
+ * ============================================================ */
+console.log("\n[Round 19] 搜索相关性升级 (R77)");
+ok("levenshtein 换位距离=1", levenshtein("etf","eft") === 1);
+ok("levenshtein 经典 kitten/sitting=3", levenshtein("kitten","sitting") === 3);
+ok("levenshtein 空串退化为长度", levenshtein("","abc") === 3 && levenshtein("abc","") === 3);
+ok("levenshtein 相同串=0", levenshtein("etf","etf") === 0);
+ok("nearTokens 错别字 'eft' 命中 'ETF picker'", nearTokens("eft","ETF picker",1) > 0);
+ok("nearTokens 中文错位 '欺货' 命中 '期货'", nearTokens("欺货","期货行情",1) > 0);
+ok("nearTokens 精确子串不算近邻（返回0）", nearTokens("etf","ETF picker",1) === 0);
+ok("nearTokens 无关词返回0", nearTokens("zzz","ETF picker",1) === 0);
+ok("recencyBoost 最近打开加分", recencyBoost("a",["a","b"],["c"]) > 0);
+ok("recencyBoost 收藏加分", recencyBoost("a",["b"],["a"]) > 0);
+ok("recencyBoost 越近加权越高", recencyBoost("a",["a","b"],[]) > recencyBoost("b",["a","b"],[]));
+ok("recencyBoost 无关项返回0", recencyBoost("x",["b"],["c"]) === 0);
 
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
