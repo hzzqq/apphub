@@ -735,8 +735,9 @@ function render(){
     if(a.cat==="fin") cFin++; else if(a.cat==="life") cLife++; else cTool++;
     const matchCat = (curCat==="all") || (curCat==="fav" ? favSet.has(a.dir) : a.cat===curCat);
     const matchQ = !q || a.name.toLowerCase().includes(q) || a.tag.toLowerCase().includes(q)
-                   || CAT_LABEL[a.cat].includes(q) || a.desc.toLowerCase().includes(q) || semanticMatch(q, a.dir) || endpointMatch(q, a.dir)
-                   || nearTokens(q, a.name, 1) || nearTokens(q, a.tag, 1);   // R77：错别字容错（漏字/错字/换位仍命中）
+                   || CAT_LABEL[a.cat].includes(q) || a.desc.toLowerCase().includes(q)                    || semanticMatch(q, a.dir) || endpointMatch(q, a.dir)
+                   || nearTokens(q, a.name, 1) || nearTokens(q, a.tag, 1)   // R77：错别字容错（漏字/错字/换位仍命中）
+                   || pinyinHit(q, a.name) || pinyinHit(q, a.tag);           // R78：拼音首字母（yl→医疗 / qh→期货）
     if(!(matchCat && matchQ)) return;
     shown++;
     const el = document.createElement("div");
@@ -1044,11 +1045,28 @@ function dataStatText(backendUp, n){
     : { n: 0, text: "⚠ " + n + " 个应用待连后端（当前用本地样本）" };
 }
 
-/* R69：把 dataStatText 结论渲染到 hero chip（数字取 dataStatText 单一来源，标签为呈现层）。 */
+/* R79: 解析 /api/data_status 为可读覆盖指标（纯函数，已单测 Round 21）。
+ * 真实端点注入的可观测化：把"所有 App 已接真实端点"从声明变成可量化的「在线 N/总数」。 */
+function parseDataStatus(j){
+  j = j || {};
+  var items = Array.isArray(j.items) ? j.items : [];
+  var total = (j.count != null) ? j.count : items.length;
+  var withData = (j.with_data != null) ? j.with_data
+    : items.filter(function(it){ return it && (it.ok || it.with_data); }).length;
+  return { total: total, withData: withData, stale: j.stale_count || 0, ok: j.ok != null ? !!j.ok : total > 0 };
+}
+
+/* R69/R79：把 dataStatText 结论渲染到 hero chip；后端连通且已取到 data_status 时，追加实时数据源覆盖。 */
 function renderDataStat(){
   const nEl = document.getElementById("dataStatN");
   const lEl = document.getElementById("dataStatLbl");
   if(!nEl || !lEl) return;
+  const st = dataStatText(backendUp, APPS.length);
+  let txt = st.text;
+  if(backendUp && DATA_STATUS){
+    const cov = parseDataStatus(DATA_STATUS);
+    if(cov.total > 0) txt += " · 实时数据源 " + cov.withData + "/" + cov.total + " 在线";
+  }
   const s = dataStatText(backendUp, NEEDS_BACKEND.length);
   nEl.textContent = s.n;
   nEl.className = backendUp ? "live" : "off";
@@ -1346,6 +1364,33 @@ renderSort();
 render();
 /* ============ R62 全局命令面板 (Ctrl/Cmd+K) ============ */
 var paletteOpen = false, paletteSel = 0, paletteItems = [];
+/* R78: 拼音首字母搜索（搜索算法深化②）
+ * PINYIN_RAW 由 pypinyin 从本大厅 App 词表（name/tag/desc 汉字）预生成，运行时解析为 char→首字母，
+ * 使 "yl"→医疗、"qh"→期货、"etf" 仍是 etf；零运行时依赖、零网络。 */
+const PINYIN_RAW = "一:y万:w三:s上:s下:x不:b与:y专:z业:y东:d个:g中:z临:l主:z之:z习:x书:s乱:l了:l事:s亏:k亡:w交:j产:c享:x亮:l人:r今:j从:c仓:c代:d仪:y件:j价:j任:r仿:f企:q优:y传:c估:g伴:b似:s位:w体:t余:y例:l保:b信:x倒:d值:z偏:p健:j先:x入:r全:q共:g关:g兴:x具:j典:d养:y内:n准:z减:j出:c分:f切:q划:h列:l则:z判:p利:l到:d刷:s刻:k前:q剔:t力:l办:b加:j务:w动:d助:z势:s化:h协:x单:d占:z卡:k历:l原:y双:s发:f取:q叠:d口:k可:k台:t史:s号:h各:g合:h同:t名:m后:h含:h听:t告:g周:z命:m品:p哪:n喂:w器:q回:h团:t国:g图:t在:z地:d场:c坊:f块:k型:x城:c基:j塑:s复:f多:d大:d天:t头:t好:h妈:m始:s婪:l子:z存:c完:w宏:h实:s宠:c家:j容:r密:m富:f察:c对:d导:d射:s小:x尔:e局:j展:z工:g差:c已:y市:s师:s常:c幅:f年:n并:b序:x库:k度:d康:k建:j异:y式:s弟:d弱:r弹:d强:q当:d录:l形:x往:w待:d微:w心:x念:n态:t性:x总:z恐:k情:q惧:j惯:g成:c或:h战:z截:j手:s打:d扫:s批:p技:j投:t报:b披:p拟:n持:c指:z按:a振:z捉:z捕:b换:h据:j排:p探:t接:j控:k描:m提:t搜:s摘:z支:z收:s效:x数:s整:z文:w断:d新:x方:f旋:x日:r旧:j时:s易:y映:y显:x景:j智:z更:g最:z月:y望:w期:q未:w本:b术:s权:q材:c条:t板:b构:g析:x果:g查:c柱:z标:b样:y格:g桌:z检:j概:g模:m横:h橙:c止:z正:z步:b死:s每:m比:b油:y法:f注:z洞:d活:h测:c浏:l浮:f海:h消:x涨:z添:t清:q温:w源:y点:d热:r然:r熊:x片:p版:b牌:p牛:n牧:m物:w状:z狐:h狸:l率:l玩:w球:q理:l生:s用:y申:s略:l番:f的:d皮:p益:y监:j盒:h盖:g盘:p目:m相:x看:k真:z眼:y着:z知:z短:d码:m研:y破:p示:s票:p离:l种:z积:j程:c空:k突:t窗:c童:t端:d等:d答:d策:c筛:s签:q算:s管:g类:l精:j索:s累:l红:h级:j纪:j纵:z线:x练:l组:z经:j结:j给:g统:t绩:j绪:x续:x维:w绿:l缓:h编:b网:w置:z羊:y美:m老:l者:z耍:s联:l股:g能:n自:z舆:y色:s茄:j获:h菜:c藏:c虚:x行:x表:b衰:s要:y覆:f观:g规:g视:s览:l角:j解:j触:c警:j计:j训:x记:j讲:j论:l设:s访:f评:p诊:z词:c试:s话:h询:x语:y误:w读:d谁:s谱:p谷:g豆:d负:f财:c账:z货:h质:z贪:t贴:t费:f资:z走:z起:q趣:q跌:d跟:g跨:k踪:z身:s转:z轮:l轴:z辑:j输:s过:g运:y近:j还:h进:j远:y连:l退:t选:x逊:x透:t速:s造:z部:b配:p醒:x里:l重:z量:l金:j钟:z钩:g钻:z链:l错:c键:j镜:j长:z问:w间:j闻:w阈:y队:d阶:j陈:c除:c险:x陪:p随:s集:j雷:l露:l面:m页:y项:x预:y题:t风:f食:s饱:b骤:z高:g魔:m鲜:x鸭:y鹅:e黑:h龄:l";
+var PINYIN_MAP = (function(){
+  var m = {}, re = /([\u4e00-\u9fff]):([a-z])/g, mt;
+  while((mt = re.exec(PINYIN_RAW))) m[mt[1]] = mt[2];
+  return m;
+})();
+function pinyinKey(text){
+  if(!text) return "";
+  text = String(text);
+  var s = "";
+  for(var i=0;i<text.length;i++){
+    var ch = text.charAt(i);
+    s += (PINYIN_MAP[ch] != null) ? PINYIN_MAP[ch] : ch.toLowerCase();
+  }
+  return s;
+}
+function pinyinHit(q, text){
+  if(!q) return false;
+  q = String(q).toLowerCase(); text = String(text);
+  var pk = pinyinKey(text);
+  if(pk.indexOf(q) >= 0) return true;
+  return nearTokens(q, pk, 1) > 0;   // 拼音首字母也容错（yl↔yj）
+}
+
 function fuzzyScore(q, text){
   if(!q) return 1;
   q = String(q).toLowerCase(); text = (text==null?"":String(text)).toLowerCase();
@@ -1450,6 +1495,7 @@ function paletteFilter(q, list){
       if(endpointMatch(q, a.dir)) s += 35;    // R73：按后端 API 路径反查消费该端点的 App
       var near = nearTokens(q, a.name, 1) + nearTokens(q, a.tag, 1)*0.6;   // R77：错别字容错软提权
       if(near > 0) s += near * 8;
+      if(pinyinHit(q, a.name) || pinyinHit(q, a.tag)) s += 22;   // R78：拼音首字母命中（yl→医疗 / qh→期货 / etf 仍是 etf）
       if(s > 0){ s += recencyBoost(a.dir, rec, favSet);   // R77：最近/收藏对已命中结果重排
         out.push({type:"app", dir:a.dir, ico:a.ico, nm:a.name, ds:a.tag, need:needsBackend(a.dir), score:s, run:function(){ openApp(a.dir); }}); }
     });

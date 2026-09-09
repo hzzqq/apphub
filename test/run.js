@@ -140,6 +140,13 @@ const mR77c = html.match(/function recencyBoost\(dir, rec, fav\)\{[\s\S]*?\n\}/)
 if (!mR77a || !mR77b || !mR77c) throw new Error("index.html 中未找到 levenshtein/nearTokens/recencyBoost");
 const R77 = vm.runInContext(mR77a[0] + "\n" + mR77b[0] + "\n" + mR77c[0] + "\n;({levenshtein:levenshtein, nearTokens:nearTokens, recencyBoost:recencyBoost})", sandbox);
 const levenshtein = R77.levenshtein, nearTokens = R77.nearTokens, recencyBoost = R77.recencyBoost;
+const mR78a = html.match(/const PINYIN_RAW = "([^"]*)";/);
+const mR78b = html.match(/var PINYIN_MAP = \(function\(\)\{[\s\S]*?\}\)\(\);/);
+const mR78c = html.match(/function pinyinKey\(text\)\{[\s\S]*?\n\}/);
+const mR78d = html.match(/function pinyinHit\(q, text\)\{[\s\S]*?\n\}/);
+if (!mR78a || !mR78b || !mR78c || !mR78d) throw new Error("index.html 中未找到 PINYIN_RAW/PINYIN_MAP/pinyinKey/pinyinHit");
+const R78 = vm.runInContext(mR78a[0] + "\n" + mR78b[0] + "\n" + mR78c[0] + "\n" + mR78d[0] + "\n;({pinyinKey:pinyinKey, pinyinHit:pinyinHit})", sandbox);
+const pinyinKey = R78.pinyinKey, pinyinHit = R78.pinyinHit;
 /* R75 测试桩：注入最近/收藏数据，使空查询个性化默认列表可确定性验证 */
 sandbox.getRecent = function(){ return ["etf-picker","futures-board"]; };
 sandbox.getFav = function(){ return ["futures-inventory"]; };
@@ -461,6 +468,37 @@ ok("recencyBoost 最近打开加分", recencyBoost("a",["a","b"],["c"]) > 0);
 ok("recencyBoost 收藏加分", recencyBoost("a",["b"],["a"]) > 0);
 ok("recencyBoost 越近加权越高", recencyBoost("a",["a","b"],[]) > recencyBoost("b",["a","b"],[]));
 ok("recencyBoost 无关项返回0", recencyBoost("x",["b"],["c"]) === 0);
+
+/* ============================================================
+ *  Round 20: 拼音首字母搜索 pinyinKey / pinyinHit（R78，纯函数）
+ *  注：PINYIN_RAW/PINYIN_MAP/pinyinKey/pinyinHit 已在早期注入块编译进 sandbox（供 paletteFilter/grid 调用）。
+ * ============================================================ */
+console.log("\n[Round 20] 拼音首字母搜索 (R78)");
+ok("pinyinKey('期货') === 'qh'", pinyinKey("期货") === "qh");
+ok("pinyinKey('期货ETF') === 'qhetf'", pinyinKey("期货ETF") === "qhetf");
+ok("pinyinKey('ETF-123') === 'etf-123'（英文/数字原样）", pinyinKey("ETF-123") === "etf-123");
+ok("pinyinHit('qh','期货行情') 命中（拼音→中文）", pinyinHit("qh","期货行情") === true);
+ok("pinyinHit('gp','股票') 命中（词表内 股票→gp）", pinyinHit("gp","股票") === true);
+ok("pinyinHit('etf','ETF') 命中（英文原样）", pinyinHit("etf","ETF") === true);
+ok("pinyinHit('xyz','期货') 不误命中", pinyinHit("xyz","期货") === false);
+ok("pinyinHit 拼音首字母也容错('qj'→'qh')", pinyinHit("qj","期货行情") === true);
+
+/* ============================================================
+ *  Round 21: 实时端点覆盖解析 parseDataStatus（R79，纯函数）
+ * ============================================================ */
+const mR79 = html.match(/function parseDataStatus\(j\)\{[\s\S]*?\n\}/);
+if (!mR79) throw new Error("index.html 中未找到 parseDataStatus");
+const parseDataStatus = vm.runInContext(mR79[0] + "\n;parseDataStatus", sandbox);
+
+console.log("\n[Round 21] 实时端点覆盖解析 parseDataStatus (R79)");
+ok("全量在线解析", (() => { var v = parseDataStatus({count:36, with_data:36, stale_count:0, ok:true});
+  return v.total===36 && v.withData===36 && v.stale===0 && v.ok===true; })());
+ok("部分在线解析", (() => { var v = parseDataStatus({count:36, with_data:30, stale_count:2, ok:false});
+  return v.total===36 && v.withData===30 && v.stale===2 && v.ok===false; })());
+ok("空对象安全默认", (() => { var v = parseDataStatus({});
+  return v.total===0 && v.withData===0 && v.stale===0 && v.ok===false; })());
+ok("无 count 时回退 items 长度", (() => { var v = parseDataStatus({items:[{ok:true},{ok:false}]});
+  return v.total===2 && v.withData===1; })());
 
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
