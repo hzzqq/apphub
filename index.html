@@ -670,7 +670,7 @@ function render(){
     if(a.cat==="fin") cFin++; else if(a.cat==="life") cLife++; else cTool++;
     const matchCat = (curCat==="all") || (curCat==="fav" ? favSet.has(a.dir) : a.cat===curCat);
     const matchQ = !q || a.name.toLowerCase().includes(q) || a.tag.toLowerCase().includes(q)
-                   || CAT_LABEL[a.cat].includes(q) || a.desc.toLowerCase().includes(q) || semanticMatch(q, a.dir);
+                   || CAT_LABEL[a.cat].includes(q) || a.desc.toLowerCase().includes(q) || semanticMatch(q, a.dir) || endpointMatch(q, a.dir);
     if(!(matchCat && matchQ)) return;
     shown++;
     const el = document.createElement("div");
@@ -915,6 +915,19 @@ function semanticMatch(q, dir){
   const need = needsBackend(dir);
   for(let i=0;i<bq.length;i++){ if(q.indexOf(bq[i])>=0 && need) return true; }
   for(let i=0;i<lq.length;i++){ if(q.indexOf(lq[i])>=0 && !need) return true; }
+  return false;
+}
+/* R73：按后端 API 路径反查消费它的微应用（真实数据透明化 × 搜索 新维度）。
+   搜 /api/etf 或「相关性」即可定位 etf-picker / corr-explorer；端点或其说明命中即算。 */
+function endpointMatch(q, dir){
+  if(!q) return false;
+  q = String(q).toLowerCase();
+  const eps = APP_ENDPOINTS[dir]; if(!eps || !eps.length) return false;
+  for(let i=0;i<eps.length;i++){
+    if(eps[i].toLowerCase().indexOf(q) >= 0) return true;
+    const d = (EP_DESC[eps[i]] || "").toLowerCase();
+    if(d.indexOf(q) >= 0) return true;
+  }
   return false;
 }
 
@@ -1286,6 +1299,7 @@ function paletteFilter(q, list){
     if(a.hidden) return;
     var s = fuzzyScore(q, a.name) + fuzzyScore(q, a.tag)*0.6 + fuzzyScore(q, a.desc)*0.3 + fuzzyScore(q, CAT_LABEL[a.cat]||"")*0.5;
     if(semanticMatch(q, a.dir)) s += 40;   // R71：语义关键词（真实数据/本地等）提升相关 App 排名
+    if(endpointMatch(q, a.dir)) s += 35;    // R73：按后端 API 路径反查消费该端点的 App
     if(s > 0) out.push({type:"app", dir:a.dir, ico:a.ico, nm:a.name, ds:a.tag, need:needsBackend(a.dir), score:s, run:function(){ openApp(a.dir); }});
   });
   acts.forEach(function(ac){
@@ -1305,7 +1319,7 @@ function renderPalette(){
   if(!paletteItems.length){ box.innerHTML = '<div class="empty">无匹配结果</div>'; return; }
   box.innerHTML = paletteItems.map(function(it, i){
     var extra = "";
-    if(it.type==="app"){ var m = paletteAppNeed(it.dir, backendUp); extra = ' <span class="pneed '+(m.need?"back":"local")+'">'+m.text+'</span>'; }
+    if(it.type==="app"){ var m = paletteAppNeed(it.dir, backendUp); extra = ' <span class="pneed '+(m.need?"back":"local")+'" title="点击查看该应用依赖的后端接口" onmousedown="event.stopPropagation();event.preventDefault();showAppEndpoints(event,\''+it.dir+'\')">'+m.text+'</span>'; }
     return '<div class="it'+(i===paletteSel?" sel":"")+'" data-i="'+i+'" onmousedown="paletteChoose('+i+')">'+
       '<div class="ico">'+it.ico+'</div><div class="nm">'+it.nm+'</div><div class="ds">'+it.ds+extra+'</div></div>';
   }).join("");

@@ -124,10 +124,14 @@ ok("未连后端 -> 本地样本徽标", napi.backendBadgeText(false) === "⚠ �
 const mR70 = html.match(/function paletteAppNeed\(dir, backendUp\)\{[\s\S]*?\n\}/);
 const mR71 = html.match(/function semanticMatch\(q, dir\)\{[\s\S]*?\n\}/);
 const mR72 = html.match(/function dataStatTarget\(\)\{[\s\S]*?\n\}/);
-if (!mR70 || !mR71 || !mR72) throw new Error("index.html 中未找到 paletteAppNeed/semanticMatch/dataStatTarget");
+const mEP  = html.match(/const APP_ENDPOINTS = \{[\s\S]*?\};/);
+const mEPD = html.match(/const EP_DESC = \{[\s\S]*?\n\};/);
+const mR73 = html.match(/function endpointMatch\(q, dir\)\{[\s\S]*?\n\}/);
+if (!mR70 || !mR71 || !mR72 || !mEP || !mEPD || !mR73) throw new Error("index.html 中未找到 paletteAppNeed/semanticMatch/dataStatTarget/endpointMatch/APP_ENDPOINTS/EP_DESC");
 const paletteAppNeed = vm.runInContext(mR70[0] + "\n;paletteAppNeed", sandbox);
 const semanticMatch  = vm.runInContext(mR71[0] + "\n;semanticMatch", sandbox);
 const dataStatTarget = vm.runInContext(mR72[0] + "\n;dataStatTarget", sandbox);
+const endpointMatch  = vm.runInContext(mEPD[0] + "\n" + mR73[0] + "\n;endpointMatch", sandbox);
 
 console.log("\n[Round 3b] 端点映射 APP_ENDPOINTS 覆盖性（R52 弹窗数据源）");
 ok("存在 APP_ENDPOINTS 端点映射对象", napi.APP_ENDPOINTS && typeof napi.APP_ENDPOINTS === "object");
@@ -381,6 +385,19 @@ ok("无关词不误命中", semanticMatch("宠物", "futures-board") === false);
  * ============================================================ */
 console.log("\n[Round 15] hero chip 直达 dataStatTarget (R72)");
 ok("dataStatTarget 指向 data-status-dash", dataStatTarget() === "data-status-dash");
+
+/* ============================================================
+ *  Round 16: 端点反查搜索 endpointMatch（R73，纯函数）
+ * ============================================================ */
+console.log("\n[Round 16] 端点反查搜索 endpointMatch (R73)");
+ok("'/api/etf' 命中 etf-picker", endpointMatch("/api/etf", "etf-picker") === true);
+ok("'etf' 命中 etf-picker", endpointMatch("etf", "etf-picker") === true);
+ok("'corr' 命中 corr-explorer（端点路径）", endpointMatch("corr", "corr-explorer") === true);
+ok("'相关性' 命中 corr-explorer（端点说明）", endpointMatch("相关性", "corr-explorer") === true);
+ok("'refresh' 命中 inv-refresh", endpointMatch("refresh", "inv-refresh") === true);
+ok("'etf' 不命中纯前端 todo-list", endpointMatch("etf", "todo-list") === false);
+ok("后端 App 但无关端点不误命中", endpointMatch("zzz-nope", "etf-picker") === false);
+ok("空查询不误命中", endpointMatch("", "etf-picker") === false);
 
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
