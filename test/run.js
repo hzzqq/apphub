@@ -16,7 +16,7 @@ if (!m) throw new Error("index.html 中未找到 validateBackup");
 const m2 = html.match(/function formatDataStatus\(j\)\{[\s\S]*?\n\}/);
 if (!m2) throw new Error("index.html 中未找到 formatDataStatus");
 
-const sandbox = { console };
+const sandbox = { console, URLSearchParams };
 vm.createContext(sandbox);
 const validateBackup = vm.runInContext(m[0] + "\n;validateBackup", sandbox);
 const formatDataStatus = vm.runInContext(m2[0] + "\n;formatDataStatus", sandbox);
@@ -412,6 +412,31 @@ console.log("\n[Round 17] 空查询个性化默认 defaultAppDirs (R75)");
 ok("最近置前、收藏去重追加", JSON.stringify(defaultAppDirs(["a","b"],["b","c"])) === JSON.stringify(["a","b","c"]));
 ok("空输入返回空", defaultAppDirs([],[]).length === 0);
 ok("容错非数组输入", defaultAppDirs(null, undefined).length === 0);
+
+/* ============================================================
+ *  Round 18: 可分享筛选视图深链 parseHashView / buildViewHash（R76，纯函数）
+ * ============================================================ */
+const mVars = html.match(/var VIEW_CATS = \[[^\]]*\];\n\s*var VIEW_SORTS = \[[^\]]*\];\n\s*var VIEW_VIEWS = \[[^\]]*\];/);
+const mR76a = html.match(/function parseHashView\(hash\)\{[\s\S]*?\n\}/);
+const mR76b = html.match(/function buildViewHash\(st\)\{[\s\S]*?\n\}/);
+if (!mVars || !mR76a || !mR76b) throw new Error("index.html 中未找到 parseHashView/buildViewHash/VIEW_* 常量");
+const R76 = vm.runInContext(mVars[0] + "\n" + mR76a[0] + "\n" + mR76b[0] + "\n;({parseHashView:parseHashView, buildViewHash:buildViewHash})", sandbox);
+const parseHashView = R76.parseHashView, buildViewHash = R76.buildViewHash;
+
+console.log("\n[Round 18] 可分享筛选视图深链 (R76)");
+ok("全参数视图链接解析完整", (() => { var v = parseHashView("#view?cat=fin&q=etf&sort=count&view=list"); return v && v.cat==="fin" && v.q==="etf" && v.sort==="count" && v.view==="list"; })());
+ok("部分参数视图链接解析", JSON.stringify(parseHashView("#view?cat=fin")) === JSON.stringify({cat:"fin"}));
+ok("识别斜杠前缀 #/view", JSON.stringify(parseHashView("#/view?cat=tool&sort=name")) === JSON.stringify({cat:"tool",sort:"name"}));
+ok("非法 cat 返回 null", parseHashView("#view?cat=bogus") === null);
+ok("非法 sort 且无有效参数返回 null", parseHashView("#view?sort=bogus") === null);
+ok("非法 view 仅保留合法部分", JSON.stringify(parseHashView("#view?cat=fin&view=bogus")) === JSON.stringify({cat:"fin"}));
+ok("纯 'view' 无参数返回 null", parseHashView("#view") === null);
+ok("'viewxyz' 非合法视图返回 null", parseHashView("#viewxyz") === null);
+ok("与 R64 #dir 深链不冲突（返回 null）", parseHashView("#futures-inventory") === null);
+ok("空 hash 返回 null", parseHashView("") === null);
+ok("中文 q 正常解析", parseHashView("#view?q=你好").q === "你好");
+ok("build→parse 往返一致", (() => { var b = parseHashView(buildViewHash({cat:"fin",q:"etf",sort:"count",view:"list"})); return b && b.cat==="fin" && b.q==="etf" && b.sort==="count" && b.view==="list"; })());
+ok("buildViewHash 编码特殊字符", buildViewHash({q:"a b&c"}).indexOf("q=") >= 0 && buildViewHash({q:"a b&c"}).indexOf("&") === buildViewHash({q:"a b&c"}).lastIndexOf("&"));
 
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);

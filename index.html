@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="zh-CN" data-page-node-id="3BldByr2m2hJgv2jzFpwiB">
+<head data-page-node-id="vFu2iXoSPHGuwSGfStuAS5">
+<meta charset="UTF-8" data-page-node-id="sJfp8Rl6JMLxi5caX5oR52">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="myE3AlFeuNUBHDB8VBSc8f">
 <title>微应用大厅 · App Hub</title>
 <style>
   /* ============================================================
@@ -124,6 +124,9 @@
     border-radius:20px;padding:7px 14px;font-size:12.5px;cursor:pointer;transition:all .2s}
   .sortbar button:hover{border-color:var(--accent);color:var(--txt)}
   .sortbar button.on{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;border-color:transparent}
+  .sortbar .sharebtn{margin-left:auto;background:transparent;border:1px dashed var(--line);color:var(--sub);
+    border-radius:20px;padding:7px 14px;font-size:12.5px;cursor:pointer;transition:all .2s}
+  .sortbar .sharebtn:hover{border-color:var(--accent);color:var(--txt)}
 
   /* ---------- 最近打开 ---------- */
   .recent h3{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--sub);
@@ -252,108 +255,109 @@
   }
 </style>
 </head>
-<body>
-<div class="wrap">
+<body data-page-node-id="uqfr0fiX9cAdY6zVRpUEAp">
+<div class="wrap" data-page-node-id="vOFCFaUHDLqzBdK52bkDk0">
 
   <!-- ===== Hero：品牌 + 统计 ===== -->
-  <div class="bento">
-    <section class="tile hero s4">
-      <h1>🛠️ 微应用大厅 App Hub</h1>
-      <p>零依赖单文件小工具集合 · 双击即开 · 数据本地存储</p>
-      <div class="stat">
-        <div class="b"><b id="cnt">0</b>个应用</div>
-        <div class="b"><b id="cntFin">0</b>金融</div>
-        <div class="b"><b id="cntLife">0</b>生活</div>
-        <div class="b"><b id="cntTool">0</b>效率</div>
-        <div class="b clickable" id="dataStatChip" title="点击查看数据状态大屏 data-status-dash" onclick="openApp(event, dataStatTarget())"><b id="dataStatN" class="off">0</b><span id="dataStatLbl">个应用待连后端</span></div>
+  <div class="bento" data-page-node-id="gTuM8GrCsF4dJuCARVAWls">
+    <section class="tile hero s4" data-page-node-id="qHMh92LlDcYkP1cU0UbrPv">
+      <h1 data-page-node-id="ovuUdrWnovtjFYZkyei7bO">🛠️ 微应用大厅 App Hub</h1>
+      <p data-page-node-id="DgzsN7vp5xN2EsfT79ejCm">零依赖单文件小工具集合 · 双击即开 · 数据本地存储</p>
+      <div class="stat" data-page-node-id="0MW2P7vwLHcgv4PSt00kNg">
+        <div class="b" data-page-node-id="4CWuqOCUfSwmf5vqa5sfCl"><b id="cnt" data-page-node-id="amrugcChioqbdCq5aU1jOc">0</b>个应用</div>
+        <div class="b" data-page-node-id="B0NMuHojp8l5qqO4WzNqoB"><b id="cntFin" data-page-node-id="YHrX71AiELcNb7BMonnXyQ">0</b>金融</div>
+        <div class="b" data-page-node-id="pBXCyUWFxrgyeN4taOOEXg"><b id="cntLife" data-page-node-id="oUtSiDJR4ekDGNDoMpgqgv">0</b>生活</div>
+        <div class="b" data-page-node-id="dKUuFssSH0Emd0ZlndHqAT"><b id="cntTool" data-page-node-id="ZCfOy6ogLGN5gMwWCzDmlS">0</b>效率</div>
+        <div class="b clickable" id="dataStatChip" title="点击查看数据状态大屏 data-status-dash" onclick="openApp(event, dataStatTarget())" data-page-node-id="GPhAcL2oFMWKk8gbkNLt31"><b id="dataStatN" class="off" data-page-node-id="TDpzq2UkcWHXFHCgRFE5xx">0</b><span id="dataStatLbl" data-page-node-id="ascFpe5iNTD6iZT9ee1OX7">个应用待连后端</span></div>
       </div>
     </section>
   </div>
 
   <!-- ===== 搜索 / 快捷操作 / 备份 ===== -->
-  <div class="bento">
-    <section class="tile s2">
-      <div class="tilelabel">🔍 搜索</div>
-      <div class="searchbar">
-        <input id="search" placeholder="应用名称 / 标签 / 分类，如 期货 / 预警 / 宠物 / ETF · 按 / 聚焦" autocomplete="off" aria-label="搜索应用">
+  <div class="bento" data-page-node-id="A9IGf4zDLFavTaHVX54IxS">
+    <section class="tile s2" data-page-node-id="voqK40PEjaVOjsIhlJKNto">
+      <div class="tilelabel" data-page-node-id="wxc5TqMAhslEE3Wasqlf7S">🔍 搜索</div>
+      <div class="searchbar" data-page-node-id="IuDrrxAlRBWgHasVTRNFkN">
+        <input id="search" placeholder="应用名称 / 标签 / 分类，如 期货 / 预警 / 宠物 / ETF · 按 / 聚焦" autocomplete="off" aria-label="搜索应用" data-page-node-id="gGuZZj69qcWWQhWu3khV3H">
       </div>
-      <div class="hint">支持名称 / 标签 / 分类 / 描述模糊匹配，按 <code>Esc</code> 清空</div>
+      <div class="hint" data-page-node-id="NtgO31LBA4Ql6Rn9HsfR1a">支持名称 / 标签 / 分类 / 描述模糊匹配，按 <code data-page-node-id="5PzBTro8HovOsYo1EqrIW8">Esc</code> 清空</div>
     </section>
 
-    <section class="tile s1">
-      <div class="tilelabel">⚡ 快捷操作</div>
-      <div class="btnrow">
-        <button class="randbtn" id="randBtn" title="随机打开一个应用">🎲 随便逛逛</button>
-        <button class="randbtn" id="viewBtn" title="切换网格 / 列表视图">▦ 网格</button>
-        <button class="randbtn" id="paletteBtn" title="命令面板 (Ctrl/Cmd+K)">⌘ 命令面板</button>
-        <button class="randbtn" id="helpBtn" title="键盘快捷键帮助 (?)">？ 快捷键</button>
+    <section class="tile s1" data-page-node-id="2eZ1Diw9NyA5iEko9LtEPO">
+      <div class="tilelabel" data-page-node-id="hnrn8AYKBr6MuG42RNlkmP">⚡ 快捷操作</div>
+      <div class="btnrow" data-page-node-id="jRQ8CgkOfUy5WbGmoesmcc">
+        <button class="randbtn" id="randBtn" title="随机打开一个应用" data-page-node-id="ctjza64RbJjlTgwzMVVrRQ">🎲 随便逛逛</button>
+        <button class="randbtn" id="viewBtn" title="切换网格 / 列表视图" data-page-node-id="4zmUgKFxZdaZspVSeILgvp">▦ 网格</button>
+        <button class="randbtn" id="paletteBtn" title="命令面板 (Ctrl/Cmd+K)" data-page-node-id="Yan1zZ9fRzps5RILYMCsLl">⌘ 命令面板</button>
+        <button class="randbtn" id="helpBtn" title="键盘快捷键帮助 (?)" data-page-node-id="pistvl3VZCBlU8Spj1UmR2">？ 快捷键</button>
       </div>
     </section>
 
-    <section class="tile s1">
-      <div class="tilelabel">💾 数据备份</div>
-      <div class="btnrow">
-        <button class="randbtn" id="bkExport" title="把本机所有 App 的数据导出为一个 JSON 文件">导出备份</button>
-        <button class="randbtn" id="bkImportBtn" title="从之前导出的 JSON 备份恢复数据">导入恢复</button>
-        <input type="file" id="bkFile" accept="application/json,.json" style="display:none">
+    <section class="tile s1" data-page-node-id="KDVhnHk1tb9v3U2Vt3NKGs">
+      <div class="tilelabel" data-page-node-id="FZQHsu0Za7dPZ999XtTN2h">💾 数据备份</div>
+      <div class="btnrow" data-page-node-id="Btd6okX5IrkEHWWZg5kIBu">
+        <button class="randbtn" id="bkExport" title="把本机所有 App 的数据导出为一个 JSON 文件" data-page-node-id="QAIDxcRctbC5TEvE8qNXqP">导出备份</button>
+        <button class="randbtn" id="bkImportBtn" title="从之前导出的 JSON 备份恢复数据" data-page-node-id="v7L6mvp6Jzo4ZCQlJmpcVO">导入恢复</button>
+        <input type="file" id="bkFile" accept="application/json,.json" style="display:none" data-page-node-id="yTaLXjAfZEvFxJ57KqM3ru">
       </div>
-      <div class="apistate" id="bkState"></div>
-      <div class="hint">数据只存在本设备浏览器，换设备 / 清缓存前请先导出</div>
+      <div class="apistate" id="bkState" data-page-node-id="GBiNllJtDtGGNfBvo6kk2z"></div>
+      <div class="hint" data-page-node-id="QfWjceBUDyXbS2BbQwujxE">数据只存在本设备浏览器，换设备 / 清缓存前请先导出</div>
     </section>
   </div>
 
   <!-- ===== 收藏快捷区（R68） ===== -->
-  <div class="bento">
-    <section class="tile s4" id="favTile">
-      <div class="tilelabel">⭐ 收藏快捷区</div>
-      <div class="favbar" id="favbar"></div>
+  <div class="bento" data-page-node-id="pzDisFIoz926vpwEVBXVGZ">
+    <section class="tile s4" id="favTile" data-page-node-id="jAHErbQPyd14gLkTHV1QlB">
+      <div class="tilelabel" data-page-node-id="iiQrDN4TOJVRGpHy5y2PSp">⭐ 收藏快捷区</div>
+      <div class="favbar" id="favbar" data-page-node-id="PU57EuZIERdZn7S3LdklEH"></div>
     </section>
   </div>
 
   <!-- ===== 后端接口 ===== -->
-  <div class="bento">
-    <section class="tile s4" id="apiPanel">
-      <div class="tilelabel">🔌 真实数据接口（统一后端）</div>
-      <div class="apipanel">
-        <input id="apiInput" placeholder="http://127.0.0.1:8787（留空则各 App 用本地静态样本/离线演示）" aria-label="统一后端接口地址">
-        <button class="randbtn" id="apiSave">保存</button>
-        <span id="apiState" class="apistate"></span>
-        <span id="dataStat" class="apistate"></span>
+  <div class="bento" data-page-node-id="DG0Xj5h9ljGqFfHrYtuYhE">
+    <section class="tile s4" id="apiPanel" data-page-node-id="ppN6G7nkfRJf7DwcRmNVCx">
+      <div class="tilelabel" data-page-node-id="DM9i6PqgjkHTLl8xthDKRF">🔌 真实数据接口（统一后端）</div>
+      <div class="apipanel" data-page-node-id="kVcL2oGP8HUo9t2fRbnjPW">
+        <input id="apiInput" placeholder="http://127.0.0.1:8787（留空则各 App 用本地静态样本/离线演示）" aria-label="统一后端接口地址" data-page-node-id="B9nJAPmgr5iCDtXKX2zrA8">
+        <button class="randbtn" id="apiSave" data-page-node-id="ZiOftrAHSbSGPqcgILCEGm">保存</button>
+        <span id="apiState" class="apistate" data-page-node-id="7LK4PBgBJYf1KjOViKRehd"></span>
+        <span id="dataStat" class="apistate" data-page-node-id="pbKXjnUYzzGnGB3SH8CjH1"></span>
       </div>
-      <div class="apihint">所有行情/数据类 App 共用此地址；起后端：<code>cd backend &amp;&amp; python app.py</code></div>
+      <div class="apihint" data-page-node-id="4uxRowMgTnpvEY8tiIG8nu">所有行情/数据类 App 共用此地址；起后端：<code data-page-node-id="Yc95AjvIZuy9jZH7QlD0BP">cd backend &amp;&amp; python app.py</code></div>
     </section>
   </div>
 
   <!-- ===== 筛选 / 排序 ===== -->
-  <div class="bento">
-    <section class="tile s2">
-      <div class="tilelabel">🗂 分类筛选</div>
-      <div class="filters" id="filters"></div>
+  <div class="bento" data-page-node-id="EqPgbUHkF18amzbUHK4pkp">
+    <section class="tile s2" data-page-node-id="nRwxLCvVQD2TLfBXdjmexT">
+      <div class="tilelabel" data-page-node-id="pKiSaELdqtsVdNHHXh00PE">🗂 分类筛选</div>
+      <div class="filters" id="filters" data-page-node-id="xMlaE9m3stgXclzHOBp17p"></div>
     </section>
-    <section class="tile s2">
-      <div class="tilelabel">↕ 排序方式</div>
-      <div class="sortbar" id="sortbar">
-        <button data-sort="name" class="on">名称</button>
-        <button data-sort="recent">最近打开</button>
-        <button data-sort="cat">分类</button>
-        <button data-sort="count">常用</button>
+    <section class="tile s2" data-page-node-id="oQ9unLdCwCVhdKd3x7SKcr">
+      <div class="tilelabel" data-page-node-id="i7VCwxbNDcSb2faZ48fKB1">↕ 排序方式</div>
+      <div class="sortbar" id="sortbar" data-page-node-id="J85OeCLBtQT9XS5iDRO4Fj">
+        <button data-sort="name" class="on" data-page-node-id="dyQbjnmo3mBthJGZPTIQLs">名称</button>
+        <button data-sort="recent" data-page-node-id="41mMa57FpqkFL8gnOVC98V">最近打开</button>
+        <button data-sort="cat" data-page-node-id="U6ydVgvtvDLlghgUTOCyLM">分类</button>
+        <button data-sort="count" data-page-node-id="QAccgdIQVdbGZ1a0Ng0zWp">常用</button>
+        <button class="sharebtn" onclick="shareView(event)" data-page-node-id="r76share">🔗 分享此视图</button>
       </div>
     </section>
   </div>
 
   <!-- ===== 最近打开 ===== -->
-  <div class="bento">
-    <section class="tile s4 recent" id="recentWrap" style="display:none">
-      <h3>🕘 最近打开</h3>
-      <div class="chips" id="recentChips"></div>
+  <div class="bento" data-page-node-id="XOY2WfSxg4ertTt5MJPqjV">
+    <section class="tile s4 recent" id="recentWrap" style="display:none" data-page-node-id="MpHNsjGIBNkB09DmEghM9i">
+      <h3 data-page-node-id="o4wwZIumKfrdDGBchod4yI">🕘 最近打开</h3>
+      <div class="chips" id="recentChips" data-page-node-id="oFpaCfvyNrEMK8fEdPHbOK"></div>
     </section>
   </div>
 
   <!-- ===== 应用卡片网格（Bento） ===== -->
-  <div class="grid" id="grid"></div>
+  <div class="grid" id="grid" data-page-node-id="TnwoZqkpJdNQDE8z0tWLOw"></div>
 
-  <div class="ft">
-    新增 App 后，在 <code>APPS</code> 数组里加一行即可自动出现在大厅。所有应用均为单文件 HTML，数据存于浏览器 localStorage。
+  <div class="ft" data-page-node-id="KEfeXH80HHuCvfigpgIN6x">
+    新增 App 后，在 <code data-page-node-id="2ZSknjMuBoVPfRK4L32ZEu">APPS</code> 数组里加一行即可自动出现在大厅。所有应用均为单文件 HTML，数据存于浏览器 localStorage。
   </div>
 </div>
 
@@ -579,12 +583,73 @@ function revealApp(dir){
     selIdx = cards.indexOf(card); applySel();
   }
 }
-function applyHash(){ var d = parseHashDir(location.hash); if(d) revealApp(d); }
+function applyHash(){
+  var v = parseHashView(location.hash);
+  if(v){ applyViewState(v); return; }
+  var d = parseHashDir(location.hash); if(d) revealApp(d);
+}
 var ignoreHashOnce = false;
 window.addEventListener("hashchange", function(){
   if(ignoreHashOnce){ ignoreHashOnce = false; return; }
   applyHash();
 });
+
+/* R76: 可分享的「筛选/排序/搜索视图」深链（R64 单 App 深链的下一维度）。
+ * 链接形如  #view?cat=fin&q=etf&sort=count&view=list
+ * 与 R64 的 #dir 互不影响：parseHashDir 对 view 前缀返回 null，此处优先识别 view。
+ * 纯函数 parseHashView / buildViewHash 已单测（Round 18）。 */
+var VIEW_CATS = ["all","fin","life","tool","fav"];
+var VIEW_SORTS = ["name","recent","cat","count"];
+var VIEW_VIEWS = ["grid","list"];
+function parseHashView(hash){
+  if(!hash) return null;
+  var raw = String(hash).replace(/^#\/?/, "").trim();
+  if(raw.indexOf("view") !== 0) return null;       // 必须以 "view" 开头
+  var q = raw.slice(4);
+  if(q.charAt(0) === "?") q = q.slice(1);
+  else if(q.length) return null;                    // "viewXyz" 非合法视图链接
+  if(!q.length) return null;                        // 纯 "view" 无参数
+  var params;
+  try { params = new URLSearchParams(q); } catch(e){ return null; }
+  var st = {};
+  var cat = params.get("cat");   if(cat  && VIEW_CATS.indexOf(cat)  >= 0) st.cat  = cat;
+  var sort = params.get("sort"); if(sort && VIEW_SORTS.indexOf(sort) >= 0) st.sort = sort;
+  var view = params.get("view"); if(view && VIEW_VIEWS.indexOf(view) >= 0) st.view = view;
+  var qq = params.get("q");      if(qq) st.q = qq;
+  if(!st.cat && !st.q && !st.sort && !st.view) return null;   // 无有效参数
+  return st;
+}
+function buildViewHash(st){
+  var p = [];
+  if(st && st.cat  && VIEW_CATS.indexOf(st.cat)  >= 0) p.push("cat=" + encodeURIComponent(st.cat));
+  if(st && st.q) p.push("q=" + encodeURIComponent(st.q));
+  if(st && st.sort && VIEW_SORTS.indexOf(st.sort) >= 0) p.push("sort=" + encodeURIComponent(st.sort));
+  if(st && st.view && VIEW_VIEWS.indexOf(st.view) >= 0) p.push("view=" + encodeURIComponent(st.view));
+  return "#view?" + p.join("&");
+}
+function applyViewState(st){
+  if(!st) return;
+  if(st.cat)  curCat  = st.cat;
+  if(st.sort) curSort = st.sort;
+  if(st.view) curView = st.view;
+  if(typeof st.q === "string"){ curQ = st.q; var s = document.getElementById("search"); if(s) s.value = st.q; }
+  render();
+}
+function shareView(e){
+  e.preventDefault();
+  var st = { cat: curCat, q: curQ, sort: curSort, view: curView };
+  var hash = buildViewHash(st);
+  var url = location.origin + location.pathname + hash;
+  function flash(txt){
+    var b = e.currentTarget; var old = b.textContent;
+    b.textContent = txt; setTimeout(function(){ b.textContent = old; }, 1400);
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(function(){ flash("✅ 已复制"); }, function(){ flash("⚠ 复制失败"); });
+  } else {
+    try{ location.hash = hash; flash("🔗 已更新链接"); }catch(err){ flash("⚠ 失败"); }
+  }
+}
 
 function copyPath(e, dir){
   const btn = e.currentTarget;
@@ -1418,38 +1483,38 @@ renderCrossLinks();   // R66: 渲染帮助↔命令面板交叉跳转入口
 </script>
 
   <!-- 端点详情弹窗（R52）：点击卡片「真实数据 / 本地运行」徽章，查看该 App 依赖的后端接口 -->
-  <div class="modal" id="epModal" role="dialog" aria-modal="true" aria-label="数据接口详情">
-    <div class="box">
-      <span class="x" onclick="closeEpModal()" title="关闭" aria-label="关闭">×</span>
-      <h3 id="epTitle">数据接口</h3>
-      <div class="epactions" id="epActions" style="display:none"></div>
-      <ul id="epList"></ul>
-      <p class="epnote" id="epNote"></p>
-      <div class="epsrc">数据源：统一后端 <code id="epBase">—</code>（见大厅「真实数据接口」配置）</div>
+  <div class="modal" id="epModal" role="dialog" aria-modal="true" aria-label="数据接口详情" data-page-node-id="KQARPh3XCwpn4qZ2yCqEst">
+    <div class="box" data-page-node-id="jBYuusEHeJ7vnxddM9vjz5">
+      <span class="x" onclick="closeEpModal()" title="关闭" aria-label="关闭" data-page-node-id="FThyIpLzEZLBbXUYqTDExe">×</span>
+      <h3 id="epTitle" data-page-node-id="Aeg7Uh3VmjwMcypFhPq6Hs">数据接口</h3>
+      <div class="epactions" id="epActions" style="display:none" data-page-node-id="7YsT480ZjPHzWQ3lISGxEF"></div>
+      <ul id="epList" data-page-node-id="u2bcKa8OYTFdnUYHR1DCIB"></ul>
+      <p class="epnote" id="epNote" data-page-node-id="FMb8MqCkLAYArmmIm50Zf4"></p>
+      <div class="epsrc" data-page-node-id="o7E7gPDz6wuw2g4YILdzW9">数据源：统一后端 <code id="epBase" data-page-node-id="IyH3G4WIjiNSef7WBz0RdW">—</code>（见大厅「真实数据接口」配置）</div>
     </div>
   </div>
 
   <!-- 命令面板 (R62)：Ctrl/Cmd+K 全局唤起，模糊搜索应用 + 快捷操作 -->
-  <div class="palette" id="palette" role="dialog" aria-modal="true" aria-label="命令面板">
-    <div class="box">
-      <div class="pin">
-        <span class="ico">⌘</span>
-        <input id="paletteInput" placeholder="搜索应用或执行快捷操作，如 期货 / ETF / 随机 / 清空最近 …" autocomplete="off" aria-label="命令面板搜索">
-        <kbd>Esc</kbd>
+  <div class="palette" id="palette" role="dialog" aria-modal="true" aria-label="命令面板" data-page-node-id="m35itees55npaKkqEyC0y4">
+    <div class="box" data-page-node-id="A63NnCxHGh8N6zRge6FGIc">
+      <div class="pin" data-page-node-id="JAfakX4BIYfEHBc74GnlHF">
+        <span class="ico" data-page-node-id="OyOOCTFG93S3L2RME7au4G">⌘</span>
+        <input id="paletteInput" placeholder="搜索应用或执行快捷操作，如 期货 / ETF / 随机 / 清空最近 …" autocomplete="off" aria-label="命令面板搜索" data-page-node-id="GN476ejDC6Shd7TXGZOh3e">
+        <kbd data-page-node-id="Gcj9TQTmCbJIgX6i2FZFsp">Esc</kbd>
       </div>
-      <div class="list" id="paletteList"></div>
-      <div class="pfoot" id="paletteFoot"></div>
+      <div class="list" id="paletteList" data-page-node-id="QPRizu9ki4A86fgfazHPLH"></div>
+      <div class="pfoot" id="paletteFoot" data-page-node-id="el5SD4Nj7ni5fM3J9XEGrX"></div>
     </div>
   </div>
 
   <!-- 键盘快捷键帮助弹窗（R63）：按 ? 打开，列出全部快捷键 -->
-  <div class="help" id="help" role="dialog" aria-modal="true" aria-label="键盘快捷键帮助">
-    <div class="box">
-      <span class="x" onclick="closeHelp()" title="关闭" aria-label="关闭">×</span>
-      <h3>⌨️ 键盘快捷键</h3>
-      <div id="helpList"></div>
-      <div class="foot"><span class="link" id="helpFoot"></span></div>
-      <div class="foot">按 <kbd>?</kbd> 或 <kbd>Esc</kbd> 关闭</div>
+  <div class="help" id="help" role="dialog" aria-modal="true" aria-label="键盘快捷键帮助" data-page-node-id="LeiAzZB97BnHpqEDRXXIhX">
+    <div class="box" data-page-node-id="XaHLPonFob0IperTrB4Ead">
+      <span class="x" onclick="closeHelp()" title="关闭" aria-label="关闭" data-page-node-id="8K2ezRmCHtC5WqGsKIgHDU">×</span>
+      <h3 data-page-node-id="nVu1PvKhPcpcGVFs9YJop7">⌨️ 键盘快捷键</h3>
+      <div id="helpList" data-page-node-id="AHHxJ1IvRNGFhjjJVuwLT0"></div>
+      <div class="foot" data-page-node-id="EoEXsoFiZWzXWuxQiFVYC2"><span class="link" id="helpFoot" data-page-node-id="Fvt1QJNdgN0sXb8ZYebyFP"></span></div>
+      <div class="foot" data-page-node-id="l8jg2Vo9WE2ItGvR27E2XI">按 <kbd data-page-node-id="kSzN4Nhj0bkOk90H1GKAcJ">?</kbd> 或 <kbd data-page-node-id="Anbt4464Sg5iJOGjihsXrp">Esc</kbd> 关闭</div>
     </div>
   </div>
 
