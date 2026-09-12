@@ -129,15 +129,16 @@ input[type=range]{flex:1;accent-color:var(--accent)}
   var dragging = false, lx = 0, ly = 0;
 
   // ---------- 3D 数学 ----------
-  function rot(p){
-    var cy = Math.cos(yaw), sy = Math.sin(yaw);
+  function rotPt(p, ya, pi){
+    var cy = Math.cos(ya), sy = Math.sin(ya);
     var x1 = p[0]*cy + p[2]*sy;
     var z1 = -p[0]*sy + p[2]*cy;
-    var cx = Math.cos(pitch), sx = Math.sin(pitch);
+    var cx = Math.cos(pi), sx = Math.sin(pi);
     var y1 = p[1]*cx - z1*sx;
     var z2 = p[1]*sx + z1*cx;
     return [x1, y1, z2];
   }
+  function rot(p){ return rotPt(p, yaw, pitch); }
   function project(p){
     var r = rot(p);
     var z = r[2] + dist;
@@ -407,9 +408,7 @@ input[type=range]{flex:1;accent-color:var(--accent)}
       im.src=cv.toDataURL('image/png');
     });
   }
-  function exportOBJ(){
-    if(!solid){ setStatus('⚠ 请先在「2D图→3D立体图形」生成实体再导出 .obj'); return; }
-    var G=solid.G, mask=solid.mask, iw=solid.W, ih=solid.H, scale=solid.scale, d=solid.d;
+  function buildOBJ(g, mask, iw, ih, scale, d){
     var fd=d/2, bd=-d/2;
     function P(px,py,z){ return [(px-iw/2)*scale, -(py-ih/2)*scale, z]; }
     var lines=['# 2D image -> 3D solid (extruded silhouette) exported by dim-convert'], vcount=0;
@@ -418,9 +417,9 @@ input[type=range]{flex:1;accent-color:var(--accent)}
       for(var i=0;i<pts.length;i++){ vcount++; lines.push('v '+pts[i][0].toFixed(4)+' '+pts[i][1].toFixed(4)+' '+pts[i][2].toFixed(4)); idxs.push(vcount); }
       for(var t=1;t<idxs.length-1;t++) lines.push('f '+idxs[0]+' '+idxs[t+1]+' '+idxs[t]);
     }
-    var cell=iw/G;
-    for(var j=0;j<G;j++) for(var i=0;i<G;i++){
-      if(!mask[j*G+i]) continue;
+    var cell=iw/g;
+    for(var j=0;j<g;j++) for(var i=0;i<g;i++){
+      if(!mask[j*g+i]) continue;
       var px0=i*cell, px1=(i+1)*cell, py0=j*cell, py1=(j+1)*cell;
       var fTL=P(px0,py0,fd),fTR=P(px1,py0,fd),fBR=P(px1,py1,fd),fBL=P(px0,py1,fd);
       var bTL=P(px0,py0,bd),bTR=P(px1,py0,bd),bBR=P(px1,py1,bd),bBL=P(px0,py1,bd);
@@ -429,13 +428,19 @@ input[type=range]{flex:1;accent-color:var(--accent)}
       var E=[[1,0,px1,py0,px1,py1],[-1,0,px0,py0,px0,py1],[0,1,px0,py1,px1,py1],[0,-1,px0,py0,px1,py0]];
       for(var e=0;e<4;e++){
         var ni=i+E[e][0], nj=j+E[e][1];
-        if(ni<0||ni>=G||nj<0||nj>=G||!mask[nj*G+ni]){
+        if(ni<0||ni>=g||nj<0||nj>=g||!mask[nj*g+ni]){
           var ax=E[e][2],ay=E[e][3],bx=E[e][4],by=E[e][5];
           emit([P(ax,ay,fd),P(bx,by,fd),P(bx,by,bd),P(ax,ay,bd)]);
         }
       }
     }
-    var blob=new Blob([lines.join('\n')],{type:'text/plain'});
+    return lines.join('\n');
+  }
+  function exportOBJ(){
+    if(!solid){ setStatus('⚠ 请先在「2D图→3D立体图形」生成实体再导出 .obj'); return; }
+    var txt = buildOBJ(solid.G, solid.mask, solid.W, solid.H, solid.scale, solid.d);
+    var vcount = txt.split('\n').filter(function(l){ return l.charAt(0)==='v'; }).length;
+    var blob=new Blob([txt],{type:'text/plain'});
     downloadURI(URL.createObjectURL(blob), 'solid.obj');
     setStatus('已导出 .obj（' + vcount + ' 顶点）· 可用 Blender / Unity 打开的真 3D 素材');
   }
@@ -511,6 +516,14 @@ input[type=range]{flex:1;accent-color:var(--accent)}
     if(t1) t1.classList.toggle('active', m==='solid');
     if(t2) t2.classList.toggle('active', m==='model');
   }
+  // ---------- 暴露纯函数供单测（vm 沙箱，无需 DOM）----------
+  if(typeof window!=='undefined'){
+    window.__dim = {
+      norm3: norm3, triNormal: triNormal, solve3: solve3,
+      rotPt: rotPt, buildOBJ: buildOBJ
+    };
+  }
+
   if(typeof document!=='undefined'){
     document.addEventListener('DOMContentLoaded', function(){ wire(); setMode('solid'); init(); });
   }
