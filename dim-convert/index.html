@@ -32,7 +32,8 @@ a{color:var(--txt);text-decoration:none}
 .btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff;
   padding:9px 14px;border-radius:10px;cursor:pointer;font-weight:600;font-size:13px}
 .btn.ghost{background:var(--card2);border:1px solid var(--line);color:var(--txt)}
-.btn.sm{padding:6px 10px;font-size:12px}
+.btn.sm{padding:6px 10px;font-size:12px;margin:3px 0}
+.btn:disabled{opacity:.45;cursor:not-allowed}
 input[type=range]{flex:1;accent-color:var(--accent)}
 .lbl{font-size:12px;color:var(--sub);min-width:64px}
 .val{font-size:12px;color:var(--txt);min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
@@ -43,6 +44,7 @@ input[type=range]{flex:1;accent-color:var(--accent)}
 #status{font-size:12px;color:var(--sub);margin-top:10px;min-height:18px}
 .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:var(--card2);
   border:1px solid var(--line);color:var(--sub);margin-left:8px}
+.divider{height:1px;background:var(--line);margin:12px 0}
 </style>
 </head>
 <body>
@@ -50,32 +52,41 @@ input[type=range]{flex:1;accent-color:var(--accent)}
 <div class="wrap">
   <div class="head">
     <h1>2D⇄3D 互转台</h1>
-    <p>图片 → 3D 浮雕 · 3D 场景 → 导出 2D 视图<span class="tag">纯前端 · 零依赖 · 无 CDN</span></p>
+    <p>图片 → 3D 立体图形（轮廓挤出实体）· 3D 场景 → 导出 2D 视图<span class="tag">纯前端 · 零依赖 · 无 CDN</span></p>
   </div>
 
   <div class="tabs">
-    <div class="tab active" id="tabRelief">2D → 3D 浮雕</div>
-    <div class="tab" id="tabModel">3D → 2D 导出</div>
+    <div class="tab active" id="tabSolid">2D 图 → 3D 立体图形</div>
+    <div class="tab" id="tabModel">3D 场景 → 2D 导出</div>
   </div>
 
   <div class="panel">
     <div>
-      <div class="card" id="paneRelief">
-        <h2>上传图片生成 3D 浮雕</h2>
+      <div class="card" id="paneSolid">
+        <h2>上传图片生成 3D 立体图形</h2>
         <div class="row">
           <input type="file" id="imgUpload" accept="image/*">
         </div>
         <div class="row">
           <span class="lbl">网格精度</span>
-          <input type="range" id="res" min="24" max="120" value="56">
-          <span class="val" id="resV">56</span>
+          <input type="range" id="resG" min="32" max="100" value="64">
+          <span class="val" id="resGV">64</span>
         </div>
         <div class="row">
-          <span class="lbl">浮雕强度</span>
-          <input type="range" id="strength" min="0.1" max="3" step="0.1" value="1.2">
-          <span class="val" id="strV">1.2</span>
+          <span class="lbl">抠底容差</span>
+          <input type="range" id="tol" min="0" max="0.6" step="0.02" value="0.18">
+          <span class="val" id="tolV">0.18</span>
         </div>
-        <div class="hint">亮度越高的像素凸起越高，图片会作为颜色包裹在浮雕表面。生成后可拖拽旋转、滚轮缩放。</div>
+        <div class="row">
+          <span class="lbl">实体厚度</span>
+          <input type="range" id="depth" min="0.08" max="1.2" step="0.02" value="0.45">
+          <span class="val" id="depthV">0.45</span>
+        </div>
+        <div class="row">
+          <button class="btn sm" id="btnGen">生成立体图形</button>
+          <button class="btn ghost sm" id="btnAuto">自动抠底预览</button>
+        </div>
+        <div class="hint">图片主体被识别为轮廓，沿厚度方向挤出成<strong>可 360° 旋转的 3D 实体</strong>（不是高度图浮雕）。正面贴原图、侧边按轮廓封边、背面略缩小形成立体感。可导出 PNG 或 .obj 真 3D 素材。</div>
       </div>
 
       <div class="card" id="paneModel" style="display:none">
@@ -92,7 +103,9 @@ input[type=range]{flex:1;accent-color:var(--accent)}
           <button class="btn sm" id="btnSample">载入示例模型</button>
           <button class="btn sm" id="btnExp1">导出当前视图 PNG</button>
           <button class="btn ghost sm" id="btnExp4">导出四视角 PNG</button>
+          <button class="btn ghost sm" id="btnExpOBJ">导出 .obj 立体模型</button>
         </div>
+        <div class="divider"></div>
         <div id="status">正在初始化渲染引擎…</div>
       </div>
     </div>
@@ -109,14 +122,13 @@ input[type=range]{flex:1;accent-color:var(--accent)}
   function setStatus(t){ if(statusEl) statusEl.textContent = t; }
 
   var cv, ctx, W = 800, H = 520;
-  var yaw = 0.7, pitch = 0.35, dist = 6.2, zoom = 1;
-  var mesh = null;
+  var yaw = 0.7, pitch = 0.4, dist = 5.2, zoom = 1;
+  var meshItems = null;      // 当前渲染的图元集合（三角形/四边形）
+  var solid = null;          // 立体图形原始数据（用于导出 .obj）
+  var lightDir = (function(){ var v=[-0.4,0.6,0.7]; var l=Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]); return [v[0]/l,v[1]/l,v[2]/l]; })();
   var dragging = false, lx = 0, ly = 0;
 
-  function norm(v){
-    var l = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]) || 1;
-    return [v[0]/l, v[1]/l, v[2]/l];
-  }
+  // ---------- 3D 数学 ----------
   function rot(p){
     var cy = Math.cos(yaw), sy = Math.sin(yaw);
     var x1 = p[0]*cy + p[2]*sy;
@@ -133,273 +145,374 @@ input[type=range]{flex:1;accent-color:var(--accent)}
     var f = 520 * zoom / z;
     return { x: W/2 + r[0]*f, y: H/2 - r[1]*f, z: r[2] };
   }
+  function norm3(v){
+    var l = Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]) || 1;
+    return [v[0]/l, v[1]/l, v[2]/l];
+  }
+  function triNormal(a,b,c){
+    var u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]], w=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+    return norm3([u[1]*w[2]-u[2]*w[1], u[2]*w[0]-u[0]*w[2], u[0]*w[1]-u[1]*w[0]]);
+  }
 
+  // ---------- 纹理三角形（仿射贴图）----------
+  function solve3(A,b){
+    var det = A[0][0]*(A[1][1]*A[2][2]-A[1][2]*A[2][1]) - A[0][1]*(A[1][0]*A[2][2]-A[1][2]*A[2][0]) + A[0][2]*(A[1][0]*A[2][1]-A[1][1]*A[2][0]);
+    if(Math.abs(det) < 1e-9) return [1,0,0];
+    var m = [
+      A[1][1]*A[2][2]-A[1][2]*A[2][1], A[0][2]*A[2][1]-A[0][1]*A[2][2], A[0][1]*A[1][2]-A[0][2]*A[1][1],
+      A[1][2]*A[2][0]-A[1][0]*A[2][2], A[0][0]*A[2][2]-A[0][2]*A[2][0], A[0][2]*A[1][0]-A[0][0]*A[1][2],
+      A[1][0]*A[2][1]-A[1][1]*A[2][0], A[0][1]*A[2][0]-A[0][0]*A[2][1], A[0][0]*A[1][1]-A[0][1]*A[1][0]
+    ];
+    var r=[]; for(var i=0;i<9;i++) r.push(m[i]/det);
+    return [ r[0]*b[0]+r[1]*b[1]+r[2]*b[2], r[3]*b[0]+r[4]*b[1]+r[5]*b[2], r[6]*b[0]+r[7]*b[1]+r[8]*b[2] ];
+  }
+  // 把图像三角(src) 仿射映射到屏幕三角(dst)
+  function drawTexTri(img, s0,s1,s2, d0,d1,d2){
+    var A = [[s0.x,s0.y,1],[s1.x,s1.y,1],[s2.x,s2.y,1]];
+    var ab = solve3(A,[d0.x,d1.x,d2.x]);
+    var ef = solve3(A,[d0.y,d1.y,d2.y]);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(d0.x,d0.y); ctx.lineTo(d1.x,d1.y); ctx.lineTo(d2.x,d2.y); ctx.closePath();
+    ctx.clip();
+    ctx.transform(ab[0],ab[1],ef[0],ef[1],ab[2],ef[2]);
+    var minx=Math.min(s0.x,s1.x,s2.x), miny=Math.min(s0.y,s1.y,s2.y);
+    var maxx=Math.max(s0.x,s1.x,s2.x), maxy=Math.max(s0.y,s1.y,s2.y);
+    ctx.drawImage(img, minx,miny, maxx-minx, maxy-miny, minx,miny, maxx-minx, maxy-miny);
+    ctx.restore();
+  }
+
+  // ---------- 渲染 ----------
+  function drawHint(){
+    ctx.fillStyle = '#3a3a44';
+    ctx.font = '15px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('请上传一张图片 → 生成可旋转的 3D 立体图形', W/2, H/2);
+    ctx.textAlign = 'start';
+  }
   function render(){
     if(!ctx) return;
     ctx.fillStyle = '#0b0b0f';
     ctx.fillRect(0, 0, W, H);
-    if(!mesh) return;
-    var vs = mesh.verts.map(rot);
-    var pr = vs.map(project);
-    var light = norm([-0.4, 0.75, 0.55]);
-    var polys = [];
-    for(var f = 0; f < mesh.faces.length; f++){
-      var fc = mesh.faces[f];
-      if(fc[0] >= vs.length || fc[1] >= vs.length || fc[2] >= vs.length) continue;
-      var a = vs[fc[0]], b = vs[fc[1]], c = vs[fc[2]];
-      var nx = (b[1]-a[1])*(c[2]-a[2]) - (b[2]-a[2])*(c[1]-a[1]);
-      var ny = (b[2]-a[2])*(c[0]-a[0]) - (b[0]-a[0])*(c[2]-a[2]);
-      var nz = (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0]);
-      var len = Math.sqrt(nx*nx + ny*ny + nz*nz) || 1;
-      var d = (nx*light[0] + ny*light[1] + nz*light[2]) / len;
-      d = Math.max(0.18, Math.min(1, Math.abs(d)));
-      var depth = (pr[fc[0]].z + pr[fc[1]].z + pr[fc[2]].z) / 3;
-      polys.push({ fc: fc, depth: depth, shade: d, color: mesh.colors ? mesh.colors[f] : [124,92,255] });
+    if(!meshItems || !meshItems.length){ drawHint(); return; }
+    var items = [];
+    for(var k=0;k<meshItems.length;k++){
+      var it = meshItems[k];
+      var ps = it.p.map(function(pt){ return project(pt); });
+      var avg = 0; for(var q=0;q<ps.length;q++) avg += ps[q].z; avg /= ps.length;
+      items.push({ it: it, ps: ps, depth: avg });
     }
-    polys.sort(function(p, q){ return p.depth - q.depth; });
-    for(var i = 0; i < polys.length; i++){
-      var P = polys[i], F = P.fc;
-      var pa = pr[F[0]], pb = pr[F[1]], pc = pr[F[2]];
-      if(pa.z < -dist || pb.z < -dist || pc.z < -dist) continue;
-      ctx.beginPath();
-      ctx.moveTo(pa.x, pa.y);
-      ctx.lineTo(pb.x, pb.y);
-      ctx.lineTo(pc.x, pc.y);
-      ctx.closePath();
-      var col = P.color;
-      var r = (col[0]*P.shade)|0, g = (col[1]*P.shade)|0, b = (col[2]*P.shade)|0;
-      ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
-      ctx.fill();
+    items.sort(function(a,b){ return a.depth - b.depth; });
+    for(var n=0;n<items.length;n++){
+      var I = items[n], it = I.it, ps = I.ps;
+      if(it.tex){
+        drawTexTri(it.img,
+          {x:it.s[0][0],y:it.s[0][1]}, {x:it.s[1][0],y:it.s[1][1]}, {x:it.s[2][0],y:it.s[2][1]},
+          ps[0], ps[1], ps[2]);
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(ps[0].x, ps[0].y);
+        for(var m=1;m<ps.length;m++) ctx.lineTo(ps[m].x, ps[m].y);
+        ctx.closePath();
+        var col = it.color || [124,92,255];
+        var shade = 1;
+        if(it.n){
+          var d = it.n[0]*lightDir[0] + it.n[1]*lightDir[1] + it.n[2]*lightDir[2];
+          shade = Math.max(0.32, Math.min(1, Math.abs(d)));
+        }
+        ctx.fillStyle = 'rgb(' + (col[0]*shade|0) + ',' + (col[1]*shade|0) + ',' + (col[2]*shade|0) + ')';
+        ctx.fill();
+      }
     }
   }
 
-  function clearMesh(){ mesh = null; }
+  // ---------- 主体抠图（角点 Flood Fill）----------
+  function computeMask(img, G, tol){
+    var c = document.createElement('canvas'); c.width = G; c.height = G;
+    var x = c.getContext('2d'); x.drawImage(img, 0, 0, G, G);
+    var d = x.getImageData(0, 0, G, G).data;
+    var mask = new Uint8Array(G*G);
+    function px(idx){ return [d[idx*4], d[idx*4+1], d[idx*4+2], d[idx*4+3]]; }
+    // 参考色 = 四角平均（假设背景在边缘）
+    var ref = [0,0,0]; 
+    [0, G-1, (G-1)*G, G*G-1].forEach(function(ci){ var p=px(ci); ref[0]+=p[0]; ref[1]+=p[1]; ref[2]+=p[2]; });
+    ref[0]/=4; ref[1]/=4; ref[2]/=4;
+    var T = tol * 255;
+    var visited = new Uint8Array(G*G);
+    var queue = [];
+    [0, G-1, (G-1)*G, G*G-1].forEach(function(ci){ if(!visited[ci]){ visited[ci]=1; queue.push(ci); } });
+    while(queue.length){
+      var ci = queue.pop();
+      var p = px(ci);
+      // 透明像素直接视为背景
+      if(p[3] < 128){ mask[ci]=0; }
+      else {
+        var dr = Math.abs(p[0]-ref[0]), dg = Math.abs(p[1]-ref[1]), db = Math.abs(p[2]-ref[2]);
+        if(Math.max(dr,dg,db) <= T) mask[ci]=0; else mask[ci]=1;
+      }
+      var cx = ci % G, cy = (ci/G)|0;
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(function(o){
+        var nx = cx+o[0], ny = cy+o[1];
+        if(nx>=0 && nx<G && ny>=0 && ny<G){ var ni = ny*G+nx; if(!visited[ni]){ visited[ni]=1; queue.push(ni); } }
+      });
+    }
+    return { mask: mask, data: d, G: G };
+  }
+  function applyMaskToCanvas(c, mask, G, W, H){
+    var id = c.getImageData(0,0,W,H), dd = id.data;
+    var cellW = W/G, cellH = H/G;
+    for(var y=0;y<H;y++){ var gj=(y/cellH)|0; if(gj>=G) gj=G-1;
+      for(var x=0;x<W;x++){ var gi=(x/cellW)|0; if(gi>=G) gi=G-1;
+        if(!mask[gj*G+gi]) dd[(y*W+x)*4+3] = 0;
+      }
+    }
+    c.putImageData(id, 0, 0);
+  }
 
+  // ---------- 2D 图 → 3D 立体图形（轮廓挤出）----------
+  function buildSolid(img, G, tol, depthScale){
+    var cm = computeMask(img, G, tol), mask = cm.mask, data = cm.data;
+    var minI=G, maxI=-1, minJ=G, maxJ=-1;
+    for(var j=0;j<G;j++) for(var i=0;i<G;i++){ if(mask[j*G+i]){
+      if(i<minI)minI=i; if(i>maxI)maxI=i; if(j<minJ)minJ=j; if(j>maxJ)maxJ=j; } }
+    if(maxI<0){ setStatus('⚠ 未检测到主体：请调大「抠底容差」或换一张主体清晰的图'); return; }
+    var iw = img.width, ih = img.height;
+    var scale = 2.0 / Math.max(iw, ih);
+    var x0 = minI/G*iw, x1 = (maxI+1)/G*iw, y0 = minJ/G*ih, y1 = (maxJ+1)/G*ih;
+    var d = depthScale, fd = d/2, bd = -d/2;
+    function P(px,py,z){ return [ (px-iw/2)*scale, -(py-ih/2)*scale, z ]; }
+
+    // 贴图画布（已抠底）
+    var texC = document.createElement('canvas'); texC.width = iw; texC.height = ih;
+    var tx = texC.getContext('2d'); tx.drawImage(img, 0, 0);
+    applyMaskToCanvas(tx, mask, G, iw, ih);
+
+    var items = [];
+    var fTL=P(x0,y0,fd), fTR=P(x1,y0,fd), fBR=P(x1,y1,fd), fBL=P(x0,y1,fd);
+    // 背面略缩小形成立体感
+    var ccx=(fTL[0]+fBR[0])/2, ccy=(fTL[1]+fBR[1])/2;
+    function sc(p){ return [ ccx+(p[0]-ccx)*0.9, ccy+(p[1]-ccy)*0.9, p[2] ]; }
+    var bTL=sc(fTL), bTR=sc(fTR), bBR=sc(fBR), bBL=sc(fBL);
+    // 正面 2 三角形（贴原图）
+    items.push({ tex:true, img:texC, s:[[x0,y0],[x1,y0],[x1,y1]], p:[fTL,fTR,fBR] });
+    items.push({ tex:true, img:texC, s:[[x0,y0],[x1,y1],[x0,y1]], p:[fTL,fBR,fBL] });
+    // 背面 2 三角形（贴原图，略小）
+    items.push({ tex:true, img:texC, s:[[x0,y0],[x1,y0],[x1,y1]], p:[bTL,bTR,bBR] });
+    items.push({ tex:true, img:texC, s:[[x0,y0],[x1,y1],[x0,y1]], p:[bTL,bBR,bBL] });
+
+    // 侧封边：轮廓边界处挤出
+    var cell = iw / G;
+    function edge(i,j,e){
+      // 返回该边的两个 3D 点（front）由两个共享角计算
+      var px0=i/G*iw, px1=(i+1)/G*iw, py0=j/G*ih, py1=(j+1)/G*ih;
+      if(e===0) return [P(px1,py0,fd), P(px1,py1,fd)];      // 右
+      if(e===1) return [P(px0,py0,fd), P(px0,py1,fd)];      // 左
+      if(e===2) return [P(px0,py1,fd), P(px1,py1,fd)];      // 下
+      return [P(px0,py0,fd), P(px1,py0,fd)];                 // 上
+    }
+    for(var j2=0;j2<G;j2++) for(var i2=0;i2<G;i2++){
+      if(!mask[j2*G+i2]) continue;
+      var col = [data[(j2*G+i2)*4], data[(j2*G+i2)*4+1], data[(j2*G+i2)*4+2]];
+      for(var e=0;e<4;e++){
+        var ni=i2+([1,-1,0,0][e]), nj=j2+([0,0,1,-1][e]);
+        if(ni<0||ni>=G||nj<0||nj>=G||!mask[nj*G+ni]){
+          var fe = edge(i2,j2,e);
+          var A=fe[0], B=fe[1];
+          var AA=[A[0],A[1],bd], BB=[B[0],B[1],bd];
+          var n = triNormal(A, B, BB);
+          items.push({ tex:false, color:col, n:n, p:[A,B,BB,AA] });
+        }
+      }
+    }
+
+    meshItems = items;
+    solid = { img:img, mask:mask, G:G, W:iw, H:ih, scale:scale, d:d, x0:x0, x1:x1, y0:y0, y1:y1 };
+    yaw = 0.5; pitch = 0.45; dist = 4.6; zoom = 1;
+    setStatus('已生成 3D 立体图形（轮廓挤出实体）· ' + items.length + ' 面 · 拖拽 360° 旋转 · 可导出 PNG / .obj');
+    render();
+  }
+
+  // ---------- 示例 / OBJ 加载（3D → 2D 导出）----------
   function buildSample(){
-    clearMesh();
-    var segU = 44, segV = 22, R = 1.5, r = 0.55;
-    var verts = [], faces = [], colors = [];
-    for(var i = 0; i <= segU; i++){
-      for(var j = 0; j <= segV; j++){
-        var u = 2*Math.PI*i/segU, v = 2*Math.PI*j/segV;
-        var rr = R + r*Math.cos(v);
-        verts.push([rr*Math.cos(u), rr*Math.sin(u), r*Math.sin(v)]);
-      }
+    var segU=44, segV=22, R=1.5, r=0.55, verts=[], faces=[];
+    for(var i=0;i<=segU;i++) for(var j=0;j<=segV;j++){
+      var u=2*Math.PI*i/segU, v=2*Math.PI*j/segV, rr=R+r*Math.cos(v);
+      verts.push([rr*Math.cos(u), rr*Math.sin(u), r*Math.sin(v)]);
     }
-    function idx(i,j){ return i*(segV+1) + j; }
-    for(var i2 = 0; i2 < segU; i2++){
-      for(var j2 = 0; j2 < segV; j2++){
-        var a = idx(i2,j2), b = idx(i2+1,j2), c = idx(i2+1,j2+1), d = idx(i2,j2+1);
-        faces.push([a,b,c]); colors.push([124,92,255]);
-        faces.push([a,c,d]); colors.push([124,92,255]);
-      }
+    function idx(i,j){ return i*(segV+1)+j; }
+    var items=[];
+    for(var i2=0;i2<segU;i2++) for(var j2=0;j2<segV;j2++){
+      var a=verts[idx(i2,j2)], b=verts[idx(i2+1,j2)], c=verts[idx(i2+1,j2+1)], d=verts[idx(i2,j2+1)];
+      var col=[124,92,255];
+      items.push({ tex:false, color:col, n:triNormal(a,b,c), p:[a,b,c] });
+      items.push({ tex:false, color:col, n:triNormal(a,c,d), p:[a,c,d] });
     }
-    mesh = { verts: verts, faces: faces, colors: colors };
-    yaw = 0.7; pitch = 0.35; dist = 6.2; zoom = 1;
+    meshItems = items; solid = null;
+    yaw=0.7; pitch=0.35; dist=6.2; zoom=1;
     setStatus('已载入示例圆环模型 · 拖拽旋转 / 滚轮缩放 · 导出即得到 2D 图');
     render();
   }
-
-  // 2D -> 3D 浮雕：图片亮度驱动位移，图片颜色包裹表面
-  function buildRelief(img, N, strength){
-    N = Math.max(16, Math.min(140, N|0));
-    strength = strength || 1.2;
-    var off = document.createElement('canvas'); off.width = 256; off.height = 192;
-    var octx = off.getContext('2d');
-    octx.drawImage(img, 0, 0, 256, 192);
-    var data = octx.getImageData(0, 0, 256, 192).data;
-    function sample(u, v){
-      var x = Math.max(0, Math.min(255, (u*255)|0));
-      var y = Math.max(0, Math.min(191, (v*191)|0));
-      var i = ((y|0)*256 + (x|0))*4;
-      var lum = (data[i] + data[i+1] + data[i+2]) / 765;
-      return { lum: lum, col: [data[i], data[i+1], data[i+2]] };
-    }
-    var verts = [], faces = [], colors = [], heights = [];
-    for(var i = 0; i <= N; i++){
-      for(var j = 0; j <= N; j++){
-        var u = i/N, v = j/N;
-        var s = sample(u, v);
-        var x = (u*4 - 2), y = (v*3 - 1.5);
-        verts.push([x, y, s.lum * strength]);
-        heights.push(s);
-      }
-    }
-    function idx(i,j){ return i*(N+1) + j; }
-    for(var i2 = 0; i2 < N; i2++){
-      for(var j2 = 0; j2 < N; j2++){
-        var a = idx(i2,j2), b = idx(i2+1,j2), c = idx(i2+1,j2+1), d = idx(i2,j2+1);
-        var ca = heights[a].col, cb = heights[b].col, cc = heights[c].col, cd = heights[d].col;
-        var avg = [ (ca[0]+cb[0]+cc[0]+cd[0])/4|0, (ca[1]+cb[1]+cc[1]+cd[1])/4|0, (ca[2]+cb[2]+cc[2]+cd[2])/4|0 ];
-        faces.push([a,b,c]); colors.push(avg);
-        faces.push([a,c,d]); colors.push(avg);
-      }
-    }
-    mesh = { verts: verts, faces: faces, colors: colors };
-    yaw = 0.5; pitch = 0.9; dist = 6.0; zoom = 1;
-    setStatus('已生成浮雕模型 · 亮度越高凸起越高 · 拖拽旋转后导出 PNG 即完成 2D→3D→2D');
-    render();
-  }
-
-  // 3D -> 2D 导出：解析 .obj 顶点/面
   function buildObj(text){
-    var verts = [], faces = [], colors = [];
-    var lines = text.split(/\r?\n/);
-    for(var i = 0; i < lines.length; i++){
-      var ln = lines[i].trim();
-      if(ln.charAt(0) === 'v' && (ln.charAt(1) === ' ' || ln.charAt(1) === '\t')){
-        var p = ln.slice(1).trim().split(/\s+/);
-        if(p.length >= 3) verts.push([parseFloat(p[0]), parseFloat(p[1]), parseFloat(p[2])]);
-      } else if(ln.charAt(0) === 'f' && (ln.charAt(1) === ' ' || ln.charAt(1) === '\t')){
-        var toks = ln.slice(1).trim().split(/\s+/);
-        var ids = [];
-        for(var k = 0; k < toks.length; k++){
-          var first = toks[k].split('/')[0];
-          var n = parseInt(first, 10);
-          if(!isNaN(n)) ids.push(n - 1);
-        }
-        if(ids.length >= 3){
-          for(var t = 1; t < ids.length - 1; t++){
-            faces.push([ids[0], ids[t], ids[t+1]]);
-            colors.push([124, 92, 255]);
-          }
-        }
+    var verts=[], faces=[], lines=text.split(/\r?\n/);
+    for(var i=0;i<lines.length;i++){
+      var ln=lines[i].trim();
+      if(ln.charAt(0)==='v' && (ln.charAt(1)===' '||ln.charAt(1)==='\t')){
+        var p=ln.slice(1).trim().split(/\s+/);
+        if(p.length>=3) verts.push([parseFloat(p[0]),parseFloat(p[1]),parseFloat(p[2])]);
+      } else if(ln.charAt(0)==='f' && (ln.charAt(1)===' '||ln.charAt(1)==='\t')){
+        var toks=ln.slice(1).trim().split(/\s+/), ids=[];
+        for(var k=0;k<toks.length;k++){ var n=parseInt(toks[k].split('/')[0],10); if(!isNaN(n)) ids.push(n-1); }
+        if(ids.length>=3) faces.push(ids);
       }
     }
     if(!verts.length){ setStatus('⚠ 未解析到有效顶点'); return; }
-    mesh = { verts: verts, faces: faces, colors: colors };
-    yaw = 0.7; pitch = 0.35; dist = 6.2; zoom = 1;
-    setStatus('已加载 OBJ 模型（' + verts.length + ' 顶点 / ' + faces.length + ' 面）· 拖拽旋转 · 导出 PNG');
-    render();
-  }
-
-  function drawAt(azimuth){
-    var baseY = 0.35;
-    var cx = Math.sin(azimuth) * dist, cz = Math.cos(azimuth) * dist;
-    var savedYaw = yaw, savedPitch = pitch;
-    yaw = azimuth;
-    pitch = baseY;
-    render();
-    yaw = savedYaw; pitch = savedPitch;
-  }
-
-  function exportPNG(multi){
-    if(!mesh){ setStatus('⚠ 没有可导出的模型'); return; }
-    render();
-    if(!multi){
-      downloadURI(cv.toDataURL('image/png'), 'view.png');
-      return;
+    var items=[];
+    for(var f2=0;f2<faces.length;f2++){
+      var ids=faces[f2], col=[124,92,255];
+      for(var t=1;t<ids.length-1;t++){
+        var a=verts[ids[0]], b=verts[ids[t]], c=verts[ids[t+1]];
+        items.push({ tex:false, color:col, n:triNormal(a,b,c), p:[a,b,c] });
+      }
     }
-    var size = 320;
-    var out = document.createElement('canvas'); out.width = size*2; out.height = size*2;
-    var octx = out.getContext('2d');
-    var angles = [0, Math.PI/2, Math.PI, 3*Math.PI/2];
-    angles.forEach(function(a, k){
-      drawAt(a);
-      var im = new Image();
-      im.onload = function(){
-        octx.drawImage(im, (k%2)*size, ((k/2)|0)*size, size, size);
-        if(k === 3) downloadURI(out.toDataURL('image/png'), 'views4.png');
-      };
-      im.src = cv.toDataURL('image/png');
-    });
+    meshItems = items; solid = null;
+    yaw=0.7; pitch=0.35; dist=6.2; zoom=1;
+    setStatus('已加载 OBJ 模型（' + verts.length + ' 顶点 / ' + items.length + ' 面）· 拖拽旋转 · 导出 PNG');
+    render();
   }
 
+  // ---------- 导出 ----------
+  function drawAt(azimuth){
+    var savedY=yaw, savedP=pitch;
+    yaw=azimuth; pitch=0.35; render();
+    yaw=savedY; pitch=savedP;
+  }
   function downloadURI(uri, name){
-    var a = document.createElement('a');
-    a.href = uri; a.download = name;
+    var a=document.createElement('a'); a.href=uri; a.download=name;
     document.body.appendChild(a); a.click(); a.remove();
   }
-
-  function resize(){
-    var view = $('view');
-    if(!view || !cv) return;
-    W = view.clientWidth || 800;
-    H = view.clientHeight || 520;
-    cv.width = W; cv.height = H;
+  function exportPNG(multi){
+    if(!meshItems){ setStatus('⚠ 没有可导出的模型'); return; }
     render();
+    if(!multi){ downloadURI(cv.toDataURL('image/png'), 'view.png'); return; }
+    var size=320, out=document.createElement('canvas'); out.width=size*2; out.height=size*2;
+    var octx=out.getContext('2d'); octx.fillStyle='#0b0b0f'; octx.fillRect(0,0,size*2,size*2);
+    var angles=[0, Math.PI/2, Math.PI, 3*Math.PI/2], done=0;
+    angles.forEach(function(a,k){
+      drawAt(a);
+      var im=new Image();
+      im.onload=function(){
+        octx.drawImage(im, (k%2)*size, ((k/2)|0)*size, size, size);
+        if(++done===4) downloadURI(out.toDataURL('image/png'), 'views4.png');
+      };
+      im.src=cv.toDataURL('image/png');
+    });
+  }
+  function exportOBJ(){
+    if(!solid){ setStatus('⚠ 请先在「2D图→3D立体图形」生成实体再导出 .obj'); return; }
+    var G=solid.G, mask=solid.mask, iw=solid.W, ih=solid.H, scale=solid.scale, d=solid.d;
+    var fd=d/2, bd=-d/2;
+    function P(px,py,z){ return [(px-iw/2)*scale, -(py-ih/2)*scale, z]; }
+    var lines=['# 2D image -> 3D solid (extruded silhouette) exported by dim-convert'], vcount=0;
+    function emit(pts){
+      var idxs=[];
+      for(var i=0;i<pts.length;i++){ vcount++; lines.push('v '+pts[i][0].toFixed(4)+' '+pts[i][1].toFixed(4)+' '+pts[i][2].toFixed(4)); idxs.push(vcount); }
+      for(var t=1;t<idxs.length-1;t++) lines.push('f '+idxs[0]+' '+idxs[t+1]+' '+idxs[t]);
+    }
+    var cell=iw/G;
+    for(var j=0;j<G;j++) for(var i=0;i<G;i++){
+      if(!mask[j*G+i]) continue;
+      var px0=i*cell, px1=(i+1)*cell, py0=j*cell, py1=(j+1)*cell;
+      var fTL=P(px0,py0,fd),fTR=P(px1,py0,fd),fBR=P(px1,py1,fd),fBL=P(px0,py1,fd);
+      var bTL=P(px0,py0,bd),bTR=P(px1,py0,bd),bBR=P(px1,py1,bd),bBL=P(px0,py1,bd);
+      emit([fTL,fTR,fBR,fBL]);
+      emit([bBL,bBR,bTR,bTL]);
+      var E=[[1,0,px1,py0,px1,py1],[-1,0,px0,py0,px0,py1],[0,1,px0,py1,px1,py1],[0,-1,px0,py0,px1,py0]];
+      for(var e=0;e<4;e++){
+        var ni=i+E[e][0], nj=j+E[e][1];
+        if(ni<0||ni>=G||nj<0||nj>=G||!mask[nj*G+ni]){
+          var ax=E[e][2],ay=E[e][3],bx=E[e][4],by=E[e][5];
+          emit([P(ax,ay,fd),P(bx,by,fd),P(bx,by,bd),P(ax,ay,bd)]);
+        }
+      }
+    }
+    var blob=new Blob([lines.join('\n')],{type:'text/plain'});
+    downloadURI(URL.createObjectURL(blob), 'solid.obj');
+    setStatus('已导出 .obj（' + vcount + ' 顶点）· 可用 Blender / Unity 打开的真 3D 素材');
   }
 
+  // ---------- 交互 ----------
+  function resize(){
+    var view=$('view'); if(!view||!cv) return;
+    W=view.clientWidth||800; H=view.clientHeight||520;
+    cv.width=W; cv.height=H; render();
+  }
   function init(){
-    var view = $('view');
-    if(!view){ setStatus('⚠ 容器缺失'); return; }
-    W = view.clientWidth || 800;
-    H = view.clientHeight || 520;
-    cv = document.createElement('canvas');
-    cv.width = W; cv.height = H;
-    cv.style.width = '100%'; cv.style.height = '100%';
-    view.appendChild(cv);
-    ctx = cv.getContext('2d');
+    var view=$('view'); if(!view){ setStatus('⚠ 容器缺失'); return; }
+    W=view.clientWidth||800; H=view.clientHeight||520;
+    cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    cv.style.width='100%'; cv.style.height='100%';
+    view.appendChild(cv); ctx=cv.getContext('2d');
     if(!ctx){ setStatus('⚠ 当前环境不支持 Canvas 2D'); return; }
-
-    cv.addEventListener('mousedown', function(e){ dragging = true; lx = e.clientX; ly = e.clientY; });
-    window.addEventListener('mouseup', function(){ dragging = false; });
+    cv.addEventListener('mousedown', function(e){ dragging=true; lx=e.clientX; ly=e.clientY; });
+    window.addEventListener('mouseup', function(){ dragging=false; });
     window.addEventListener('mousemove', function(e){
       if(!dragging) return;
-      yaw += (e.clientX - lx) * 0.01;
-      pitch += (e.clientY - ly) * 0.01;
-      if(pitch > 1.5) pitch = 1.5; if(pitch < -1.5) pitch = -1.5;
-      lx = e.clientX; ly = e.clientY;
-      render();
+      yaw += (e.clientX-lx)*0.01;
+      pitch += (e.clientY-ly)*0.01;
+      if(pitch>1.5) pitch=1.5; if(pitch<-1.5) pitch=-1.5;
+      lx=e.clientX; ly=e.clientY; render();
     });
     cv.addEventListener('wheel', function(e){
       e.preventDefault();
-      dist *= (1 + (e.deltaY > 0 ? 0.1 : -0.1));
-      if(dist < 2) dist = 2; if(dist > 20) dist = 20;
-      render();
-    }, { passive: false });
+      dist *= (1 + (e.deltaY>0?0.1:-0.1));
+      if(dist<2) dist=2; if(dist>20) dist=20; render();
+    }, { passive:false });
     window.addEventListener('resize', resize);
-
     buildSample();
   }
-
-  function wire(){
-    var up = $('imgUpload');
-    if(up) up.addEventListener('change', function(e){
-      var f = e.target.files && e.target.files[0]; if(!f) return;
-      var r = new FileReader();
-      r.onload = function(ev){
-        var im = new Image();
-        im.onload = function(){
-          var N = parseInt(($('res')||{}).value || '56', 10) || 56;
-          var st = parseFloat(($('strength')||{}).value || '1.2') || 1.2;
-          buildRelief(im, N, st);
-        };
-        im.src = ev.target.result;
+  function genFromUpload(){
+    var up=$('imgUpload'); var f=up&&up.files&&up.files[0]; if(!f) return;
+    var r=new FileReader();
+    r.onload=function(ev){
+      var im=new Image();
+      im.onload=function(){
+        var G=parseInt(($('resG')||{}).value||'64',10)||64;
+        var tol=parseFloat(($('tol')||{}).value||'0.18')||0.18;
+        var dp=parseFloat(($('depth')||{}).value||'0.45')||0.45;
+        buildSolid(im, G, tol, dp);
       };
-      r.readAsDataURL(f);
-    });
-    var ob = $('objUpload');
-    if(ob) ob.addEventListener('change', function(e){
-      var f = e.target.files && e.target.files[0]; if(!f) return;
-      var r = new FileReader();
-      r.onload = function(ev){ buildObj(ev.target.result); };
-      r.readAsText(f);
-    });
-    var rs = $('res'); if(rs) rs.addEventListener('input', function(){ var v=$('resV'); if(v) v.textContent = rs.value; });
-    var st = $('strength'); if(st) st.addEventListener('input', function(){ var v=$('strV'); if(v) v.textContent = st.value; });
-    var b1 = $('btnSample'); if(b1) b1.addEventListener('click', buildSample);
-    var b2 = $('btnExp1'); if(b2) b2.addEventListener('click', function(){ exportPNG(false); });
-    var b4 = $('btnExp4'); if(b4) b4.addEventListener('click', function(){ exportPNG(true); });
-    var tR = $('tabRelief'); if(tR) tR.addEventListener('click', function(){ setMode('relief'); });
-    var tM = $('tabModel'); if(tM) tM.addEventListener('click', function(){ setMode('model'); });
+      im.src=ev.target.result;
+    };
+    r.readAsDataURL(f);
   }
-
+  function wire(){
+    var up=$('imgUpload'); if(up) up.addEventListener('change', genFromUpload);
+    var ob=$('objUpload'); if(ob) ob.addEventListener('change', function(e){
+      var f=e.target.files&&e.target.files[0]; if(!f) return;
+      var r=new FileReader(); r.onload=function(ev){ buildObj(ev.target.result); }; r.readAsText(f);
+    });
+    var rs=$('resG'); if(rs) rs.addEventListener('input', function(){ var v=$('resGV'); if(v) v.textContent=rs.value; });
+    var tl=$('tol'); if(tl) tl.addEventListener('input', function(){ var v=$('tolV'); if(v) v.textContent=tl.value; });
+    var dp=$('depth'); if(dp) dp.addEventListener('input', function(){ var v=$('depthV'); if(v) v.textContent=dp.value; });
+    var bg=$('btnGen'); if(bg) bg.addEventListener('click', genFromUpload);
+    var ba=$('btnAuto'); if(ba) ba.addEventListener('click', genFromUpload);
+    var b1=$('btnSample'); if(b1) b1.addEventListener('click', buildSample);
+    var b2=$('btnExp1'); if(b2) b2.addEventListener('click', function(){ exportPNG(false); });
+    var b4=$('btnExp4'); if(b4) b4.addEventListener('click', function(){ exportPNG(true); });
+    var bo=$('btnExpOBJ'); if(bo) bo.addEventListener('click', exportOBJ);
+    var tS=$('tabSolid'); if(tS) tS.addEventListener('click', function(){ setMode('solid'); });
+    var tM=$('tabModel'); if(tM) tM.addEventListener('click', function(){ setMode('model'); });
+  }
   function setMode(m){
-    var r = $('paneRelief'), x = $('paneModel');
-    if(r) r.style.display = (m === 'relief') ? 'block' : 'none';
-    if(x) x.style.display = (m === 'model') ? 'block' : 'none';
-    var t1 = $('tabRelief'), t2 = $('tabModel');
-    if(t1) t1.classList.toggle('active', m === 'relief');
-    if(t2) t2.classList.toggle('active', m === 'model');
+    var s=$('paneSolid'), x=$('paneModel');
+    if(s) s.style.display=(m==='solid')?'block':'none';
+    if(x) x.style.display=(m==='model')?'block':'none';
+    var t1=$('tabSolid'), t2=$('tabModel');
+    if(t1) t1.classList.toggle('active', m==='solid');
+    if(t2) t2.classList.toggle('active', m==='model');
   }
-
-  if(typeof document !== 'undefined'){
-    document.addEventListener('DOMContentLoaded', function(){
-      wire();
-      setMode('relief');
-      init();
-    });
+  if(typeof document!=='undefined'){
+    document.addEventListener('DOMContentLoaded', function(){ wire(); setMode('solid'); init(); });
   }
 })();
 </script>
