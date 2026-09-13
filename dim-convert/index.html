@@ -52,12 +52,13 @@ input[type=range]{flex:1;accent-color:var(--accent)}
 <div class="wrap">
   <div class="head">
     <h1>2D⇄3D 互转台</h1>
-    <p>图片 → 3D 立体图形（轮廓挤出实体）· 3D 场景 → 导出 2D 视图<span class="tag">纯前端 · 零依赖 · 无 CDN</span></p>
+    <p>图片 → 3D 立体图形（轮廓挤出实体）· 云端 AI 真重构（免费 HuggingFace）· 3D 场景 → 导出 2D 视图<span class="tag">纯前端 · 零依赖 · 无 CDN</span></p>
   </div>
 
   <div class="tabs">
     <div class="tab active" id="tabSolid">2D 图 → 3D 立体图形</div>
     <div class="tab" id="tabModel">3D 场景 → 2D 导出</div>
+    <div class="tab" id="tabCloud">云端 AI 真重构（免费）</div>
   </div>
 
   <div class="panel">
@@ -97,6 +98,18 @@ input[type=range]{flex:1;accent-color:var(--accent)}
         <div class="hint">支持 .obj 格式（含 v / f 顶点与面）。加载后进入 3D 场景，可拖拽旋转并从右侧导出 PNG。</div>
       </div>
 
+      <div class="card" id="paneCloud" style="display:none">
+        <h2>云端 AI 图生 3D（免费 · 无 Key）</h2>
+        <div class="row">
+          <input type="file" id="cloudUpload" accept="image/*">
+        </div>
+        <div class="row">
+          <button class="btn sm" id="btnCloudGen">生成 AI 3D 模型</button>
+          <button class="btn ghost sm" id="btnCloudDL" style="display:none">下载 GLB</button>
+        </div>
+        <div class="hint">走 HuggingFace 开源 Space（默认腾讯 Hunyuan3D-2），<strong>免费、无需 API Key</strong>。后端把图发到 Space 拿回真 3D 网格（.glb），前端内联解析顶点用现有 2D 引擎做可旋转预览。<br>⚠ 此模式需经后端运行（访问 http://127.0.0.1:8787/dim-convert/ 而非双击打开），且部署机需联网 + 已装 <code>gradio_client</code>。</div>
+      </div>
+
       <div class="card">
         <h2>导出</h2>
         <div class="bar">
@@ -127,6 +140,7 @@ input[type=range]{flex:1;accent-color:var(--accent)}
   var solid = null;          // 立体图形原始数据（用于导出 .obj）
   var lightDir = (function(){ var v=[-0.4,0.6,0.7]; var l=Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]); return [v[0]/l,v[1]/l,v[2]/l]; })();
   var dragging = false, lx = 0, ly = 0;
+  var lastGlb = null;       // 最近一次云端生成的 GLB（用于下载）
 
   // ---------- 3D 数学 ----------
   function rotPt(p, ya, pi){
@@ -445,6 +459,114 @@ input[type=range]{flex:1;accent-color:var(--accent)}
     setStatus('已导出 .obj（' + vcount + ' 顶点）· 可用 Blender / Unity 打开的真 3D 素材');
   }
 
+  // ---------- GLB 解析（内联，零依赖；供云端 AI 模式预览用）----------
+  // 解析标准 .glb（二进制 glTF 2.0）：提取首个 mesh primitive 的 POSITION 顶点与三角形索引。
+  function readIdx(dv, i, comp){
+    if(comp === 5125) return dv.getUint32(i*4, true);
+    if(comp === 5123) return dv.getUint16(i*2, true);
+    return dv.getUint8(i); // 5121
+  }
+  function parseGLB(buf){
+    var ab = (buf instanceof Uint8Array) ? buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) : buf;
+    var dv = new DataView(ab);
+    if(dv.byteLength < 12 || dv.getUint32(0, true) !== 0x46546C67) return null; // 'glTF'
+    var pos = 12, json = null, bin = null;
+    while(pos + 8 <= dv.byteLength){
+      var len = dv.getUint32(pos, true);
+      var type = dv.getUint32(pos + 4, true);
+      var start = pos + 8;
+      if(type === 0x4E4F534A){ // JSON
+        var s = '';
+        for(var i=0; i<len; i++) s += String.fromCharCode(dv.getUint8(start + i));
+        try { json = JSON.parse(s); } catch(e){ return null; }
+      } else if(type === 0x004E4942){ // BIN
+        bin = new Uint8Array(ab, start, len);
+      }
+      pos = start + len;
+    }
+    if(!json || !bin) return null;
+    var target = null;
+    if(json.meshes){
+      for(var m=0; m<json.meshes.length && !target; m++){
+        var prims = json.meshes[m].primitives || [];
+        for(var p=0; p<prims.length; p++){
+          if(prims[p].attributes && prims[p].attributes.POSITION != null){ target = prims[p]; break; }
+        }
+      }
+    }
+    if(!target || !json.accessors) return null;
+    var acc = json.accessors, bvs = json.bufferViews || [];
+    var pa = acc[target.attributes.POSITION];
+    var bv = bvs[pa.bufferView != null ? pa.bufferView : 0] || {};
+    var compType = pa.componentType, count = pa.count;
+    if(compType !== 5126) return null; // 仅支持 FLOAT 顶点
+    var boff = (bv.byteOffset || 0) + (pa.byteOffset || 0);
+    var verts = [];
+    var fv = new DataView(bin.buffer, bin.byteOffset + boff, count * 12);
+    for(var v=0; v<count; v++){
+      verts.push([ fv.getFloat32(v*12, true), fv.getFloat32(v*12 + 4, true), fv.getFloat32(v*12 + 8, true) ]);
+    }
+    var tris = [];
+    if(target.indices != null){
+      var ia = acc[target.indices], ibv = bvs[ia.bufferView != null ? ia.bufferView : 0] || {};
+      var ioff = (ibv.byteOffset || 0) + (ia.byteOffset || 0);
+      var idv = new DataView(bin.buffer, bin.byteOffset + ioff, ia.count * (ia.componentType === 5125 ? 4 : ia.componentType === 5123 ? 2 : 1));
+      for(var k=0; k<ia.count; k += 3){
+        tris.push([ readIdx(idv, k, ia.componentType), readIdx(idv, k+1, ia.componentType), readIdx(idv, k+2, ia.componentType) ]);
+      }
+    } else {
+      for(var k2=0; k2<count; k2 += 3) tris.push([k2, k2+1, k2+2]);
+    }
+    return { vertices: verts, triangles: tris };
+  }
+  // 把 GLB 顶点归一化（居中+缩放到 ~2 单位）并构建可渲染图元，复用现有 3D 引擎。
+  function loadCloudMesh(glb){
+    var data = parseGLB(glb);
+    if(!data || !data.vertices.length){ setStatus('⚠ 解析 GLB 失败或模型无顶点'); return null; }
+    var vs = data.vertices, n = vs.length;
+    var c = [0,0,0];
+    for(var i=0; i<n; i++){ c[0]+=vs[i][0]; c[1]+=vs[i][1]; c[2]+=vs[i][2]; }
+    c[0]/=n; c[1]/=n; c[2]/=n;
+    var maxr = 1e-6;
+    for(var j=0; j<n; j++){
+      var dx=vs[j][0]-c[0], dy=vs[j][1]-c[1], dz=vs[j][2]-c[2];
+      var r = Math.sqrt(dx*dx+dy*dy+dz*dz); if(r>maxr) maxr = r;
+    }
+    var sc = 2.2 / maxr;
+    for(var q=0; q<n; q++){ vs[q] = [(vs[q][0]-c[0])*sc, (vs[q][1]-c[1])*sc, (vs[q][2]-c[2])*sc]; }
+    var items = [];
+    for(var t=0; t<data.triangles.length; t++){
+      var tri = data.triangles[t];
+      var a=vs[tri[0]], b=vs[tri[1]], cc=vs[tri[2]];
+      if(!a || !b || !cc) continue;
+      items.push({ tex:false, color:[124,92,255], n:triNormal(a,b,cc), p:[a,b,cc] });
+    }
+    meshItems = items; solid = null;
+    yaw = 0.6; pitch = 0.3; dist = 4.6; zoom = 1;
+    return { verts: n, tris: items.length };
+  }
+  function genCloud(){
+    var up = $('cloudUpload'); var f = up && up.files && up.files[0];
+    if(!f){ setStatus('⚠ 请先选择一张图片'); return; }
+    setStatus('⏳ 正在调用 HuggingFace 免费图生3D（腾讯 Hunyuan3D-2），首次可能需等待数十秒…');
+    var fd = new FormData(); fd.append('image', f);
+    fetch('/api/img2mesh', { method:'POST', body: fd })
+      .then(function(r){
+        if(r.ok) return r.arrayBuffer();
+        return r.json().then(function(j){ throw new Error(j.error || ('HTTP ' + r.status)); });
+      })
+      .then(function(buf){
+        lastGlb = buf;
+        var info = loadCloudMesh(buf);
+        if(info){
+          setStatus('✅ 已生成 AI 3D 模型 · ' + info.verts + ' 顶点 / ' + info.tris + ' 面 · 拖拽旋转 · 可下载 GLB');
+          var dl = $('btnCloudDL'); if(dl) dl.style.display = 'inline-block';
+        }
+      })
+      .catch(function(e){ setStatus('⚠ 云端生成失败：' + e.message); });
+
+  }
+
   // ---------- 交互 ----------
   function resize(){
     var view=$('view'); if(!view||!cv) return;
@@ -507,20 +629,29 @@ input[type=range]{flex:1;accent-color:var(--accent)}
     var bo=$('btnExpOBJ'); if(bo) bo.addEventListener('click', exportOBJ);
     var tS=$('tabSolid'); if(tS) tS.addEventListener('click', function(){ setMode('solid'); });
     var tM=$('tabModel'); if(tM) tM.addEventListener('click', function(){ setMode('model'); });
+    var tC=$('tabCloud'); if(tC) tC.addEventListener('click', function(){ setMode('cloud'); });
+    var bcg=$('btnCloudGen'); if(bcg) bcg.addEventListener('click', genCloud);
+    var bcd=$('btnCloudDL'); if(bcd) bcd.addEventListener('click', function(){
+      if(!lastGlb) return;
+      var blob=new Blob([lastGlb], {type:'model/gltf-binary'});
+      downloadURI(URL.createObjectURL(blob), 'model.glb');
+    });
   }
   function setMode(m){
-    var s=$('paneSolid'), x=$('paneModel');
+    var s=$('paneSolid'), x=$('paneModel'), c=$('paneCloud');
     if(s) s.style.display=(m==='solid')?'block':'none';
     if(x) x.style.display=(m==='model')?'block':'none';
-    var t1=$('tabSolid'), t2=$('tabModel');
+    if(c) c.style.display=(m==='cloud')?'block':'none';
+    var t1=$('tabSolid'), t2=$('tabModel'), t3=$('tabCloud');
     if(t1) t1.classList.toggle('active', m==='solid');
     if(t2) t2.classList.toggle('active', m==='model');
+    if(t3) t3.classList.toggle('active', m==='cloud');
   }
   // ---------- 暴露纯函数供单测（vm 沙箱，无需 DOM）----------
   if(typeof window!=='undefined'){
     window.__dim = {
       norm3: norm3, triNormal: triNormal, solve3: solve3,
-      rotPt: rotPt, buildOBJ: buildOBJ
+      rotPt: rotPt, buildOBJ: buildOBJ, parseGLB: parseGLB
     };
   }
 

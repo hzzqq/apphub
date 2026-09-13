@@ -45,4 +45,47 @@ runAppTest(__dirname, (api) => {
   // 全空掩码应产出 0 顶点
   const empty = D.buildOBJ(g, new Uint8Array(9), 30, 30, 0.1, 0.4);
   eq(empty.split("\n").filter(l => l.charAt(0)==="v").length, 0, "空掩码无顶点");
+
+  // parseGLB：构造最小 GLB（单三角、非索引）验证解析
+  (function(){
+    function makeGLB(jsonObj, bin){
+      const enc = new TextEncoder();
+      let json = JSON.stringify(jsonObj);
+      while(json.length % 4 !== 0) json += " ";
+      const jb = enc.encode(json);
+      const total = 12 + 8 + jb.length + 8 + bin.length;
+      const buf = new ArrayBuffer(total);
+      const dv = new DataView(buf);
+      dv.setUint32(0, 0x46546C67, true); // 'glTF'
+      dv.setUint32(4, 2, true);
+      dv.setUint32(8, total, true);
+      dv.setUint32(12, jb.length, true);
+      dv.setUint32(16, 0x4E4F534A, true); // 'JSON'
+      new Uint8Array(buf, 20, jb.length).set(jb);
+      const binOff = 20 + jb.length;
+      dv.setUint32(binOff, bin.length, true);
+      dv.setUint32(binOff + 4, 0x004E4942, true); // 'BIN\0'
+      new Uint8Array(buf, binOff + 8, bin.length).set(bin);
+      return buf;
+    }
+    const verts = new Float32Array([1,0,0, 0,1,0, 0,0,1]);
+    const bin = new Uint8Array(verts.buffer);
+    const glb = makeGLB({
+      buffers:[{byteLength: bin.length}],
+      bufferViews:[{buffer:0, byteOffset:0, byteLength: bin.length}],
+      accessors:[{bufferView:0, componentType:5126, count:3, type:"VEC3"}],
+      meshes:[{primitives:[{attributes:{POSITION:0}}]}]
+    }, bin);
+    const res = D.parseGLB(glb);
+    ok("parseGLB 返回非 null", !!res);
+    ok("parseGLB 顶点数=3", res && res.vertices.length === 3);
+    if(res){
+      const v0 = res.vertices[0].map(x => Math.abs(x) < 1e-6 ? 0 : x);
+      arrEq(v0, [1,0,0], "parseGLB 顶点0 = (1,0,0)");
+      eq(res.triangles.length, 1, "parseGLB 三角数=1");
+      arrEq(res.triangles[0], [0,1,2], "parseGLB 非索引三角 [0,1,2]");
+    }
+    // 非 GLB 数据应返回 null（防误判）
+    eq(D.parseGLB(new Uint8Array([1,2,3,4]).buffer), null, "parseGLB 非GLB→null");
+  })();
 });

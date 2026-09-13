@@ -2468,6 +2468,59 @@ def api_search():
                         "note": "真实搜索失败, 回退离线库: " + str(e)[:100]})
 
 
+# ───────── dim-convert 云端图生3D（免费 HuggingFace Space，无需 API Key） ─────────
+# 前端把图片 POST 到本端点，后端用 gradio_client 调 HuggingFace 上的开源图生3D Space
+# （默认腾讯 Hunyuan3D-2，无需 token / 无需付费），拿到 .glb 二进制后直接回传给前端。
+# 依赖（部署机需安装，且能访问 huggingface.co）：pip install gradio_client
+# 受限环境（无 gradio_client / 无网）会优雅返回错误 JSON，不抛 500、不崩后端。
+import tempfile as _tempfile
+HF_IMG2MESH_SPACE = os.environ.get("HF_IMG2MESH_SPACE", "tencent/Hunyuan3D-2")
+HF_IMG2MESH_API = os.environ.get("HF_IMG2MESH_API", "/shape_generation")
+
+@app.route("/api/img2mesh", methods=["POST"])
+def api_img2mesh():
+    f = request.files.get("image")
+    if not f or not f.filename:
+        return jsonify({"ok": False, "error": "未收到图片（请通过 multipart 表单字段 image 上传）"}), 400
+    if not (f.content_type or "").startswith("image/"):
+        return jsonify({"ok": False, "error": "仅支持图片文件，收到: %s" % (f.content_type or "未知")}), 400
+    try:
+        from gradio_client import Client
+    except Exception:
+        return jsonify({"ok": False,
+                        "error": "后端未安装 gradio_client：请执行 pip install gradio_client"}), 500
+    tmp = None
+    try:
+        ext = os.path.splitext(f.filename)[1] or ".png"
+        fd, tmp = _tempfile.mkstemp(suffix=ext)
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(f.read())
+        client = Client(HF_IMG2MESH_SPACE)
+        result = client.predict(image=tmp, api_name=HF_IMG2MESH_API)
+        # gradio 文件组件返回 dict(FileData) 或 str(path)
+        path = result["path"] if isinstance(result, dict) else result
+        if not path or not os.path.isfile(path):
+            return jsonify({"ok": False, "error": "图生3D 生成失败：Space 未返回有效模型文件"}), 502
+        with open(path, "rb") as fh:
+            data = fh.read()
+        return Response(
+            data,
+            mimetype="model/gltf-binary",
+            headers={"Content-Disposition": 'attachment; filename="model.glb"',
+                     "X-Mesh-Bytes": str(len(data))},
+        )
+    except Exception as e:
+        return jsonify({"ok": False,
+                        "error": "图生3D 调用失败：%s（确认部署机能访问 huggingface.co 且 Space 未休眠）"
+                        % str(e)[:200]}), 502
+    finally:
+        if tmp and os.path.isfile(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+
 # ───────── 自动刷新调度器: 部署后后台周期重抓真实库存, 缓存永不过期 ─────────
 # 解决「凭一个网站能否拿到最新数据」: 服务器自己定时刷新, 访客无需任何操作。
 # 即使刷新失败(数据源限流/服务器IP被挡), 也保留上一次真实缓存, 绝不回退合成样本。
