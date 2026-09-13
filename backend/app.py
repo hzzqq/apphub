@@ -2649,7 +2649,7 @@ def _rule_gen_app(name, desc, feats):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>%s</title>
+<title>[[TITLE]]</title>
 <style>
   :root{--bg:#0f0f23;--card:#1a1a2e;--g1:#667eea;--g2:#764ba2;--txt:#e8e8f0;--sub:#9aa0b5}
   *{box-sizing:border-box}
@@ -2670,11 +2670,11 @@ def _rule_gen_app(name, desc, feats):
 </head>
 <body>
 <div class="wrap">
-  <h1>%s</h1>
-  <div class="sub">%s</div>
+  <h1>[[TITLE]]</h1>
+  <div class="sub">[[SUB]]</div>
   <div class="card">
     <h2>功能清单</h2>
-    <ul>%s</ul>
+    <ul>[[FEATS]]</ul>
   </div>
   <div class="card">
     <h2>笔记 / 数据</h2>
@@ -2687,7 +2687,7 @@ def _rule_gen_app(name, desc, feats):
   </div>
 </div>
 <script>
-  var KEY="apphub_note_"+%s;
+  var KEY="apphub_note_"+[[KEY]];
   function saveNote(){ try{ localStorage.setItem(KEY, document.getElementById('note').value); flash('已保存'); }catch(e){ flash('保存失败'); } }
   function clearNote(){ document.getElementById('note').value=''; try{ localStorage.removeItem(KEY); }catch(e){} flash('已清空'); }
   function flash(t){ var h=document.getElementById('hint'); var o=h.textContent; h.textContent=t; setTimeout(function(){ h.textContent=o; },1200); }

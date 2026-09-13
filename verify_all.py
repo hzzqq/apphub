@@ -507,6 +507,51 @@ def check_futures_inventory_guard():
     return 0
 
 
+# ─────────────── 8. AI 生成（规则兜底）模板占位符守卫 ───────────────
+def check_gen_app_template():
+    """守卫：AI 生成的「规则兜底」路径，模板与占位符替换方式必须一致。
+
+    背景（真实事故，R88 修复）：R84 为修 CSS `100%` 触发的 ValueError，
+    把生成器从 `%` 格式化改成 [[TOKEN]] 替换，却**没同步改模板里的 `%s`**。
+    后果：每个兜底生成的 App 标题/名称/功能全是字面量 `%s`，
+    且 `var KEY="apphub_note_"+%s;` 是语法错误 → 整个内联脚本挂掉。
+    这类错误**不崩溃、不报错，只在产物里显形**，且发生在降级兜底路径，
+    所以必须固化成门禁，防止再次静默产出废品。"""
+    print("─" * 60)
+    print("【生成守卫】AI 生成（规则兜底）模板占位符一致性")
+    if not os.path.isdir(BACKEND):
+        print("  ! 未发现 backend 目录, 跳过")
+        return 0
+    sys.path.insert(0, BACKEND)
+    try:
+        import app as backend
+    except Exception as e:
+        print("  [后端导入失败] %s" % e)
+        return 1
+    name, desc = "汇率换算器", "实时汇率换算"
+    feats = ["多币种", "历史记录"]
+    try:
+        html = backend._rule_gen_app(name, desc, feats)
+    except Exception as e:
+        print("  [生成失败] %s" % e)
+        return 1
+    errs = 0
+    for tok in ("%s", "[[", "]]"):
+        if tok in html:
+            print("  [占位符残留] 生成结果仍含 %r —— 模板与替换方式不一致" % tok)
+            errs += 1
+    for must in (name, desc, feats[0], feats[1]):
+        if must not in html:
+            print("  [未替换] 生成结果缺少 %r" % must)
+            errs += 1
+    if 'apphub_note_"+' not in html:
+        print("  [JS 风险] localStorage KEY 未正确生成（应为 \"apphub_note_\"+<字符串>）")
+        errs += 1
+    if errs == 0:
+        print("  ✓ 规则兜底生成器占位符全部落位，无 %s / [[ ]] 残留")
+    return errs
+
+
 def main():
     print("=" * 60)
     print("App Hub 全量校验 @ %s" % ROOT)
@@ -520,10 +565,11 @@ def main():
     e5 = check_endpoint_consistency()
     e6 = check_realdada_coverage()
     e7 = check_futures_inventory_guard()
-    total = e1 + e1b + e1c + e2 + e3 + e4 + e5 + e6 + e7
+    e8 = check_gen_app_template()
+    total = e1 + e1b + e1c + e2 + e3 + e4 + e5 + e6 + e7 + e8
     print("─" * 60)
-    print("汇总: 前端错误 %d, 前端单测失败 %d, 前端运行时 %d, 后端错误 %d, 一致性错误 %d, 目录卫生 %d, 端点一致性 %d, 真实数据覆盖 %d, 期货保护 %d, 总计 %d"
-          % (e1, e1b, e1c, e2, e3, e4, e5, e6, e7, total))
+    print("汇总: 前端错误 %d, 前端单测失败 %d, 前端运行时 %d, 后端错误 %d, 一致性错误 %d, 目录卫生 %d, 端点一致性 %d, 真实数据覆盖 %d, 期货保护 %d, 生成守卫 %d, 总计 %d"
+          % (e1, e1b, e1c, e2, e3, e4, e5, e6, e7, e8, total))
     if total == 0:
         print("✅ 全部通过")
     else:
