@@ -2521,6 +2521,189 @@ def api_img2mesh():
                 pass
 
 
+# ───────── 生态化: 导出 / 提交 / AI 生成 微应用 ─────────
+# 零依赖单文件硬规矩: 任何 <script src=...> 都判违规(前端门禁同源校验)
+_ZERO_DEP_RE = re.compile(r"<script[^>]*\bsrc\s*=", re.I)
+_APP_DIR_RE = re.compile(r"^[A-Za-z0-9_\-]+(/[A-Za-z0-9_\-]+)*$")
+
+def _gate_zero_dep(html):
+    """返回违规原因列表(空=通过)。与前端 verify_all 同源: 禁止外部 script src / CDN。"""
+    reasons = []
+    if _ZERO_DEP_RE.search(html):
+        reasons.append("存在 <script src=...>（违反零依赖单文件规矩，必须内联）")
+    if not re.search(r"<html", html, re.I) and not re.search(r"<body", html, re.I):
+        reasons.append("未检测到 <html>/<body> 结构")
+    if len(html) < 200:
+        reasons.append("内容过短，疑似非完整 HTML")
+    return reasons
+
+def _strip_fences(s):
+    if not s:
+        return s
+    m = re.search(r"```(?:html)?\s*(.*?)```", s, re.S)
+    if m:
+        return m.group(1).strip()
+    return s.strip()
+
+def _rule_gen_app(name, desc, feats):
+    """离线规则生成器: 产出可运行的零依赖单文件 HTML 微应用(深色主题 + localStorage)。"""
+    feats_html = "".join(f"<li>{f}</li>" for f in (feats or [])) or "<li>自由发挥，做一个实用小工具</li>"
+    title = name or "我的小工具"
+    sub = desc or "由 App Hub 生成"
+    TEMPLATE = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>%s</title>
+<style>
+  :root{--bg:#0f0f23;--card:#1a1a2e;--g1:#667eea;--g2:#764ba2;--txt:#e8e8f0;--sub:#9aa0b5}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;padding:24px}
+  .wrap{max-width:640px;margin:0 auto}
+  h1{font-size:22px;background:linear-gradient(135deg,var(--g1),var(--g2));-webkit-background-clip:text;background-clip:text;color:transparent;margin:0 0 4px}
+  .sub{color:var(--sub);font-size:13px;margin-bottom:18px}
+  .card{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-bottom:14px}
+  h2{font-size:15px;margin:0 0 10px;color:var(--txt)}
+  ul{margin:0;padding-left:20px;color:var(--sub);font-size:13px;line-height:1.9}
+  textarea,input{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:var(--txt);border-radius:10px;padding:10px;font-size:13px;font-family:inherit}
+  textarea{min-height:110px;resize:vertical}
+  button{cursor:pointer;border:0;border-radius:10px;padding:9px 16px;font-size:13px;color:#fff;background:linear-gradient(135deg,var(--g1),var(--g2))}
+  button.ghost{background:rgba(255,255,255,.08)}
+  .row{display:flex;gap:8px;margin-top:10px}
+  .hint{color:var(--sub);font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>%s</h1>
+  <div class="sub">%s</div>
+  <div class="card">
+    <h2>功能清单</h2>
+    <ul>%s</ul>
+  </div>
+  <div class="card">
+    <h2>笔记 / 数据</h2>
+    <textarea id="note" placeholder="在这里记录内容，自动保存在本浏览器（localStorage）"></textarea>
+    <div class="row">
+      <button onclick="saveNote()">保存</button>
+      <button class="ghost" onclick="clearNote()">清空</button>
+    </div>
+    <div class="hint" id="hint">数据仅存于本设备，不会上传。</div>
+  </div>
+</div>
+<script>
+  var KEY="apphub_note_"+%s;
+  function saveNote(){ try{ localStorage.setItem(KEY, document.getElementById('note').value); flash('已保存'); }catch(e){ flash('保存失败'); } }
+  function clearNote(){ document.getElementById('note').value=''; try{ localStorage.removeItem(KEY); }catch(e){} flash('已清空'); }
+  function flash(t){ var h=document.getElementById('hint'); var o=h.textContent; h.textContent=t; setTimeout(function(){ h.textContent=o; },1200); }
+  try{ var v=localStorage.getItem(KEY); if(v) document.getElementById('note').value=v; }catch(e){}
+</script>
+</body>
+</html>
+"""
+    return (TEMPLATE
+            .replace("[[TITLE]]", title)
+            .replace("[[SUB]]", sub)
+            .replace("[[FEATS]]", feats_html)
+            .replace("[[KEY]]", json.dumps(title)))
+
+@app.route("/api/export_app")
+def api_export_app():
+    """导出某个微应用为独立 .html 文件(附件下载)。p = 相对 APP_ROOT 的目录路径。"""
+    p = (request.args.get("p", "") or "").strip()
+    if not _APP_DIR_RE.match(p):
+        return jsonify({"ok": False, "error": "非法路径"}), 400
+    rel = (p + "/index.html").replace("\\", "/")
+    full = os.path.join(APP_ROOT, *p.split("/"), "index.html")
+    if not os.path.isfile(full):
+        return jsonify({"ok": False, "error": "应用不存在: %s" % p}), 404
+    leaf = p.split("/")[-1]
+    return send_from_directory(APP_ROOT, rel, as_attachment=True,
+                               download_name=leaf + ".html", mimetype="text/html")
+
+@app.route("/api/submit_app", methods=["POST"])
+def api_submit_app():
+    """社区提交管线: 接收 .html → 零依赖门禁 → 写入 submitted/ 目录。"""
+    f = request.files.get("app")
+    if not f or not f.filename:
+        return jsonify({"ok": False, "error": "未收到文件（multipart 字段名 app，.html）"}), 400
+    raw = f.read()
+    if len(raw) > 600 * 1024:
+        return jsonify({"ok": False, "error": "文件过大（上限 600KB）"}), 400
+    html = raw.decode("utf-8", "ignore")
+    reasons = _gate_zero_dep(html)
+    if reasons:
+        return jsonify({"ok": False, "error": "未通过零依赖门禁", "reasons": reasons}), 400
+    safe = re.sub(r"[^A-Za-z0-9_\-]", "_", os.path.splitext(f.filename)[0])[:40] or "app"
+    dest = os.path.join(APP_ROOT, "submitted", safe)
+    os.makedirs(dest, exist_ok=True)
+    with open(os.path.join(dest, "index.html"), "w", encoding="utf-8") as fh:
+        fh.write(html)
+    return jsonify({"ok": True, "dir": "submitted/" + safe,
+                    "path": "/submitted/" + safe + "/index.html", "bytes": len(raw)})
+
+@app.route("/api/gen_app", methods=["POST"])
+def api_gen_app():
+    """AI 生成微应用闭环: 描述 → (LLM 或规则) 生成零依赖单文件 HTML → 门禁 → 落盘 generated/。"""
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+    except Exception:
+        body = {}
+    name = cap_len(str(body.get("name", "") or ""), 60).strip()
+    desc = cap_len(str(body.get("desc", "") or ""), 300).strip()
+    feats = body.get("features") or []
+    if isinstance(feats, list):
+        feats = [cap_len(str(x), 80) for x in feats][:8]
+    else:
+        feats = []
+    cat = cap_len(str(body.get("cat", "tool") or "tool"), 10) or "tool"
+    if not name:
+        return jsonify({"ok": False, "error": "name 必填"}), 400
+
+    html = None
+    source = "rule"
+    sys_p = ("你是一个零依赖单文件 HTML 微应用生成器。只输出一个完整的、可直接用浏览器打开的单一 HTML 文件，"
+             "内联所有 CSS 和 JS，禁止出现 <script src=...> 或外部 CDN 引用。界面用中文，深色主题，"
+             "配色用 #0f0f23 底色、#1a1a2e 卡片、紫色渐变 #667eea→#764ba2。实现用户描述的小工具，可本地运行（数据存 localStorage）。"
+             "只返回 HTML，不要解释，不要 markdown 代码围栏。")
+    user_p = "应用名称：%s\n一句话描述：%s\n功能点：%s" % (
+        name, desc or "（见名称）", "、".join(feats) or "（自由发挥，做一个实用小工具）")
+    if LLM_PROVIDER != "disabled":
+        try:
+            content = _llm_call(_llm_messages(sys_p, user_p), LLM_MODEL, timeout=90)
+            cand = _strip_fences(content)
+            if cand and _ZERO_DEP_RE.search(cand) is None and len(cand) > 200:
+                html = cand
+                source = "llm"
+        except Exception:
+            html = None  # 降级到规则生成
+    if not html:
+        html = _rule_gen_app(name, desc, feats)
+        source = "rule"
+    reasons = _gate_zero_dep(html)
+    if reasons:
+        return jsonify({"ok": False, "error": "生成内容未通过零依赖门禁",
+                        "reasons": reasons, "source": source}), 502
+    slug = re.sub(r"[^A-Za-z0-9_\-]", "_", name)[:40] or "app"
+    if not re.search(r"[A-Za-z0-9]", slug):
+        slug = "app"
+    # 避免覆盖: slug 冲突时追加序号
+    base = os.path.join(APP_ROOT, "generated")
+    os.makedirs(base, exist_ok=True)
+    dest = os.path.join(base, slug)
+    i = 1
+    while os.path.exists(dest):
+        dest = os.path.join(base, "%s_%d" % (slug, i))
+        i += 1
+    os.makedirs(dest, exist_ok=True)
+    with open(os.path.join(dest, "index.html"), "w", encoding="utf-8") as fh:
+        fh.write(html)
+    rel = os.path.relpath(dest, APP_ROOT).replace("\\", "/")
+    return jsonify({"ok": True, "source": source, "dir": rel,
+                    "path": "/" + rel + "/index.html", "bytes": len(html)})
+
+
 # ───────── 自动刷新调度器: 部署后后台周期重抓真实库存, 缓存永不过期 ─────────
 # 解决「凭一个网站能否拿到最新数据」: 服务器自己定时刷新, 访客无需任何操作。
 # 即使刷新失败(数据源限流/服务器IP被挡), 也保留上一次真实缓存, 绝不回退合成样本。

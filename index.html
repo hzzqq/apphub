@@ -189,6 +189,17 @@
     border-radius:8px;padding:1px 8px;font-size:11px;cursor:pointer;transition:border-color .2s,color .2s}
   .modal .box ul .epcopy:hover{border-color:var(--accent);color:var(--txt)}
   .modal .box .epactions{margin:2px 0 6px;display:flex;gap:8px}
+  .modal .box.wide{max-width:640px;width:min(640px,92vw)}
+  .modal .field{margin:10px 0}
+  .modal label{display:block;font-size:13px;color:var(--sub);margin-bottom:5px}
+  .modal input[type=text],.modal input[type=file],.modal textarea{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:9px 11px;font-size:13px;font-family:inherit;box-sizing:border-box}
+  .modal textarea{min-height:66px;resize:vertical}
+  .modal .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .modal .status{font-size:12.5px;margin-top:10px;color:var(--sub);min-height:18px;line-height:1.6}
+  .modal .status.ok{color:#00d486}
+  .modal .status.err{color:#ff4d4f}
+  .modal .genout{margin-top:8px;font-size:12.5px;line-height:1.7}
+  .modal .genout a{color:var(--accent)}
   .desc{font-size:12.5px;color:var(--sub);line-height:1.6;flex:1;min-height:42px}
   .cact{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .open{display:inline-flex;align-items:center;justify-content:center;gap:6px;
@@ -290,6 +301,8 @@
         <button class="randbtn" id="viewBtn" title="切换网格 / 列表视图" data-page-node-id="4zmUgKFxZdaZspVSeILgvp">▦ 网格</button>
         <button class="randbtn" id="paletteBtn" title="命令面板 (Ctrl/Cmd+K)" data-page-node-id="Yan1zZ9fRzps5RILYMCsLl">⌘ 命令面板</button>
         <button class="randbtn" id="helpBtn" title="键盘快捷键帮助 (?)" data-page-node-id="pistvl3VZCBlU8Spj1UmR2">？ 快捷键</button>
+        <button class="randbtn" id="aiGenBtn" title="AI 生成微应用（描述即生成）">🤖 AI 生成</button>
+        <button class="randbtn" id="submitBtn" title="提交你的微应用">📤 提交应用</button>
       </div>
     </section>
 
@@ -418,6 +431,7 @@ const APPS = [
   {dir:"holdings-health",   name:"持仓体检",       ico:"💼", cat:"fin",  tag:"持仓估值",       desc:"批量消费 /api/quote，输入一组代码展示实时价/涨跌/占比。"},
   {dir:"sector-heat",       name:"板块强弱热力",   ico:"🔥", cat:"fin",  tag:"板块涨跌",       desc:"消费 /api/sector，按涨跌幅着色展示板块强弱热力。"},
   {dir:"quote-board",       name:"实时报价板",     ico:"💹", cat:"fin",  tag:"个股实时报价",   desc:"消费 /api/quote，输入代码查看实时价格/涨跌/量。"},
+  {dir:"watch-board",       name:"自选行情看板",   ico:"📡", cat:"fin",  tag:"自选监控",       desc:"监控一组 A 股代码实时价/涨跌幅，消费 /api/quote，红涨绿跌，自选存 localStorage。"},
   {dir:"eia-watch",         name:"原油库存周报",   ico:"🛢️", cat:"fin",  tag:"EIA 原油",       desc:"消费 /api/eia_crude，展示美国原油库存周度数据。"},
   {dir:"inventory-watch",   name:"库存概览",       ico:"📦", cat:"fin",  tag:"期货库存",       desc:"消费 /api/inventory_overview，展示主要品种库存概览。"},
   {dir:"variety-screener",  name:"期货品种筛选",   ico:"🧮", cat:"fin",  tag:"品种列表",       desc:"消费 /api/futures_varieties，浏览/筛选期货品种。"},
@@ -767,6 +781,7 @@ function render(){
       '<div class="cact">' +
         '<a class="open" href="' + a.dir + '/index.html" target="_blank" rel="noopener" onclick="return openApp(event,\'' + a.dir + '\')">打开应用 →</a>' +
         '<button class="copybtn" type="button" onclick="copyPath(event,\'' + a.dir + '\')">📋 复制路径</button>' +
+        '<button class="copybtn" type="button" onclick="exportApp(\'' + a.dir + '\')">📤 导出</button>' +
       '</div>';
     grid.appendChild(el);
   });
@@ -1592,6 +1607,64 @@ document.addEventListener("keydown", function(e){
   var hbtn = document.getElementById("helpBtn");
   if(hbtn) hbtn.addEventListener("click", openHelp);
 })();
+
+/* ============ R84 生态化: 导出 / AI 生成 / 社区提交 ============ */
+function exportApp(dir){ window.location.href = "/api/export_app?p=" + encodeURIComponent(dir); }
+function openAiModal(){ var m=document.getElementById("aiModal"); if(m) m.classList.add("on"); }
+function closeAiModal(){ var m=document.getElementById("aiModal"); if(m) m.classList.remove("on"); }
+function openSubmitModal(){ var m=document.getElementById("submitModal"); if(m) m.classList.add("on"); }
+function closeSubmitModal(){ var m=document.getElementById("submitModal"); if(m) m.classList.remove("on"); }
+
+function submitAiGen(e){
+  if(e && e.preventDefault) e.preventDefault();
+  var name=(document.getElementById("aiName").value||"").trim();
+  var desc=(document.getElementById("aiDesc").value||"").trim();
+  var feat=(document.getElementById("aiFeats").value||"").trim();
+  var cat=(document.getElementById("aiCat").value||"tool").trim()||"tool";
+  var st=document.getElementById("aiStatus"); st.className="status"; st.textContent="生成中…";
+  if(!name){ st.className="status err"; st.textContent="请填写应用名称"; return; }
+  var feats=feat?feat.split(/[\n,，、]/).map(function(s){return s.trim();}).filter(Boolean):[];
+  fetch("/api/gen_app",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({name:name,desc:desc,features:feats,cat:cat})})
+    .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+    .then(function(o){
+      var j=o.j;
+      if(!j.ok){ st.className="status err"; st.textContent="失败："+(j.error||"未知")+(j.reasons?("（"+j.reasons.join("；")+"）"):""); return; }
+      st.className="status ok"; st.textContent="✅ 已生成（"+j.source+"）："+j.dir;
+      var leaf=j.dir.split("/").pop();
+      document.getElementById("aiOut").innerHTML=
+        '打开：<a href="'+j.path+'" target="_blank" rel="noopener">'+j.dir+'</a> · '+
+        '导出独立文件：<a href="/api/export_app?p='+encodeURIComponent(j.dir)+'" target="_blank" rel="noopener">下载 .html</a>';
+    })
+    .catch(function(err){ st.className="status err"; st.textContent="请求失败："+err; });
+}
+
+function submitAppFile(e){
+  if(e && e.preventDefault) e.preventDefault();
+  var inp=document.getElementById("subFile");
+  var st=document.getElementById("subStatus");
+  if(!inp || !inp.files.length){ st.className="status err"; st.textContent="请选择 .html 文件"; return; }
+  var fd=new FormData(); fd.append("app", inp.files[0]);
+  st.className="status"; st.textContent="提交中…";
+  fetch("/api/submit_app",{method:"POST",body:fd})
+    .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+    .then(function(o){
+      var j=o.j;
+      if(!j.ok){ st.className="status err"; st.textContent="被拒："+(j.error||"")+(j.reasons?("（"+j.reasons.join("；")+"）"):""); return; }
+      st.className="status ok"; st.textContent="✅ 已入库："+j.dir+"（可直接访问 "+j.path+"）";
+    })
+    .catch(function(err){ st.className="status err"; st.textContent="请求失败："+err; });
+}
+
+(function(){
+  var a=document.getElementById("aiGenBtn"); if(a) a.addEventListener("click", openAiModal);
+  var s=document.getElementById("submitBtn"); if(s) s.addEventListener("click", openSubmitModal);
+  // 点击遮罩关闭模态
+  ["aiModal","submitModal"].forEach(function(id){
+    var m=document.getElementById(id);
+    if(m) m.addEventListener("click", function(ev){ if(ev.target===m) m.classList.remove("on"); });
+  });
+})();
 renderRecent();
 applyHash();   // R64: 首次加载若 URL 带 #dir 深链，直接定位该应用
 renderCrossLinks();   // R66: 渲染帮助↔命令面板交叉跳转入口
@@ -1630,6 +1703,40 @@ renderCrossLinks();   // R66: 渲染帮助↔命令面板交叉跳转入口
       <div id="helpList" data-page-node-id="AHHxJ1IvRNGFhjjJVuwLT0"></div>
       <div class="foot" data-page-node-id="EoEXsoFiZWzXWuxQiFVYC2"><span class="link" id="helpFoot" data-page-node-id="Fvt1QJNdgN0sXb8ZYebyFP"></span></div>
       <div class="foot" data-page-node-id="l8jg2Vo9WE2ItGvR27E2XI">按 <kbd data-page-node-id="kSzN4Nhj0bkOk90H1GKAcJ">?</kbd> 或 <kbd data-page-node-id="Anbt4464Sg5iJOGjihsXrp">Esc</kbd> 关闭</div>
+    </div>
+  </div>
+
+  <!-- AI 生成微应用（R84）：自然语言 → 零依赖单文件 HTML → 门禁 → 落盘 -->
+  <div class="modal" id="aiModal" role="dialog" aria-modal="true" aria-label="AI 生成微应用" data-page-node-id="aiGenModal">
+    <div class="box wide" data-page-node-id="aiGenBox">
+      <span class="x" onclick="closeAiModal()" title="关闭" aria-label="关闭" data-page-node-id="aiGenX">×</span>
+      <h3 data-page-node-id="aiGenH">🤖 AI 生成微应用</h3>
+      <p class="epnote">用自然语言描述你想做的小工具，自动生成<strong>零依赖单文件 HTML</strong>（内联 CSS/JS，可离线、可导出）。后端无 LLM 时自动降级为规则模板。</p>
+      <div class="field"><label>应用名称 *</label><input type="text" id="aiName" placeholder="如：番茄钟 / 随机点名器 / 汇率换算"></div>
+      <div class="field"><label>一句话描述</label><input type="text" id="aiDesc" placeholder="如：25 分钟专注计时，统计今日番茄数"></div>
+      <div class="field"><label>功能点（逗号或换行分隔，可选）</label><textarea id="aiFeats" placeholder="如：开始/暂停、完成记录、历史统计"></textarea></div>
+      <div class="field"><label>分类</label><input type="text" id="aiCat" placeholder="tool / fin / life" value="tool"></div>
+      <div class="row">
+        <button class="randbtn" onclick="submitAiGen(event)">⚡ 生成</button>
+        <button class="randbtn" onclick="closeAiModal()">关闭</button>
+      </div>
+      <div class="status" id="aiStatus" data-page-node-id="aiGenStatus"></div>
+      <div class="genout" id="aiOut" data-page-node-id="aiGenOut"></div>
+    </div>
+  </div>
+
+  <!-- 社区提交微应用（R84）：上传零依赖单文件 HTML → 门禁 → 入库 -->
+  <div class="modal" id="submitModal" role="dialog" aria-modal="true" aria-label="提交微应用" data-page-node-id="subModal">
+    <div class="box wide" data-page-node-id="subBox">
+      <span class="x" onclick="closeSubmitModal()" title="关闭" aria-label="关闭" data-page-node-id="subX">×</span>
+      <h3 data-page-node-id="subH">📤 提交你的微应用</h3>
+      <p class="epnote">上传一个<strong>零依赖单文件 HTML</strong>（无外部 &lt;script src&gt;、无 CDN）。通过门禁后将存入 <code>submitted/</code> 目录，可直接访问。</p>
+      <div class="field"><label>选择 .html 文件</label><input type="file" id="subFile" accept=".html,text/html"></div>
+      <div class="row">
+        <button class="randbtn" onclick="submitAppFile(event)">🚀 提交</button>
+        <button class="randbtn" onclick="closeSubmitModal()">关闭</button>
+      </div>
+      <div class="status" id="subStatus" data-page-node-id="subStatus"></div>
     </div>
   </div>
 

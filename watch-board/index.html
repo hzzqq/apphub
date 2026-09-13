@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自选行情看板 · AppHub</title>
+<style>
+  :root{--bg:#0f1020;--panel:#1a1b2e;--panel2:#23243a;--line:#2e2f4a;--text:#e8e9f3;
+    --sub:#9aa0c0;--accent:#7c8cff;--green:#00d486;--red:#ff4d4f;--amber:#ffb454;--chip:#2a2c46}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;padding:22px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--sub);margin:0 0 16px;font-size:13px}
+  a.hubhome{position:fixed;left:12px;top:12px;z-index:50;text-decoration:none;
+    background:var(--chip);color:var(--text);padding:5px 10px;border-radius:8px;font-size:12px}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end}
+  textarea{background:var(--panel);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:8px 10px;font-size:13px;min-width:320px;min-height:60px;
+    font-family:inherit;resize:vertical}
+  button{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:8px 16px;
+    font-size:13px;cursor:pointer;font-weight:600}
+  button.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+  .status{display:inline-flex;align-items:center;gap:7px;font-size:13px;margin-bottom:12px;
+    padding:6px 12px;border-radius:9px;background:var(--panel);border:1px solid var(--line)}
+  .dot{width:9px;height:9px;border-radius:50%}
+  .dot.ok{background:var(--green)} .dot.bad{background:var(--red)} .dot.wait{background:var(--amber)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+  .chip{background:var(--chip);border:1px solid var(--line);color:var(--text);border-radius:20px;
+    padding:5px 10px;font-size:12px;display:inline-flex;align-items:center;gap:6px}
+  .chip b{color:var(--accent);font-family:ui-monospace,Menlo,monospace}
+  .chip .x{cursor:pointer;color:var(--sub);font-weight:700}
+  .chip .x:hover{color:var(--red)}
+  .tbl{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;margin-top:8px}
+  .tbl th,.tbl td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+  .tbl th{color:var(--sub);font-weight:600;background:var(--panel2);position:sticky;top:0}
+  .tbl tr:last-child td{border-bottom:0}
+  .tbl td.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--accent)}
+  .up{color:var(--red)} .down{color:var(--green)} .flat{color:var(--sub)}
+  .empty{color:var(--sub);padding:22px;text-align:center}
+  .err{color:var(--red);padding:14px;border:1px solid var(--red);border-radius:10px;background:rgba(255,77,79,.08)}
+  .note{margin-top:14px;color:var(--sub);font-size:12px;line-height:1.7}
+</style>
+</head>
+<body>
+<a class="hubhome" href="/" target="_blank" rel="noopener">← 回大厅</a>
+<h1>自选行情看板</h1>
+<div class="sub">监控一组 A 股代码的实时价格与涨跌幅，数据来自统一后端 <code>/api/quote</code>（红涨绿跌）。</div>
+
+<div class="controls">
+  <div>
+    <label style="display:block;color:var(--sub);font-size:12px;margin-bottom:4px">批量添加（代码逗号/换行分隔，可带 sh/sz 前缀）</label>
+    <textarea id="addBox" placeholder="600519, 000858, 300750&#10;或 sh600519 sz000858"></textarea>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <button id="addBtn">＋ 加入自选</button>
+    <button class="ghost" id="qBtn">查询行情</button>
+  </div>
+</div>
+
+<div class="status" id="status"><span class="dot wait"></span><span id="statusTxt">就绪</span></div>
+<div class="chips" id="chips"></div>
+<div id="out"></div>
+
+<div class="note">
+  提示：代码留空（仅查自选）也可。需真实行情请通过后端访问本页（如 <code>http://127.0.0.1:8787/watch-board/</code>）；
+  以 <code>file://</code> 双击打开时浏览器跨域，将提示改用后端地址。离线环境下后端返回确定性样本价，便于演示。
+</div>
+
+<script>
+  function apiBase(){ return location.protocol === "file:" ? null : location.origin; }
+  var BASE = apiBase();
+  var ENDPOINT = "/api/quote";
+  var KEY = "watch_codes";
+
+  function normCode(c){
+    c = (c||"").trim().toUpperCase();
+    if(!c) return null;
+    if(/^(SH|SZ|BJ)\d{6}$/.test(c)) return c;
+    if(/^\d{6}$/.test(c)) return (c[0]==="6" ? "SH" : (c[0]==="8"||c[0]==="4") ? "BJ" : "SZ") + c;
+    return c;
+  }
+  function loadWatch(){ try{ return JSON.parse(localStorage.getItem(KEY)||"[]"); }catch(e){ return []; } }
+  function saveWatch(a){ try{ localStorage.setItem(KEY, JSON.stringify(a)); }catch(e){} }
+  function setStatus(kind, txt){
+    var dot = kind==="ok" ? "ok" : kind==="bad" ? "bad" : "wait";
+    document.getElementById("status").querySelector(".dot").className = "dot " + dot;
+    document.getElementById("statusTxt").textContent = txt;
+  }
+
+  function renderChips(){
+    var a = loadWatch();
+    var box = document.getElementById("chips");
+    if(!a.length){ box.innerHTML = '<span class="empty" style="padding:6px">暂无自选，先在上方添加代码</span>'; return; }
+    box.innerHTML = a.map(function(c){
+      return '<span class="chip"><b>'+c+'</b><span class="x" data-c="'+c+'">×</span></span>';
+    }).join("");
+    box.querySelectorAll(".x").forEach(function(x){
+      x.addEventListener("click", function(){
+        var c = x.dataset.c;
+        saveWatch(loadWatch().filter(function(d){ return d!==c; }));
+        renderChips();
+      });
+    });
+  }
+
+  function addCodes(){
+    var raw = document.getElementById("addBox").value || "";
+    var list = raw.split(/[\n,，、\s]+/).map(normCode).filter(Boolean);
+    if(!list.length){ setStatus("bad","没有有效代码"); return; }
+    var a = loadWatch();
+    list.forEach(function(c){ if(a.indexOf(c)<0) a.push(c); });
+    saveWatch(a);
+    document.getElementById("addBox").value = "";
+    renderChips();
+    setStatus("ok","已加入 "+list.length+" 个代码");
+  }
+
+  function cls(chg){ return chg>0 ? "up" : chg<0 ? "down" : "flat"; }
+  function fmt(n){ return (n==null) ? "—" : (typeof n==="number" ? n.toFixed(2) : n); }
+
+  function renderTable(rows){
+    if(!rows.length){ document.getElementById("out").innerHTML = '<div class="empty">无数据</div>'; return; }
+    var html = '<table class="tbl"><thead><tr><th>代码</th><th>名称</th><th>最新价</th><th>涨跌幅</th><th>状态</th></tr></thead><tbody>'
+      + rows.map(function(r){
+        if(!r.ok){
+          return '<tr><td class="mono">'+r.code+'</td><td colspan="4" class="down">获取失败：'+(r.error||"")+'</td></tr>';
+        }
+        var chg = r.chg||0;
+        return '<tr>'
+          + '<td class="mono">'+r.code+'</td>'
+          + '<td>'+ (r.name||"—") +'</td>'
+          + '<td>'+ fmt(r.price) +'</td>'
+          + '<td class="'+cls(chg)+'">'+ (chg>0?"+":"") + chg.toFixed(2) +'%</td>'
+          + '<td class="'+cls(chg)+'">'+(r.offline?"样本":"实时")+'</td>'
+          + '</tr>';
+      }).join("") + '</tbody></table>';
+    document.getElementById("out").innerHTML = html;
+  }
+
+  function query(){
+    var a = loadWatch();
+    if(!a.length){ setStatus("bad","自选为空，先添加代码"); return; }
+    if(!BASE){ setStatus("bad","请通过后端 http 访问本页以加载真实行情"); return; }
+    setStatus("wait","查询中…");
+    Promise.all(a.map(function(c){
+      var url = BASE + ENDPOINT + "?code=" + encodeURIComponent(c);
+      return fetch(url).then(function(r){ return r.json(); }).then(function(j){
+        return { code:c, ok:j.ok, name:j.name, price:j.price, chg:j.chg, offline:j.offline, error:j.error };
+      }).catch(function(e){ return { code:c, ok:false, error:String(e) }; });
+    })).then(function(rows){
+      renderTable(rows);
+      var okCount = rows.filter(function(r){ return r.ok; }).length;
+      setStatus("ok","查询完成："+okCount+"/"+rows.length+" 成功");
+    }).catch(function(e){ setStatus("bad","请求失败："+e); });
+  }
+
+  document.getElementById("addBtn").addEventListener("click", addCodes);
+  document.getElementById("qBtn").addEventListener("click", query);
+  renderChips();
+  if(!BASE) setStatus("bad","检测到 file:// 打开，请改用后端 http 地址以获得真实行情");
+</script>
+</body>
+</html>

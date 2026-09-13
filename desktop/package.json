@@ -1,0 +1,20 @@
+{
+  "name": "apphub-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App Hub 桌面壳层（Tauri 包装，零体积、呼出即用）",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-shell": "^2.0.0",
+    "@tauri-apps/plugin-global-shortcut": "^2.0.0",
+    "@tauri-apps/plugin-autostart": "^2.0.0"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "AppHub",
+  "version": "1.0.0",
+  "identifier": "com.apphub.desktop",
+  "build": {
+    "frontendDist": "../",
+    "devUrl": "http://127.0.0.1:8787",
+    "beforeDevCommand": "echo '请先另开终端启动后端: python ../backend/app.py'",
+    "beforeBuildCommand": "echo '前端为零依赖静态文件，无需构建'"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "App Hub",
+        "width": 1280,
+        "height": 860,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "plugin": {
+    "shell": {
+      "open": true
+    }
+  },
+  "tauri": {
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ]
+    }
+  }
+}
