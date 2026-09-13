@@ -2786,7 +2786,9 @@ def api_gen_app():
                         "reasons": reasons, "source": source, "source_detail": source_detail}), 502
     slug = re.sub(r"[^A-Za-z0-9_\-]", "_", name)[:40] or "app"
     if not re.search(r"[A-Za-z0-9]", slug):
-        slug = "app"
+        # 纯中文/非 ASCII 应用名会被整体替换成下划线，全部塌陷成 app、app_1、app_2…
+        # 无法区分每次生成的结果，改用时间戳命名
+        slug = "app_" + datetime.now().strftime("%Y%m%d_%H%M%S")
     # 避免覆盖: slug 冲突时追加序号
     base = os.path.join(APP_ROOT, "generated")
     os.makedirs(base, exist_ok=True)
