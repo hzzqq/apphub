@@ -2476,6 +2476,9 @@ def api_search():
 import tempfile as _tempfile
 HF_IMG2MESH_SPACE = os.environ.get("HF_IMG2MESH_SPACE", "tencent/Hunyuan3D-2")
 HF_IMG2MESH_API = os.environ.get("HF_IMG2MESH_API", "/shape_generation")
+# 图生3D 提供方: 默认 hf(HuggingFace 开源 Space, 免 Key); 可选 tripo/volc(需 API Key, 由用户配置)
+IMG2MESH_PROVIDER = os.environ.get("IMG2MESH_PROVIDER", "hf").strip().lower()
+TRIPO_API_KEY = os.environ.get("TRIPO_API_KEY", "").strip()
 
 @app.route("/api/img2mesh", methods=["POST"])
 def api_img2mesh():
@@ -2519,6 +2522,30 @@ def api_img2mesh():
                 os.remove(tmp)
             except OSError:
                 pass
+
+
+@app.route("/api/img2mesh/status", methods=["GET"])
+def api_img2mesh_status():
+    """前端云端 tab 探测: 当前图生3D 提供方 / 是否需 Key / 后端是否就绪。"""
+    keyed = IMG2MESH_PROVIDER in ("tripo", "volc", "meshy")
+    info = {
+        "ok": True,
+        "provider": IMG2MESH_PROVIDER,
+        "space": HF_IMG2MESH_SPACE if IMG2MESH_PROVIDER == "hf" else None,
+        "keyed": keyed,
+        "available": False,
+        "reason": "",
+    }
+    try:
+        import gradio_client  # noqa
+        info["available"] = True
+    except Exception:
+        info["available"] = False
+        info["reason"] = "后端未安装 gradio_client（pip install gradio_client）"
+    if keyed and not TRIPO_API_KEY:
+        info["available"] = False
+        info["reason"] = "已选密钥提供方 %s，但环境变量 %s 未设置" % (IMG2MESH_PROVIDER, "TRIPO_API_KEY")
+    return jsonify(info)
 
 
 # ───────── 生态化: 导出 / 提交 / AI 生成 微应用 ─────────

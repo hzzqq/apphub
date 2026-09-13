@@ -52,19 +52,19 @@ input[type=range]{flex:1;accent-color:var(--accent)}
 <div class="wrap">
   <div class="head">
     <h1>2D⇄3D 互转台</h1>
-    <p>图片 → 3D 立体图形（轮廓挤出实体）· 云端 AI 真重构（免费 HuggingFace）· 3D 场景 → 导出 2D 视图<span class="tag">纯前端 · 零依赖 · 无 CDN</span></p>
+    <p>云端 AI 真重构（免费 HuggingFace · 真 3D 几何）· 离线草模（剪影挤出）· 3D 场景 → 导出 2D 视图<span class="tag">纯前端 · 零依赖 · 无 CDN</span></p>
   </div>
 
   <div class="tabs">
-    <div class="tab active" id="tabSolid">2D 图 → 3D 立体图形</div>
+    <div class="tab active" id="tabCloud">云端 AI 真重构（免费 · 真 3D）</div>
+    <div class="tab" id="tabSolid">离线草模（剪影挤出）</div>
     <div class="tab" id="tabModel">3D 场景 → 2D 导出</div>
-    <div class="tab" id="tabCloud">云端 AI 真重构（免费）</div>
   </div>
 
   <div class="panel">
     <div>
-      <div class="card" id="paneSolid">
-        <h2>上传图片生成 3D 立体图形</h2>
+      <div class="card" id="paneSolid" style="display:none">
+        <h2>离线草模（剪影挤出 · 无网络可用）</h2>
         <div class="row">
           <input type="file" id="imgUpload" accept="image/*">
         </div>
@@ -84,10 +84,10 @@ input[type=range]{flex:1;accent-color:var(--accent)}
           <span class="val" id="depthV">0.45</span>
         </div>
         <div class="row">
-          <button class="btn sm" id="btnGen">生成立体图形</button>
+          <button class="btn sm" id="btnGen">生成草模</button>
           <button class="btn ghost sm" id="btnAuto">自动抠底预览</button>
         </div>
-        <div class="hint">图片主体被识别为轮廓，沿厚度方向挤出成<strong>可 360° 旋转的 3D 实体</strong>（不是高度图浮雕）。正面贴原图、侧边按轮廓封边、背面略缩小形成立体感。可导出 PNG 或 .obj 真 3D 素材。</div>
+        <div class="hint">⚠ 这是<strong>离线兜底</strong>：把图片主体轮廓沿厚度方向挤出成「带厚度的剪影板」，<strong>不是真 3D 几何</strong>（无人脸起伏/体积）。要真 3D 请用上方「云端 AI 真重构」tab（免费、免 Key）。草模可导出 PNG / .obj 作占位素材。</div>
       </div>
 
       <div class="card" id="paneModel" style="display:none">
@@ -98,16 +98,17 @@ input[type=range]{flex:1;accent-color:var(--accent)}
         <div class="hint">支持 .obj 格式（含 v / f 顶点与面）。加载后进入 3D 场景，可拖拽旋转并从右侧导出 PNG。</div>
       </div>
 
-      <div class="card" id="paneCloud" style="display:none">
-        <h2>云端 AI 图生 3D（免费 · 无 Key）</h2>
+      <div class="card" id="paneCloud">
+        <h2>云端 AI 图生 3D（免费 · 免 Key）</h2>
         <div class="row">
           <input type="file" id="cloudUpload" accept="image/*">
         </div>
         <div class="row">
           <button class="btn sm" id="btnCloudGen">生成 AI 3D 模型</button>
           <button class="btn ghost sm" id="btnCloudDL" style="display:none">下载 GLB</button>
+          <button class="btn ghost sm" id="btnCloudSpin">⏸ 自动旋转</button>
         </div>
-        <div class="hint">走 HuggingFace 开源 Space（默认腾讯 Hunyuan3D-2），<strong>免费、无需 API Key</strong>。后端把图发到 Space 拿回真 3D 网格（.glb），前端内联解析顶点用现有 2D 引擎做可旋转预览。<br>⚠ 此模式需经后端运行（访问 http://127.0.0.1:8787/dim-convert/ 而非双击打开），且部署机需联网 + 已装 <code>gradio_client</code>。</div>
+        <div class="hint" id="cloudHint">走 HuggingFace 开源 Space（默认腾讯 Hunyuan3D-2），<strong>免费、无需 API Key</strong>——这是<strong>真·3D 几何</strong>（非剪影挤出）。后端把图发到 Space 拿回真网格（.glb），前端内联解析顶点用现有 2D 引擎做可旋转预览。<br>⚠ 此模式需经后端运行（访问 http://127.0.0.1:8787/dim-convert/ 而非双击打开），且部署机需联网 + 已装 <code>gradio_client</code>。<br>🔑 <strong>Key 说明</strong>：默认 HF Space 免 Key；若想换更高画质（Tripo / 火山豆包），由你提供 Key 并设环境变量 <code>IMG2MESH_PROVIDER</code>，我一行接好。当前状态：<span id="cloudStatus">检测中…</span></div>
       </div>
 
       <div class="card">
@@ -141,6 +142,8 @@ input[type=range]{flex:1;accent-color:var(--accent)}
   var lightDir = (function(){ var v=[-0.4,0.6,0.7]; var l=Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]); return [v[0]/l,v[1]/l,v[2]/l]; })();
   var dragging = false, lx = 0, ly = 0;
   var lastGlb = null;       // 最近一次云端生成的 GLB（用于下载）
+  var autoRotate = false;   // 空闲自动旋转（让真 3D 看起来更立体）
+  var spinRAF = null;
 
   // ---------- 3D 数学 ----------
   function rotPt(p, ya, pi){
@@ -167,6 +170,19 @@ input[type=range]{flex:1;accent-color:var(--accent)}
   function triNormal(a,b,c){
     var u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]], w=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
     return norm3([u[1]*w[2]-u[2]*w[1], u[2]*w[0]-u[0]*w[2], u[0]*w[1]-u[1]*w[0]]);
+  }
+  // 真 3D 双色调 + 边缘光着色（让云端 AI 模型预览显出体积感，而非平涂紫块）
+  var SHADE_LIT = [222, 214, 248], SHADE_DARK = [44, 40, 78], SHADE_RIM = [150, 205, 255];
+  function shadeColor(n){
+    var d = n[0]*lightDir[0] + n[1]*lightDir[1] + n[2]*lightDir[2];
+    if(d < 0) d = -d;                       // 双面光照，避免背面纯黑
+    d = Math.max(0, Math.min(1, d));
+    var rim = 1 - Math.abs(n[2]);          // 视线方向≈+Z，法线越侧越亮
+    rim = rim*rim; rim = rim*rim;           // 锐化边缘
+    var r = SHADE_DARK[0] + (SHADE_LIT[0]-SHADE_DARK[0])*d + SHADE_RIM[0]*rim*0.5;
+    var g = SHADE_DARK[1] + (SHADE_LIT[1]-SHADE_DARK[1])*d + SHADE_RIM[1]*rim*0.5;
+    var b = SHADE_DARK[2] + (SHADE_LIT[2]-SHADE_DARK[2])*d + SHADE_RIM[2]*rim*0.5;
+    return [Math.min(255,r)|0, Math.min(255,g)|0, Math.min(255,b)|0];
   }
 
   // ---------- 纹理三角形（仿射贴图）----------
@@ -534,12 +550,27 @@ input[type=range]{flex:1;accent-color:var(--accent)}
     }
     var sc = 2.2 / maxr;
     for(var q=0; q<n; q++){ vs[q] = [(vs[q][0]-c[0])*sc, (vs[q][1]-c[1])*sc, (vs[q][2]-c[2])*sc]; }
-    var items = [];
-    for(var t=0; t<data.triangles.length; t++){
-      var tri = data.triangles[t];
+    // 平滑顶点法线（累加面法线再归一化），让真 3D 表面过渡自然而非棱面分明
+    var vn = []; for(var k=0;k<n;k++) vn.push([0,0,0]);
+    var faces = data.triangles;
+    for(var t=0; t<faces.length; t++){
+      var tri = faces[t];
       var a=vs[tri[0]], b=vs[tri[1]], cc=vs[tri[2]];
       if(!a || !b || !cc) continue;
-      items.push({ tex:false, color:[124,92,255], n:triNormal(a,b,cc), p:[a,b,cc] });
+      var fn = triNormal(a,b,cc);
+      for(var e=0;e<3;e++){ var idx=tri[e]; vn[idx][0]+=fn[0]; vn[idx][1]+=fn[1]; vn[idx][2]+=fn[2]; }
+    }
+    for(var m=0;m<n;m++) vn[m] = norm3(vn[m]);
+    var items = [];
+    for(var t2=0; t2<faces.length; t2++){
+      var tr = faces[t2];
+      var a2=vs[tr[0]], b2=vs[tr[1]], c2=vs[tr[2]];
+      if(!a2 || !b2 || !c2) continue;
+      // 面法线 = 三个顶点法线均值，平滑着色
+      var sn = norm3([ (vn[tr[0]][0]+vn[tr[1]][0]+vn[tr[2]][0])/3,
+                       (vn[tr[0]][1]+vn[tr[1]][1]+vn[tr[2]][1])/3,
+                       (vn[tr[0]][2]+vn[tr[1]][2]+vn[tr[2]][2])/3 ]);
+      items.push({ tex:false, color: shadeColor(sn), n: sn, p:[a2,b2,c2] });
     }
     meshItems = items; solid = null;
     yaw = 0.6; pitch = 0.3; dist = 4.6; zoom = 1;
@@ -572,6 +603,27 @@ input[type=range]{flex:1;accent-color:var(--accent)}
     var view=$('view'); if(!view||!cv) return;
     W=view.clientWidth||800; H=view.clientHeight||520;
     cv.width=W; cv.height=H; render();
+  }
+  // 空闲自动旋转：让真 3D 模型看起来在"转"，更直观展示体积（异步 rAF 循环，非递归）
+  function spinLoop(){
+    if(!autoRotate){ spinRAF=null; return; }
+    yaw += 0.006; render();
+    spinRAF = requestAnimationFrame(spinLoop);
+  }
+  function toggleSpin(){
+    autoRotate = !autoRotate;
+    var b=$('btnCloudSpin'); if(b) b.textContent = autoRotate ? '⏸ 停止旋转' : '▶ 自动旋转';
+    if(autoRotate && !spinRAF) spinRAF = requestAnimationFrame(spinLoop);
+  }
+  function refreshCloudStatus(){
+    var el=$('cloudStatus'); if(!el) return;
+    el.textContent = '检测中…';
+    fetch('/api/img2mesh/status').then(function(r){ return r.json(); }).then(function(j){
+      if(j.ok){
+        var who = j.keyed ? ('密钥模式(' + (j.provider||'') + ')') : '免 Key 开源 Space(' + (j.space||'Hunyuan3D-2') + ')';
+        el.textContent = j.available ? ('可用 · ' + who) : ('不可用 · ' + (j.reason||'') + ' · ' + who);
+      } else { el.textContent = '状态接口异常'; }
+    }).catch(function(){ el.textContent = '状态接口不可达（后端未启动？）'; });
   }
   function init(){
     var view=$('view'); if(!view){ setStatus('⚠ 容器缺失'); return; }
@@ -629,8 +681,9 @@ input[type=range]{flex:1;accent-color:var(--accent)}
     var bo=$('btnExpOBJ'); if(bo) bo.addEventListener('click', exportOBJ);
     var tS=$('tabSolid'); if(tS) tS.addEventListener('click', function(){ setMode('solid'); });
     var tM=$('tabModel'); if(tM) tM.addEventListener('click', function(){ setMode('model'); });
-    var tC=$('tabCloud'); if(tC) tC.addEventListener('click', function(){ setMode('cloud'); });
+    var tC=$('tabCloud'); if(tC) tC.addEventListener('click', function(){ setMode('cloud'); refreshCloudStatus(); });
     var bcg=$('btnCloudGen'); if(bcg) bcg.addEventListener('click', genCloud);
+    var bspin=$('btnCloudSpin'); if(bspin) bspin.addEventListener('click', toggleSpin);
     var bcd=$('btnCloudDL'); if(bcd) bcd.addEventListener('click', function(){
       if(!lastGlb) return;
       var blob=new Blob([lastGlb], {type:'model/gltf-binary'});
@@ -650,13 +703,13 @@ input[type=range]{flex:1;accent-color:var(--accent)}
   // ---------- 暴露纯函数供单测（vm 沙箱，无需 DOM）----------
   if(typeof window!=='undefined'){
     window.__dim = {
-      norm3: norm3, triNormal: triNormal, solve3: solve3,
+      norm3: norm3, triNormal: triNormal, solve3: solve3, shadeColor: shadeColor,
       rotPt: rotPt, buildOBJ: buildOBJ, parseGLB: parseGLB
     };
   }
 
   if(typeof document!=='undefined'){
-    document.addEventListener('DOMContentLoaded', function(){ wire(); setMode('solid'); init(); });
+    document.addEventListener('DOMContentLoaded', function(){ wire(); setMode('cloud'); refreshCloudStatus(); init(); });
   }
 })();
 </script>

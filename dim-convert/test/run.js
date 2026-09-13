@@ -88,4 +88,19 @@ runAppTest(__dirname, (api) => {
     // 非 GLB 数据应返回 null（防误判）
     eq(D.parseGLB(new Uint8Array([1,2,3,4]).buffer), null, "parseGLB 非GLB→null");
   })();
+
+  // shadeColor：真 3D 预览双色调着色，返回合法 RGB
+  (function(){
+    const L = D.norm3([-0.4, 0.6, 0.7]);  // 与代码内 lightDir 一致
+    const lit = D.shadeColor(L);           // 正对光源：漫反射最强
+    const cam = D.shadeColor([0, 0, 1]);  // 正对相机
+    const side = D.shadeColor([1, 0, 0]);  // 侧向：边缘光最强
+    ok("shadeColor 返回 3 元素", Array.isArray(lit) && lit.length === 3);
+    ok("shadeColor 通道 ∈ [0,255]",
+       lit.every(v => v >= 0 && v <= 255) && side.every(v => v >= 0 && v <= 255));
+    ok("正对光源比正对相机更亮(漫反射主导)", lit[0] > cam[0]);
+    ok("侧向法线边缘光更强(蓝通道更高)", side[2] > cam[2]);
+    ok("shadeColor 确定性(同输入同输出)",
+       JSON.stringify(D.shadeColor(L)) === JSON.stringify(D.shadeColor(L)));
+  })();
 });
