@@ -1,0 +1,21 @@
+[package]
+name = "apphub-desktop"
+version = "1.0.0"
+description = "App Hub 桌面壳层（Tauri v2 原生窗口）"
+authors = ["App Hub"]
+edition = "2021"
+rust-version = "1.77.2"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+# 发布档: 体积优先（LTO + 去符号）
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

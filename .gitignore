@@ -33,3 +33,9 @@ _gen_samples.py
 backend/_hub_run.pyw
 backend/_spawn.ps1
 backend/_sample_chain_*.html
+
+# 桌面壳层构建产物（Rust target 体积巨大；dist/gen 由脚本生成，不入库）
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/dist/
+desktop/node_modules/

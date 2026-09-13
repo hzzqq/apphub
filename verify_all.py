@@ -312,7 +312,9 @@ def check_data_whitelist():
 # （都没有 index.html）。边界不清时，任何「遍历子目录当应用」的脚本都会误扫，
 # 后端同源托管也可能把内部脚本/部署配置暴露到公网。此处把边界固化成可自动校验的门禁。
 NON_APP_DIRS = {".git", ".workbuddy", "backend", "node_modules", "__pycache__",
-                ".pytest_cache", "Artifacts", "deploy", "test", "tools", "desktop"}
+                ".pytest_cache", "Artifacts", "deploy", "test", "tools", "desktop", "docs",
+                # 运行时产物目录：由 /api/gen_app、/api/submit_app 落盘，无 index.html，非应用
+                "generated", "submitted"}
 
 
 def check_app_dirs():

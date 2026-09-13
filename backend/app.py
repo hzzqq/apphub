@@ -26,6 +26,7 @@ import os
 import threading
 import urllib.request as _ureq
 import urllib.error as _uerr
+import urllib.parse as _uparse
 import hashlib as _hl
 import time as _t
 import re
@@ -262,10 +263,25 @@ def _req_ttl(default_ttl):
 def _llm_endpoint():
     if LLM_PROVIDER == "deepseek":
         return "https://api.deepseek.com/v1/chat/completions", LLM_API_KEY or os.environ.get("DEEPSEEK_API_KEY", "")
-    if LLM_PROVIDER == "openai":
-        return "https://api.openai.com/v1/chat/completions", LLM_API_KEY
+    if LLM_PROVIDER in ("openai", "custom"):
+        # 兼容任意 OpenAI 协议网关(通义/自建 vLLM/llama.cpp): 设 LLM_BASE_URL 即覆盖默认域名
+        base = (LLM_BASE_URL or "https://api.openai.com/v1").rstrip("/")
+        return base + "/chat/completions", LLM_API_KEY
     base = LLM_BASE_URL or "http://localhost:11434/v1"  # 默认 Ollama 本地服务
     return base.rstrip("/") + "/chat/completions", LLM_API_KEY or "ollama"
+
+
+def _llm_opener(url):
+    """本地地址(localhost/127.0.0.1)显式绕过 HTTP 代理。
+    否则公司/沙箱代理会把 127.0.0.1:11434 的请求一并接管并返回 404/502,
+    导致本地 Ollama 被误判为「不可达」(表现为 reason=Not Found 而非 Connection refused)。"""
+    try:
+        host = (_uparse.urlparse(url).hostname or "").lower()
+    except Exception:
+        host = ""
+    if host in ("localhost", "127.0.0.1", "::1"):
+        return _ureq.build_opener(_ureq.ProxyHandler({}))
+    return _ureq.build_opener()
 
 
 def _llm_cache_get(key):
@@ -297,7 +313,7 @@ def _llm_call(messages, model, timeout=60):
     req = _ureq.Request(url, data=payload, method="POST")
     req.add_header("Content-Type", "application/json")
     req.add_header("Authorization", "Bearer " + key)
-    with _ureq.urlopen(req, timeout=timeout) as resp:
+    with _llm_opener(url).open(req, timeout=timeout) as resp:
         body = json.loads(resp.read().decode("utf-8"))
     return body["choices"][0]["message"]["content"]
 
@@ -309,7 +325,7 @@ def _llm_call_stream(messages, model, timeout=120):
     req = _ureq.Request(url, data=payload, method="POST")
     req.add_header("Content-Type", "application/json")
     req.add_header("Authorization", "Bearer " + key)
-    with _ureq.urlopen(req, timeout=timeout) as resp:
+    with _llm_opener(url).open(req, timeout=timeout) as resp:
         for raw in resp:
             line = raw.decode("utf-8", "ignore").strip()
             if not line.startswith("data:"):
@@ -2215,6 +2231,57 @@ def api_llm():
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+@app.route("/api/llm/status", methods=["GET"])
+def api_llm_status():
+    """探测 LLM 网关可用性（前端 AI 生成模态框据此显示徽章）。
+    返回 provider/model/base_url/keyed/disabled/available/reachable/reason。"""
+    url, key = _llm_endpoint()
+    info = {
+        "provider": LLM_PROVIDER,
+        "model": LLM_MODEL,
+        "base_url": (LLM_BASE_URL or ("http://localhost:11434/v1" if LLM_PROVIDER == "ollama" else "")),
+        "keyed": bool(key) and LLM_PROVIDER in ("deepseek", "openai", "custom"),
+        "disabled": LLM_PROVIDER == "disabled",
+        "hint": "",
+    }
+    if info["disabled"]:
+        info.update(available=False, reachable=False,
+                    reason="LLM_PROVIDER=disabled，仅规则模板生成",
+                    hint="如需接真 LLM：设置 LLM_PROVIDER=ollama/deepseek/openai/custom 后重启后端")
+        return jsonify(info)
+    # 极轻探测: 发一个 max_tokens=1 的最小请求, 验证端点确实可达且鉴权通过
+    try:
+        probe = json.dumps({"model": LLM_MODEL, "messages": [{"role": "user", "content": "ping"}],
+                            "max_tokens": 1, "stream": False}).encode("utf-8")
+        req = _ureq.Request(url, data=probe, method="POST")
+        req.add_header("Content-Type", "application/json")
+        req.add_header("Authorization", "Bearer " + key)
+        with _llm_opener(url).open(req, timeout=8) as resp:
+            resp.read()
+        info.update(available=True, reachable=True, reason="LLM 后端可达且鉴权通过", hint="")
+    except _uerr.HTTPError as e:
+        # 服务有响应(可达), 但请求被拒——最常见是模型未拉取/Key 无效, 必须把 body 透出, 否则只看到 "404" 无从排查
+        detail = ""
+        try:
+            detail = (e.read() or b"").decode("utf-8", "ignore")[:200]
+        except Exception:
+            detail = ""
+        low = detail.lower()
+        hint = ""
+        if "not found" in low or "try pulling" in low or "pull" in low:
+            hint = "模型未拉取：先执行 `ollama pull %s`（或把 LLM_MODEL 改成已安装的模型）" % LLM_MODEL
+        elif e.code in (401, 403):
+            hint = "鉴权失败：检查 LLM_API_KEY / LLM_BASE_URL 是否正确"
+        info.update(available=False, reachable=True, hint=hint,
+                    reason="LLM 服务已响应但请求失败（HTTP %s）：%s" % (e.code, (detail or e.reason)[:200]))
+    except Exception as e:
+        reason_tail = ("确认 Ollama 已启动(`ollama serve`)并已拉取模型" if LLM_PROVIDER == "ollama"
+                       else "检查 LLM_API_KEY / LLM_BASE_URL 是否正确")
+        info.update(available=False, reachable=False, hint=reason_tail,
+                    reason="LLM 后端不可达：%s" % str(getattr(e, "reason", e))[:160])
+    return jsonify(info)
+
+
 # ───────── 搜索: 股票/基金/期货/指数 ─────────
 SEARCH_SAMPLE = {
     "stock": [
@@ -2690,6 +2757,7 @@ def api_gen_app():
 
     html = None
     source = "rule"
+    source_detail = "rule:llm_disabled" if LLM_PROVIDER == "disabled" else ""
     sys_p = ("你是一个零依赖单文件 HTML 微应用生成器。只输出一个完整的、可直接用浏览器打开的单一 HTML 文件，"
              "内联所有 CSS 和 JS，禁止出现 <script src=...> 或外部 CDN 引用。界面用中文，深色主题，"
              "配色用 #0f0f23 底色、#1a1a2e 卡片、紫色渐变 #667eea→#764ba2。实现用户描述的小工具，可本地运行（数据存 localStorage）。"
@@ -2700,18 +2768,22 @@ def api_gen_app():
         try:
             content = _llm_call(_llm_messages(sys_p, user_p), LLM_MODEL, timeout=90)
             cand = _strip_fences(content)
-            if cand and _ZERO_DEP_RE.search(cand) is None and len(cand) > 200:
+            # 复用零依赖门禁严格校验 LLM 产出是否为完整可运行 HTML(含 <html>/<body>、无外部 script src、长度足够)
+            if cand and not _gate_zero_dep(cand):
                 html = cand
                 source = "llm"
-        except Exception:
-            html = None  # 降级到规则生成
+                source_detail = "llm_ok"
+            else:
+                source_detail = "rule:llm_output_invalid"
+        except Exception as e:
+            source_detail = "rule:llm_unavailable:" + str(e)[:120]  # 降级到规则生成
     if not html:
         html = _rule_gen_app(name, desc, feats)
         source = "rule"
     reasons = _gate_zero_dep(html)
     if reasons:
         return jsonify({"ok": False, "error": "生成内容未通过零依赖门禁",
-                        "reasons": reasons, "source": source}), 502
+                        "reasons": reasons, "source": source, "source_detail": source_detail}), 502
     slug = re.sub(r"[^A-Za-z0-9_\-]", "_", name)[:40] or "app"
     if not re.search(r"[A-Za-z0-9]", slug):
         slug = "app"
@@ -2727,7 +2799,7 @@ def api_gen_app():
     with open(os.path.join(dest, "index.html"), "w", encoding="utf-8") as fh:
         fh.write(html)
     rel = os.path.relpath(dest, APP_ROOT).replace("\\", "/")
-    return jsonify({"ok": True, "source": source, "dir": rel,
+    return jsonify({"ok": True, "source": source, "source_detail": source_detail, "dir": rel,
                     "path": "/" + rel + "/index.html", "bytes": len(html)})
 
 

@@ -200,6 +200,10 @@
   .modal .status.err{color:#ff4d4f}
   .modal .genout{margin-top:8px;font-size:12.5px;line-height:1.7}
   .modal .genout a{color:var(--accent)}
+  .modal .llmbadge{display:inline-block;font-size:12px;padding:4px 10px;border-radius:8px;margin:10px 0 2px;line-height:1.5;word-break:break-all}
+  .modal .llmbadge.on{background:rgba(0,212,134,.12);color:#00d486}
+  .modal .llmbadge.warn{background:rgba(255,176,0,.12);color:#ffb000}
+  .modal .llmbadge.off,.modal .llmbadge.loading{background:rgba(255,255,255,.06);color:var(--sub)}
   .desc{font-size:12.5px;color:var(--sub);line-height:1.6;flex:1;min-height:42px}
   .cact{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .open{display:inline-flex;align-items:center;justify-content:center;gap:6px;
@@ -1610,7 +1614,18 @@ document.addEventListener("keydown", function(e){
 
 /* ============ R84 生态化: 导出 / AI 生成 / 社区提交 ============ */
 function exportApp(dir){ window.location.href = "/api/export_app?p=" + encodeURIComponent(dir); }
-function openAiModal(){ var m=document.getElementById("aiModal"); if(m) m.classList.add("on"); }
+function refreshAiLlmStatus(){
+  var b=document.getElementById("aiLlmBadge"); if(!b) return;
+  b.className="llmbadge loading"; b.title=""; b.textContent="检测 LLM 状态中…";
+  fetch("/api/llm/status").then(function(r){return r.json();}).then(function(j){
+    if(j.disabled){ b.className="llmbadge off"; b.textContent="● 离线规则模式（未启用 LLM）"; return; }
+    if(j.available){ b.className="llmbadge on"; b.textContent="● 真 LLM 已连接："+j.provider+" / "+j.model+(j.keyed?"（已配置 Key）":"（本地免 Key）"); return; }
+    b.className="llmbadge warn";
+    b.textContent="● LLM 未就绪："+(j.hint || j.reason || "未知原因")+" — 将降级为规则模板";
+    b.title=j.reason||"";
+  }).catch(function(e){ b.className="llmbadge warn"; b.textContent="● 状态检测失败："+e; });
+}
+function openAiModal(){ var m=document.getElementById("aiModal"); if(m){ m.classList.add("on"); refreshAiLlmStatus(); } }
 function closeAiModal(){ var m=document.getElementById("aiModal"); if(m) m.classList.remove("on"); }
 function openSubmitModal(){ var m=document.getElementById("submitModal"); if(m) m.classList.add("on"); }
 function closeSubmitModal(){ var m=document.getElementById("submitModal"); if(m) m.classList.remove("on"); }
@@ -1630,7 +1645,8 @@ function submitAiGen(e){
     .then(function(o){
       var j=o.j;
       if(!j.ok){ st.className="status err"; st.textContent="失败："+(j.error||"未知")+(j.reasons?("（"+j.reasons.join("；")+"）"):""); return; }
-      st.className="status ok"; st.textContent="✅ 已生成（"+j.source+"）："+j.dir;
+      var tail=(j.source_detail && j.source_detail.indexOf("rule:")===0)?("  ⚠ 已降级为规则模板（"+j.source_detail+"）"):"";
+      st.className="status ok"; st.textContent="✅ 已生成（"+j.source+"）："+j.dir+tail;
       var leaf=j.dir.split("/").pop();
       document.getElementById("aiOut").innerHTML=
         '打开：<a href="'+j.path+'" target="_blank" rel="noopener">'+j.dir+'</a> · '+
@@ -1711,7 +1727,8 @@ renderCrossLinks();   // R66: 渲染帮助↔命令面板交叉跳转入口
     <div class="box wide" data-page-node-id="aiGenBox">
       <span class="x" onclick="closeAiModal()" title="关闭" aria-label="关闭" data-page-node-id="aiGenX">×</span>
       <h3 data-page-node-id="aiGenH">🤖 AI 生成微应用</h3>
-      <p class="epnote">用自然语言描述你想做的小工具，自动生成<strong>零依赖单文件 HTML</strong>（内联 CSS/JS，可离线、可导出）。后端无 LLM 时自动降级为规则模板。</p>
+      <p class="epnote">用自然语言描述你想做的小工具，自动生成<strong>零依赖单文件 HTML</strong>（内联 CSS/JS，可离线、可导出）。后端无可用 LLM 时自动降级为规则模板。</p>
+      <div class="llmbadge loading" id="aiLlmBadge" data-page-node-id="aiLlmBadge">检测 LLM 状态中…</div>
       <div class="field"><label>应用名称 *</label><input type="text" id="aiName" placeholder="如：番茄钟 / 随机点名器 / 汇率换算"></div>
       <div class="field"><label>一句话描述</label><input type="text" id="aiDesc" placeholder="如：25 分钟专注计时，统计今日番茄数"></div>
       <div class="field"><label>功能点（逗号或换行分隔，可选）</label><textarea id="aiFeats" placeholder="如：开始/暂停、完成记录、历史统计"></textarea></div>
