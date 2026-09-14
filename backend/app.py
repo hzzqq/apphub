@@ -31,6 +31,7 @@ import hashlib as _hl
 import time as _t
 import re
 import glob
+import html
 
 # 期货跨期价差真实来源 (与 build_spread_cache.py 共用); 失败由上层回退样本
 try:
@@ -2625,6 +2626,21 @@ def _gate_zero_dep(html):
     reasons = []
     if _ZERO_DEP_RE.search(html):
         reasons.append("存在 <script src=...>（违反零依赖单文件规矩，必须内联）")
+    low = (html or "").lower()
+    # R88-8: 外部内容嵌入（<iframe>/<object>/<embed>）同样违反「零依赖单文件」，
+    # 且是钓鱼/点击劫持/XSS 的常见载体（如 <iframe srcdoc="<script>…">）。
+    # 现有 57 个应用与规则模板均未使用，零误杀，故纳入门禁。
+    if re.search(r"<\s*(iframe|object|embed)\b", low):
+        reasons.append("存在 <iframe>/<object>/<embed>（外部内容嵌入，违反零依赖单文件）")
+    # 仅当「真实未转义标签内」出现危险模式才算 XSS。
+    # 规则生成器已对用户输入做 html.escape(如 <img> 变 &lt;img&gt;), 转义后的文本里
+    # 虽仍含 "onerror" 字面量, 但已不是可执行标签, 不应误杀。
+    # 真实 XSS: <img onerror=...> / <body onload=...> 等(标签内有事件处理器)。
+    if re.search(r"<\w[^>]*\bonerror\s*=", low):
+        reasons.append("检测到 onerror= 事件处理器（XSS 风险）")
+    # javascript: 伪协议只在属性赋值语境(href=/src= 等)危险; 普通文本 "javascript:" 安全
+    if re.search(r"=\s*[\"']?javascript:", low):
+        reasons.append("检测到 javascript: 伪协议（XSS 风险）")
     if not re.search(r"<html", html, re.I) and not re.search(r"<body", html, re.I):
         reasons.append("未检测到 <html>/<body> 结构")
     if len(html) < 200:
@@ -2639,16 +2655,21 @@ def _strip_fences(s):
         return m.group(1).strip()
     return s.strip()
 
-def _rule_gen_app(name, desc, feats):
-    """离线规则生成器: 产出可运行的零依赖单文件 HTML 微应用(深色主题 + localStorage)。"""
-    feats_html = "".join(f"<li>{f}</li>" for f in (feats or [])) or "<li>自由发挥，做一个实用小工具</li>"
-    title = name or "我的小工具"
-    sub = desc or "由 App Hub 生成"
+def _rule_gen_app(name, desc, feats, cat="tool"):
+    """离线规则生成器: 产出可运行的零依赖单文件 HTML 微应用(深色主题 + localStorage)。
+
+    安全: 所有用户字段先 html.escape 再入模板, 杜绝存储型 XSS
+    (R88 实跑取证: name='<img src=x onerror=alert(1)>' 曾原样落进 <title>)。"""
+    title = html.escape(name or "我的小工具")
+    sub = html.escape(desc or "由 App Hub 生成")
+    feats_html = "".join("<li>%s</li>" % html.escape(f) for f in (feats or [])) or "<li>自由发挥，做一个实用小工具</li>"
+    cat_esc = html.escape(cat or "tool")
     TEMPLATE = """<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="category" content="[[CAT]]">
 <title>[[TITLE]]</title>
 <style>
   :root{--bg:#0f0f23;--card:#1a1a2e;--g1:#667eea;--g2:#764ba2;--txt:#e8e8f0;--sub:#9aa0b5}
@@ -2656,6 +2677,7 @@ def _rule_gen_app(name, desc, feats):
   body{margin:0;font-family:system-ui,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;padding:24px}
   .wrap{max-width:640px;margin:0 auto}
   h1{font-size:22px;background:linear-gradient(135deg,var(--g1),var(--g2));-webkit-background-clip:text;background-clip:text;color:transparent;margin:0 0 4px}
+  .cat{display:inline-block;font-size:11px;color:var(--sub);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:2px 10px;margin-bottom:8px}
   .sub{color:var(--sub);font-size:13px;margin-bottom:18px}
   .card{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-bottom:14px}
   h2{font-size:15px;margin:0 0 10px;color:var(--txt)}
@@ -2670,6 +2692,7 @@ def _rule_gen_app(name, desc, feats):
 </head>
 <body>
 <div class="wrap">
+  <span class="cat">[[CAT]]</span>
   <h1>[[TITLE]]</h1>
   <div class="sub">[[SUB]]</div>
   <div class="card">
@@ -2700,7 +2723,8 @@ def _rule_gen_app(name, desc, feats):
             .replace("[[TITLE]]", title)
             .replace("[[SUB]]", sub)
             .replace("[[FEATS]]", feats_html)
-            .replace("[[KEY]]", json.dumps(title)))
+            .replace("[[KEY]]", json.dumps(title))
+            .replace("[[CAT]]", cat_esc))
 
 @app.route("/api/export_app")
 def api_export_app():
@@ -2778,7 +2802,7 @@ def api_gen_app():
         except Exception as e:
             source_detail = "rule:llm_unavailable:" + str(e)[:120]  # 降级到规则生成
     if not html:
-        html = _rule_gen_app(name, desc, feats)
+        html = _rule_gen_app(name, desc, feats, cat)
         source = "rule"
     reasons = _gate_zero_dep(html)
     if reasons:

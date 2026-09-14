@@ -120,6 +120,7 @@ def refresh_one(exchange, symbol, verbose=True):
                     "msg": "未找到 %s/%s 的中文名称映射，无法调用 inventory_em" % (exchange, symbol)}
 
     rows = load_cache(exchange, symbol)
+    had_existing = bool(rows)
     if not rows:
         # 取行情代码：国内主力连续 = symbol.lower() + "0"
         code = symbol.lower() if exchange in ("SHFE", "DCE", "CZCE", "INE") else symbol
@@ -135,13 +136,18 @@ def refresh_one(exchange, symbol, verbose=True):
     try:
         inv_df = ak.futures_inventory_em(symbol=cn)
     except Exception as e:
+        # 抓取失败: 绝不写回缓存, 保留现有(可能真实的)库存数据, 避免误清空
         return {"ok": False, "rows": len(rows), "filled": 0, "last_inv": None,
                 "msg": "inventory_em 抓取失败: %s" % e}
     if inv_df is None or len(inv_df) == 0:
+        # 返回为空: 若本地已有真实缓存则原样保留, 不把库存整列清空写回
+        if had_existing:
+            return {"ok": False, "rows": len(rows), "filled": 0, "last_inv": None,
+                    "msg": "inventory_em 返回为空，保留现有缓存"}
         return {"ok": False, "rows": len(rows), "filled": 0, "last_inv": None,
                 "msg": "inventory_em 返回为空"}
 
-    # 建 date -> inv 映射
+    # 建 date -> inv 映射(仅收录非空值)
     inv_map = {}
     for _, r in inv_df.iterrows():
         dt = str(r["日期"])[:10]
@@ -150,22 +156,22 @@ def refresh_one(exchange, symbol, verbose=True):
             val = float(val) if val is not None else None
         except Exception:
             val = None
-        inv_map[dt] = val
+        if val is not None:
+            inv_map[dt] = val
 
+    # 安全合并: 只写入能对齐上的新库存, 未对齐的日期保留既有真实库存, 绝不整列清空
     filled = 0
     for row in rows:
-        row["inventory"] = None
-        row["inventory_total"] = None
-        row["inventory_circ"] = None
-        row["inventory_warehouse"] = None
-        row["inventory_bonded"] = None
-    for row in rows:
         dt = row.get("date")
-        if dt in inv_map and inv_map[dt] is not None:
+        if dt in inv_map:
             row["inventory_total"] = inv_map[dt]
             row["inventory"] = inv_map[dt]
             row["inventory_warehouse"] = inv_map[dt]
             filled += 1
+    if filled == 0:
+        # 抓取到的库存与本地日线日期完全不重叠: 视为数据源异常, 保留现有缓存, 不写回
+        return {"ok": False, "rows": len(rows), "filled": 0, "last_inv": None,
+                "msg": "抓取库存与本地日线日期无重叠，保留现有缓存"}
 
     out_path = os.path.join(DATA, "futures_%s_%s.json" % (exchange, symbol))
     with open(out_path, "w", encoding="utf-8") as f:
@@ -231,6 +237,10 @@ def refresh_crude(exchange, symbol, verbose=True):
         row["inventory_circ"] = None
         row["inventory_warehouse"] = None
         row["inventory_bonded"] = None
+    if filled == 0:
+        # EIA 抓取到的变动与本地日线完全不重叠: 视为数据源异常, 保留现有缓存, 不写回
+        return {"ok": False, "rows": len(rows), "filled": 0, "last_inv": None,
+                "msg": "EIA 变动与本地日线日期无重叠，保留现有缓存"}
     out_path = os.path.join(DATA, "futures_%s_%s.json" % (exchange, symbol))
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(rows, f, ensure_ascii=False, indent=0)

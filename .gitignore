@@ -39,3 +39,8 @@ desktop/src-tauri/target/
 desktop/src-tauri/gen/
 desktop/dist/
 desktop/node_modules/
+
+# 运行时产物目录（R88-6）：由 /api/gen_app、/api/submit_app 在运行时落盘，
+# 属用户生成内容，不应随仓库分发；也避免 git add -A 时被误提交（绕过 futures-inventory 守卫）。
+generated/
+submitted/

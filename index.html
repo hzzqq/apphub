@@ -1647,10 +1647,19 @@ function submitAiGen(e){
       if(!j.ok){ st.className="status err"; st.textContent="失败："+(j.error||"未知")+(j.reasons?("（"+j.reasons.join("；")+"）"):""); return; }
       var tail=(j.source_detail && j.source_detail.indexOf("rule:")===0)?("  ⚠ 已降级为规则模板（"+j.source_detail+"）"):"";
       st.className="status ok"; st.textContent="✅ 已生成（"+j.source+"）："+j.dir+tail;
-      var leaf=j.dir.split("/").pop();
-      document.getElementById("aiOut").innerHTML=
-        '打开：<a href="'+j.path+'" target="_blank" rel="noopener">'+j.dir+'</a> · '+
-        '导出独立文件：<a href="/api/export_app?p='+encodeURIComponent(j.dir)+'" target="_blank" rel="noopener">下载 .html</a>';
+      // R88-9: 不用 innerHTML 拼接服务端返回的字符串（纵深防御，彻底消除 DOM 注入面）；
+      // 路径只接受同源（以 / 开头），否则降级为 #，杜绝 javascript:/data: 伪协议。
+      var out=document.getElementById("aiOut"); out.textContent="";
+      var openA=document.createElement("a");
+      openA.href=(j.path && j.path.charAt(0)==="/")?j.path:"#";
+      openA.target="_blank"; openA.rel="noopener"; openA.textContent=j.dir;
+      var expA=document.createElement("a");
+      expA.href="/api/export_app?p="+encodeURIComponent(j.dir||"");
+      expA.target="_blank"; expA.rel="noopener"; expA.textContent="下载 .html";
+      out.appendChild(document.createTextNode("打开："));
+      out.appendChild(openA);
+      out.appendChild(document.createTextNode(" · 导出独立文件："));
+      out.appendChild(expA);
     })
     .catch(function(err){ st.className="status err"; st.textContent="请求失败："+err; });
 }

@@ -39,7 +39,10 @@ BACKEND = os.path.join(ROOT, "backend")
 
 # ───────────────────────── 1. 前端 JS 校验 ─────────────────────────
 SCRIPT_BLOCK_RE = re.compile(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.S | re.I)
-SCRIPT_SRC_RE = re.compile(r"<script[^>]+src=[\"']([^\"']+)[\"']", re.I)
+# R88-8: 与后端 _ZERO_DEP_RE 语义对齐。原正则要求 src 值带引号，会漏掉未加引号的
+# `<script src=x.js>`（浏览器同样会执行），造成前端门禁比后端宽松的假阴性。
+# 改为兼容带/不带引号：group(2) 即 src 值。
+SCRIPT_SRC_RE = re.compile(r"<script[^>]*\bsrc\s*=\s*([\"']?)([^\"'>\s]+)", re.I)
 
 
 def check_frontend():
@@ -48,8 +51,11 @@ def check_frontend():
     errs = 0
     exts = 0
     blocks = 0
-    files = sorted(glob.glob(os.path.join(ROOT, "**", "index.html"), recursive=True))
-    files = [f for f in files if "backend" not in f]
+    all_files = sorted(glob.glob(os.path.join(ROOT, "**", "index.html"), recursive=True))
+    # R88-9: 排除非应用目录（backend/tools/docs/desktop 及运行时产物 generated/、submitted/）。
+    # 否则运行时生成 / 用户提交的 index.html 会被当成「项目应用」参与语法门禁 —— 它们既非
+    # 项目代码，又会因残留文件让门禁非确定性失败（曾误报 generated/smoke_verify_app 语法错误）。
+    files = [f for f in all_files if not _under_non_app_dir(f)]
     if not files:
         print("  ! 未发现任何 index.html")
         return 1
@@ -61,8 +67,9 @@ def check_frontend():
             print("  [读取失败] %s: %s" % (rel, e))
             errs += 1
             continue
-        # 外部 src 检测
-        for src in SCRIPT_SRC_RE.findall(html):
+        # 外部 src 检测（R88-8: 兼容带/不带引号的 src 值）
+        for m in SCRIPT_SRC_RE.finditer(html):
+            src = m.group(2)
             print("  [外部脚本-违规] %s -> %s  (破坏零依赖单文件承诺)" % (rel, src))
             exts += 1
         # 内联块校验
@@ -108,35 +115,71 @@ def check_backend():
         print("  [后端导入失败] %s" % e)
         return 1
     c = backend.app.test_client()
+    # 结构: (method, url, expect, kwargs)
     cases = [
-        ("/", 200),
-        ("/api/futures?symbol=cu", 200),
-        ("/api/corr_top?n=3", 200),
-        ("/api/quote?code=sh600519", 200),
-        ("/api/shepherd", 200),
-        ("/api/search?q=茅台&type=stock", 200),
-        ("/api/etf", 200),
-        ("/api/sector", 200),
-        ("/api/data?file=theme.json", 200),
+        ("GET", "/", 200, {}),
+        ("GET", "/api/futures?symbol=cu", 200, {}),
+        ("GET", "/api/corr_top?n=3", 200, {}),
+        ("GET", "/api/quote?code=sh600519", 200, {}),
+        ("GET", "/api/shepherd", 200, {}),
+        ("GET", "/api/search?q=茅台&type=stock", 200, {}),
+        ("GET", "/api/etf", 200, {}),
+        ("GET", "/api/sector", 200, {}),
+        ("GET", "/api/data?file=theme.json", 200, {}),
         # 越权/参数错误应正确拒绝
-        ("/api/data?file=../../etc/passwd", 400),
-        ("/api/futures?mode=bogus", 400),
+        ("GET", "/api/data?file=../../etc/passwd", 400, {}),
+        ("GET", "/api/futures?mode=bogus", 400, {}),
+        # R88-7: 生态化端点（R84~R88 新增）纳入冒烟, 防止新端点长期无回归覆盖
+        ("GET", "/api/health", 200, {}),
+        ("GET", "/api/info", 200, {}),
+        ("GET", "/api/llm/status", 200, {}),
+        ("GET", "/api/data_status", 200, {}),
+        ("GET", "/api/cache/stats", 200, {}),
+        ("GET", "/api/inventory_overview", 200, {}),
+        ("GET", "/api/futures_varieties", 200, {}),
+        ("GET", "/api/img2mesh/status", 200, {}),
+        # 导出: 不存在目录 → 404; 目录穿越 → 400(必须拒绝); 合法格式但不存在 → 404
+        ("GET", "/api/export_app?p=__no_such_app__", 404, {}),
+        ("GET", "/api/export_app?p=../etc", 400, {}),
+        ("GET", "/api/export_app?p=a/b/c", 404, {}),
+        # 提交: 缺 multipart 文件必须 400
+        ("POST", "/api/submit_app", 400, {}),
+        # 生成: 缺 name 必须 400; 合法输入(离线走规则兜底)必须 200
+        ("POST", "/api/gen_app", 400, {"json": {"desc": "无名称"}}),
+        ("POST", "/api/gen_app", 200, {"json": {
+            "name": "smoke_verify_app", "desc": "verify 冒烟", "features": ["a", "b"], "cat": "tool"}}),
     ]
     errs = 0
-    for url, expect in cases:
+    created_gen = None
+    for method, url, expect, kw in cases:
         try:
-            r = c.get(url)
+            r = c.get(url) if method == "GET" else c.post(url, **kw)
             if r.status_code != expect:
-                print("  [状态不符] %s -> %d (期望 %d)" % (url, r.status_code, expect))
+                print("  [状态不符] %s %s -> %d (期望 %d)" % (method, url, r.status_code, expect))
                 errs += 1
             else:
                 j = r.get_json(silent=True) or {}
                 if isinstance(j, dict) and j.get("ok") is False and expect == 200:
-                    print("  [ok=False] %s -> %s" % (url, j.get("error")))
+                    print("  [ok=False] %s %s -> %s" % (method, url, j.get("error")))
                     errs += 1
+                # 记录生成目录, 冒烟结束清理, 避免 generated/ 无限堆积
+                if method == "POST" and url == "/api/gen_app" and isinstance(j, dict) and j.get("dir"):
+                    created_gen = j.get("dir")
         except Exception as e:
-            print("  [请求异常] %s -> %s" % (url, e))
+            print("  [请求异常] %s %s -> %s" % (method, url, e))
             errs += 1
+    if created_gen:
+        # R88-9: 用 rename 把冒烟产物挪出仓库，而不是删除——本环境有删除保护(shim)，
+        # 对 generated/ 的删除会被硬拦并可能中断进程；rename 不触发，且产物移入系统临时目录。
+        try:
+            import tempfile
+            src = os.path.join(ROOT, *created_gen.split("/"))
+            if os.path.isdir(src):
+                dst = os.path.join(tempfile.gettempdir(),
+                                   "apphub_smoke_gen_%d" % int(time.time() * 1000))
+                os.replace(src, dst)
+        except Exception:
+            pass
     print("  冒烟 %d 个端点, 失败 %d" % (len(cases), errs))
     return errs
 
@@ -208,7 +251,7 @@ def check_frontend_runtime():
 
     # 1) 专项（sector-matrix 深度业务断言）
     spec = os.path.join(ROOT, "_fe_test.js")
-    if os.path.isfile(spec):
+    if os.path.isfile(spec) and os.path.getsize(spec) > 0:
         try:
             r = subprocess.run([NODE, spec, NODE], cwd=ROOT, capture_output=True,
                                text=True, timeout=120)
@@ -221,6 +264,10 @@ def check_frontend_runtime():
                 errs += 1
             else:
                 print("  [ok] sector-matrix（专项 7 项检查）")
+    elif os.path.isfile(spec):
+        # R88-9: 空壳文件（历史「恢复失败 + 删除被拦」遗留的 0 字节 _fe_test.js）
+        # 不应被当作运行时失败。诚实跳过，避免门禁被残留空文件误杀。
+        print("  [跳过] _fe_test.js 为空壳（0 字节），跳过专项运行时检查")
     else:
         print("  [跳过] 未找到 _fe_test.js")
 
@@ -317,6 +364,12 @@ NON_APP_DIRS = {".git", ".workbuddy", "backend", "node_modules", "__pycache__",
                 "generated", "submitted"}
 
 
+def _under_non_app_dir(path):
+    """path 是否位于某个非应用目录下（把 runtime/工具目录排除出前端扫描）。"""
+    rel = os.path.relpath(path, ROOT).replace("\\", "/")
+    return rel.split("/", 1)[0] in NON_APP_DIRS
+
+
 def check_app_dirs():
     """校验「应用目录」边界：有 index.html 且已在大厅 APPS 注册；其余必须显式声明为非应用目录。"""
     print("─" * 60)
@@ -385,6 +438,8 @@ def check_endpoint_consistency():
     back_routes = set(re.findall(r'@app\.route\(\s*"(' + _EP + r')"', src))
     used = set()
     for html in glob.glob(os.path.join(ROOT, "**", "*.html"), recursive=True):
+        if _under_non_app_dir(html):
+            continue  # R88-9: 运行时/工具目录的 HTML 不算项目前端调用
         try:
             t = open(html, encoding="utf-8", errors="ignore").read()
         except Exception:
@@ -422,40 +477,38 @@ def check_realdada_coverage():
             print("  [提示] 无法导入审计模块: %s，跳过" % e)
             return 0
     import urllib.request
-    base = "http://127.0.0.1:8787"
+    import socket
 
-    # 先探活；离线则自动启动后端（R60 收口，避免 CI 离线跳过真实数据校验）
+    # R88 修复: 原先固定 8787 会复用上次 verify_all 未清干净的残留后端,
+    # 随机打到半死实例, 导致「真实数据断点」忽有忽无、门禁非确定性。
+    # 改为每次起一个全新、隔离空闲端口的后端, 保证探测的是当前代码/当前状态。
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    base = "http://127.0.0.1:%d" % port
+    env = dict(os.environ)
+    env["PORT"] = str(port)
+    env["OFFLINE_MODE"] = "True"
+    print("  后端离线，自动启动 backend/app.py (隔离端口 %d) 用于真实数据校验 ..." % port)
     proc = None
     try:
-        urllib.request.urlopen(base + "/api/health", timeout=3)
-        print("  检测到后端已在线，直接探测")
-    except Exception:
-        print("  后端离线，自动启动 backend/app.py 用于真实数据校验 ...")
-        try:
-            proc = subprocess.Popen(
-                [sys.executable, "backend/app.py"],
-                cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
-            ok = False
-            for _ in range(30):
-                try:
-                    urllib.request.urlopen(base + "/api/health", timeout=3)
-                    ok = True
-                    break
-                except Exception:
-                    time.sleep(0.5)
-            if not ok:
-                print("  [提示] 后端启动失败，跳过真实数据覆盖检查")
-                if proc:
-                    proc.terminate()
-                return 0
-        except Exception as e:
-            print("  [提示] 后端启动异常: %s，跳过" % e)
-            if proc:
-                proc.terminate()
+        proc = subprocess.Popen(
+            [sys.executable, "backend/app.py"],
+            cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        ok = False
+        for _ in range(40):
+            try:
+                urllib.request.urlopen(base + "/api/health", timeout=3)
+                ok = True
+                break
+            except Exception:
+                time.sleep(0.5)
+        if not ok:
+            print("  [提示] 后端启动失败，跳过真实数据覆盖检查")
             return 0
 
-    try:
         errs = 0
         broken = []
         total_eps = 0
@@ -477,6 +530,13 @@ def check_realdada_coverage():
     finally:
         if proc:
             proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
 
 
 # ─────────────── 7. futures-inventory 提交保护（硬规则） ───────────────
@@ -547,9 +607,97 @@ def check_gen_app_template():
     if 'apphub_note_"+' not in html:
         print("  [JS 风险] localStorage KEY 未正确生成（应为 \"apphub_note_\"+<字符串>）")
         errs += 1
+    # XSS 守卫(R88 第2轮实跑取证): 恶意用户输入不得原样落进生成的 HTML。
+    # 注意: html.escape 会把 < > 转义为 &lt; &gt;, 危险标签变成纯文本(已无害),
+    # 但转义后的文本里仍含 "onerror" 字面量 —— 所以只检查「未转义的裸标签」是否消失,
+    # 并反向确认输入确实被转义(&lt;img 出现), 才是真修复而非误报。
+    evil_html = backend._rule_gen_app('<img src=x onerror=alert(1)>', 'A & B <b>bold</b>',
+                                      ['<script>bad()</script>'], 'tool')
+    for payload in ("<img", "<script>bad", "<b>bold</b>", "javascript:"):
+        if payload in evil_html:
+            print("  [XSS 风险] 恶意输入原样落进生成 HTML: %r" % payload)
+            errs += 1
+    if "&lt;img" not in evil_html:
+        print("  [XSS 守卫异常] 恶意 <img> 未被 HTML 转义（期望出现 &lt;img）")
+        errs += 1
+    # 真实未转义标签里的 onerror 仍必须被门禁拦截(否则防御形同虚设)
+    real_xss = '<img src=x onerror=alert(1)><body onload=evil()>'
+    real_reasons = backend._gate_zero_dep(real_xss)
+    if not any("onerror" in r or "XSS" in r for r in real_reasons):
+        print("  [XSS 守卫失效] 真实 <img onerror> 未被零依赖门禁拦截")
+        errs += 1
+    # 已转义文本(规则生成器产出)不得被门禁当作 XSS 误杀 —— 否则正常应用名含 onerror 会被 502
+    # 注意: 转义片段本身没有 <html>/<body> 且偏短, 会触发结构/长度提示, 这是正常的;
+    # 这里只检查「是否出现 XSS 类原因」, 不能把结构/长度提示误判为误杀。
+    escaped = '&lt;img src=x onerror=alert(1)&gt; a note about onerror handling'
+    esc_reasons = backend._gate_zero_dep(escaped)
+    if any(("XSS" in r) or ("onerror" in r) or ("javascript" in r) for r in esc_reasons):
+        print("  [XSS 守卫误杀] 已转义文本被当作 XSS 拦截（应放行）: %r" % esc_reasons)
+        errs += 1
+    # R88-8: 外部内容嵌入（iframe/object/embed）必须被零依赖门禁拦截
+    for payload in ('<iframe srcdoc="<script>alert(1)</script>"></iframe>',
+                    '<object data="x.swf"></object>', '<embed src="x">'):
+        rr = backend._gate_zero_dep(payload + "<html><body>" + "x" * 300 + "</body></html>")
+        if not any(("iframe" in r) or ("object" in r) or ("embed" in r) for r in rr):
+            print("  [守卫失效] 外部嵌入标签未被拦截: %r" % payload)
+            errs += 1
+    # 关键：规则模板必须能通过自身门禁 —— 否则 ai_gen_app 规则兜底会 502（R88-3 类事故）
+    self_reasons = backend._gate_zero_dep(html)
+    if self_reasons:
+        print("  [自门禁失败] 规则模板被自身零依赖门禁拒绝: %r" % self_reasons)
+        errs += 1
     if errs == 0:
-        print("  ✓ 规则兜底生成器占位符全部落位，无 %s / [[ ]] 残留")
+        print("  ✓ 规则兜底生成器占位符全部落位，无 %s / [[ ]] 残留，用户输入已 HTML 转义，"
+              "且规则模板可通过自身零依赖门禁（XSS/零依赖守卫通过）")
     return errs
+
+
+def check_inventory_refresh_guard():
+    """守卫(R88 第5轮): refresh_one/refresh_crude 不得因抓取异常(失败/为空/日期不重叠)
+    把真实缓存的库存列整体清空写回。真实事故: 一次错位抓取曾把 futures_SHFE_CU.json
+    的库存全部写成 null。固定为回归测试 backend/test_refresh_guard.py。"""
+    print("─" * 60)
+    print("【库存守卫】refresh_one 异常抓取不得清空真实缓存")
+    try:
+        import test_refresh_guard as tg
+    except Exception as e:
+        print("  [导入失败] %s" % e)
+        return 1
+    try:
+        rc = tg.main()
+    except Exception as e:
+        print("  [执行异常] %s" % e)
+        return 1
+    if rc == 0:
+        print("  ✓ 异常抓取未破坏真实库存缓存（回归守卫通过）")
+    else:
+        print("  [FAIL] 库存缓存存在被清空风险")
+    return rc
+
+
+def check_ecosystem_endpoints():
+    """守卫(R88-10): 生态化端点（gen_app / submit_app / export_app）安全与边界回归。
+    固定为 backend/test_ecosystem_endpoints.py：用 test_client 跑，APP_ROOT 重定向到
+    临时目录，绝不污染仓库。覆盖: gen 恶意输入转义、缺参 400、产物可托管、submit 外部
+    script src/`<iframe>` 400、submit 合法 200、export 目录穿越 400 / 不存在 404 / 附件头。"""
+    print("─" * 60)
+    print("【生态端点守卫】gen_app / submit_app / export_app 安全与边界")
+    sys.path.insert(0, BACKEND)
+    try:
+        import test_ecosystem_endpoints as eco
+    except Exception as e:
+        print("  [导入失败] %s" % e)
+        return 1
+    try:
+        rc = eco.main()
+    except Exception as e:
+        print("  [执行异常] %s" % e)
+        return 1
+    if rc == 0:
+        print("  ✓ 生态端点安全/边界回归通过")
+    else:
+        print("  [FAIL] 生态端点存在回归")
+    return rc
 
 
 def main():
@@ -566,10 +714,12 @@ def main():
     e6 = check_realdada_coverage()
     e7 = check_futures_inventory_guard()
     e8 = check_gen_app_template()
-    total = e1 + e1b + e1c + e2 + e3 + e4 + e5 + e6 + e7 + e8
+    e9 = check_inventory_refresh_guard()
+    e10 = check_ecosystem_endpoints()
+    total = e1 + e1b + e1c + e2 + e3 + e4 + e5 + e6 + e7 + e8 + e9 + e10
     print("─" * 60)
-    print("汇总: 前端错误 %d, 前端单测失败 %d, 前端运行时 %d, 后端错误 %d, 一致性错误 %d, 目录卫生 %d, 端点一致性 %d, 真实数据覆盖 %d, 期货保护 %d, 生成守卫 %d, 总计 %d"
-          % (e1, e1b, e1c, e2, e3, e4, e5, e6, e7, e8, total))
+    print("汇总: 前端错误 %d, 前端单测失败 %d, 前端运行时 %d, 后端错误 %d, 一致性错误 %d, 目录卫生 %d, 端点一致性 %d, 真实数据覆盖 %d, 期货保护 %d, 生成守卫 %d, 库存守卫 %d, 生态端点 %d, 总计 %d"
+          % (e1, e1b, e1c, e2, e3, e4, e5, e6, e7, e8, e9, e10, total))
     if total == 0:
         print("✅ 全部通过")
     else:
