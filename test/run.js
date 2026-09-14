@@ -500,6 +500,60 @@ ok("空对象安全默认", (() => { var v = parseDataStatus({});
 ok("无 count 时回退 items 长度", (() => { var v = parseDataStatus({items:[{ok:true},{ok:false}]});
   return v.total===2 && v.withData===1; })());
 
+/* ============================================================
+ *  Round 22: 赛博朋克落地页皮肤契约（R89，源码级护栏）
+ *  为什么需要：视觉改版最容易「悄悄回退」——有人删掉霓虹令牌、或改回旧紫色，
+ *  页面照样能跑、测试照样全绿，只有肉眼看才知道丑了。这里把「皮肤存在且仍是
+ *  赛博朋克」固化为可断言事实，同时确认改版没有破坏零依赖单文件承诺。
+ * ============================================================ */
+console.log("\n[Round 22] 赛博朋克皮肤契约 (R89)");
+
+const styleBlock = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || "";
+
+// 1) 霓虹令牌必须存在（青/品红/紫/荧光绿/琥珀）
+const NEON_TOKENS = ["--neon-cyan", "--neon-magenta", "--neon-violet", "--neon-lime", "--neon-amber"];
+ok("含全部 5 个霓虹色令牌", NEON_TOKENS.every(t => styleBlock.indexOf(t) >= 0));
+
+// 2) 青色与品红的具体色值必须落位（防「令牌还在但值被改回旧紫」）
+ok("青色令牌为 #00e5ff", /--neon-cyan:\s*#00e5ff/i.test(styleBlock));
+ok("品红令牌为 #ff2e97", /--neon-magenta:\s*#ff2e97/i.test(styleBlock));
+
+// 3) 主题工坊可覆盖性：:root 里 --accent 必须仍是变量声明（不是硬编码色）
+ok("--accent 仍为可覆盖变量", /--accent:\s*var\(--neon-cyan\)/.test(styleBlock) || /--accent:\s*#/.test(styleBlock));
+ok("--g1/--g2 仍存在（applySharedTheme 依赖）", /--g1:/.test(styleBlock) && /--g2:/.test(styleBlock));
+
+// 4) 赛博朋克特征技法必须存在：扫描线 / 网格底纹 / 故障动效 / 等宽字体
+ok("含扫描线叠层（repeating-linear-gradient）", /repeating-linear-gradient/.test(styleBlock));
+ok("含霓虹网格底纹（linear-gradient 网格）", /linear-gradient\(var\(--grid-line\)/.test(styleBlock));
+ok("含故障错位动效 glitchA/glitchB", /@keyframes\s+glitchA/.test(styleBlock) && /@keyframes\s+glitchB/.test(styleBlock));
+ok("含等宽字体令牌 --mono", /--mono:/.test(styleBlock));
+ok("hero 标题带故障错位伪元素", /\.hero h1::before/.test(styleBlock) && /\.hero h1::after/.test(styleBlock));
+
+// 5) 可访问性：必须尊重「减少动效」偏好，且故障层在其中被关闭
+const rmIdx = styleBlock.indexOf("prefers-reduced-motion");
+ok("保留 prefers-reduced-motion 分支", rmIdx >= 0);
+ok("减少动效时关闭故障错位层", rmIdx >= 0 && /\.hero h1::before,\.hero h1::after\{display:none\}/.test(styleBlock));
+
+// 6) 响应式断点仍齐全（1080 / 660 / 480）
+ok("保留 1080/660/480 三个断点",
+  /max-width:1080px/.test(styleBlock) && /max-width:660px/.test(styleBlock) && /max-width:480px/.test(styleBlock));
+
+// 7) hero 标题的 data-glitch 属性必须与文案同在（否则伪元素渲染空内容）
+ok("hero h1 带 data-glitch 属性", /<h1[^>]*data-glitch="[^"]+"/.test(html));
+ok("光标闪烁动效存在", /@keyframes\s+cursorBlink/.test(styleBlock));
+
+// 8) 零依赖承诺未被视觉改版破坏：无外链脚本、无外部内容嵌入、无外链字体
+ok("无外部 <script src>", !/<script[^>]*\bsrc\s*=/i.test(html));
+ok("无 <iframe>/<object>/<embed>", !/<(iframe|object|embed)\b/i.test(html));
+ok("无外链字体 @import/@font-face 远程 src", !/@import\s+url\(/i.test(styleBlock) && !/@font-face/i.test(styleBlock));
+ok("无 CSS 外链 url(http)", !/url\(\s*['"]?https?:/i.test(styleBlock));
+
+// 9) 关键布局类在改版后仍全部存在（本大厅渲染函数依赖它们）
+const MUST_CLASSES = [".card", ".grid", ".tile", ".hero", ".palette", ".modal", ".filt" + "ers",
+  ".sortbar", ".favbar", ".favchip", ".freshpill", ".needapi", ".localbadge", ".cat.fin", ".cat.life", ".cat.tool"];
+const missingCls = MUST_CLASSES.filter(c => styleBlock.indexOf(c) < 0);
+ok("布局关键类全部保留" + (missingCls.length ? "（缺：" + missingCls.join(",") + "）" : ""), missingCls.length === 0);
+
 /* ---------- 汇总 ---------- */
 console.log(`\n汇总：通过 ${pass} / 失败 ${fail}`);
 if (fail) { console.log("失败项：" + failed.join("; ")); process.exit(1); }

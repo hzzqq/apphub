@@ -4,226 +4,319 @@
 <meta charset="UTF-8" data-page-node-id="sJfp8Rl6JMLxi5caX5oR52">
 <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="myE3AlFeuNUBHDB8VBSc8f">
 <title>微应用大厅 · App Hub</title>
-<style>
-  /* ============================================================
-     App Hub · Bento Grids（暗色版）
-     模板来源：ui-ux-pro-max #53 Bento Grids + #7 Dark Mode(OLED)
-     模块化 tile / 大圆角 20-24px / 柔和阴影 / hover 微缩放 / 4 列网格
-     沿用原有 CSS 变量名，兼容「主题工坊」applySharedTheme 覆盖
+<style>  /* ============================================================
+     App Hub · NEON TERMINAL（赛博朋克 / cyberpunk 落地页皮肤）
+     ------------------------------------------------------------
+     设计令牌全部走 CSS 变量 —— 「主题工坊」applySharedTheme 覆盖
+     --bg/--card/--card2/--line/--txt/--sub/--g1/--g2/--accent 时，
+     整套霓虹皮肤会跟着换色，赛博朋克是「默认皮肤」而非硬编码。
+     零依赖：无外链字体/图片，全部 CSS 自绘（扫描线/网格/故障）。
      ============================================================ */
   :root{
-    --bg:#0B0B0F; --card:#14141B; --card2:#1B1B24; --line:rgba(255,255,255,.09);
-    --txt:#F5F5F7; --sub:#A1A1AA; --g1:#667eea; --g2:#764ba2;
-    --up:#ff4d4f; --down:#00d486; --inv:#f6c453; --accent:#7c5cff;
-    /* Bento tokens */
-    --grid-gap:16px; --card-radius:20px; --tile-radius:22px;
-    --shadow:0 4px 14px rgba(0,0,0,.35);
-    --shadow-hover:0 14px 34px rgba(0,0,0,.5);
+    /* —— 基础色（沿用原变量名，兼容 applySharedTheme 覆盖） —— */
+    --bg:#05060b; --card:#0c1018; --card2:#121826; --line:rgba(0,229,255,.16);
+    --txt:#e6f1ff; --sub:#7c8aa0;
+    --g1:#00e5ff; --g2:#ff2e97;                 /* 原紫渐变 → 霓虹青→品红 */
+    --up:#ff2e5b; --down:#00ffa3; --inv:#ffd166; --accent:#00e5ff;
+
+    /* —— 赛博朋克扩展令牌 —— */
+    --neon-cyan:#00e5ff; --neon-magenta:#ff2e97; --neon-violet:#b980ff;
+    --neon-lime:#00ffa3; --neon-amber:#ffd166;
+    --grid-line:rgba(0,229,255,.055);
+    --scan:rgba(0,0,0,.16);
+    --glow-cyan:0 0 6px rgba(0,229,255,.55), 0 0 18px rgba(0,229,255,.22);
+    --glow-magenta:0 0 6px rgba(255,46,151,.55), 0 0 18px rgba(255,46,151,.22);
+    --clip-corner:4px;
+
+    /* —— 原 Bento tokens（保持变量名与语义） —— */
+    --grid-gap:14px; --card-radius:6px; --tile-radius:6px;
+    --shadow:0 0 0 1px rgba(0,229,255,.06), 0 6px 22px rgba(0,0,0,.6);
+    --shadow-hover:0 0 0 1px rgba(0,229,255,.28), 0 10px 34px rgba(0,0,0,.72);
+
+    --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,"Cascadia Mono","Liberation Mono",monospace;
+    --sans:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
   }
   *{box-sizing:border-box}
-  html{color-scheme:dark}
-  body{margin:0;background:var(--bg);color:var(--txt);
-       font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
-       min-height:100vh;padding:28px 20px 56px;-webkit-font-smoothing:antialiased;line-height:1.5}
-  .wrap{max-width:1240px;margin:0 auto}
+  html{color-scheme:dark;scrollbar-color:rgba(0,229,255,.35) transparent}
+  /* 全局霓虹滚动条 */
+  *::-webkit-scrollbar{width:9px;height:9px}
+  *::-webkit-scrollbar-track{background:rgba(255,255,255,.03)}
+  *::-webkit-scrollbar-thumb{background:linear-gradient(180deg,var(--neon-cyan),var(--neon-magenta));border-radius:2px}
+
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);
+       min-height:100vh;padding:28px 20px 56px;-webkit-font-smoothing:antialiased;line-height:1.5;
+       position:relative;overflow-x:hidden}
+  /* ── 赛博朋克底纹层：霓虹网格地平线 + 扫描线（纯 CSS 自绘，固定不滚动） ── */
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:
+      linear-gradient(var(--grid-line) 1px,transparent 1px) 0 0/44px 44px,
+      linear-gradient(90deg,var(--grid-line) 1px,transparent 1px) 0 0/44px 44px,
+      radial-gradient(120% 80% at 50% 120%,rgba(255,46,151,.14),transparent 62%),
+      radial-gradient(110% 70% at 12% -10%,rgba(0,229,255,.15),transparent 60%);
+    mask-image:linear-gradient(180deg,rgba(0,0,0,.9),rgba(0,0,0,.35) 55%,rgba(0,0,0,.85));
+    -webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.9),rgba(0,0,0,.35) 55%,rgba(0,0,0,.85))}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;
+    background:repeating-linear-gradient(180deg,transparent 0 2px,var(--scan) 2px 4px);
+    opacity:.5;mix-blend-mode:multiply}
+  .wrap{max-width:1240px;margin:0 auto;position:relative;z-index:2}
+
+  /* ---------- 霓虹标题字体工具 ---------- */
+  .mono{font-family:var(--mono);letter-spacing:.02em}
 
   /* ---------- Bento 网格容器 ---------- */
   .bento{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--grid-gap);margin-bottom:var(--grid-gap)}
-  .tile{background:var(--card);border:1px solid var(--line);border-radius:var(--tile-radius);
+  .tile{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--tile-radius);
         padding:18px;box-shadow:var(--shadow);display:flex;flex-direction:column;justify-content:center;
-        transition:border-color .2s ease,box-shadow .2s ease}
-  .tile:hover{border-color:rgba(124,92,255,.45)}
+        transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease}
+  /* HUD 角标：左上 / 右下 两道霓虹切角 */
+  .tile::before{content:"";position:absolute;top:-1px;left:-1px;width:16px;height:16px;pointer-events:none;
+    border-top:2px solid var(--neon-cyan);border-left:2px solid var(--neon-cyan);opacity:.7;border-radius:6px 0 0 0}
+  .tile::after{content:"";position:absolute;bottom:-1px;right:-1px;width:16px;height:16px;pointer-events:none;
+    border-bottom:2px solid var(--neon-magenta);border-right:2px solid var(--neon-magenta);opacity:.55;border-radius:0 0 6px 0}
+  .tile:hover{border-color:rgba(0,229,255,.42)}
   .s4{grid-column:span 4} .s3{grid-column:span 3} .s2{grid-column:span 2} .s1{grid-column:span 1}
-  .tilelabel{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--sub);
-             margin-bottom:10px;font-weight:600}
+  .tilelabel{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--neon-cyan);
+             margin-bottom:10px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .tilelabel::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(0,229,255,.4),transparent)}
 
-  /* ---------- Hero tile ---------- */
+  /* ---------- Hero tile：故障艺术标题 ---------- */
   .hero{background:
-      radial-gradient(120% 150% at 0% 0%, rgba(124,92,255,.30), transparent 58%),
-      radial-gradient(100% 130% at 100% 100%, rgba(102,126,234,.18), transparent 60%),
-      var(--card2);
-    align-items:center;text-align:center;gap:12px;padding:32px 24px}
-  .hero h1{font-size:34px;margin:0;letter-spacing:.5px;line-height:1.25;
-    background:linear-gradient(90deg,var(--g1),var(--g2));-webkit-background-clip:text;background-clip:text;color:transparent}
-  .hero p{color:var(--sub);margin:0;font-size:13.5px}
+      radial-gradient(120% 160% at 0% 0%, rgba(0,229,255,.16), transparent 58%),
+      radial-gradient(110% 150% at 100% 100%, rgba(255,46,151,.16), transparent 60%),
+      linear-gradient(180deg,var(--card2),var(--card));
+    align-items:center;text-align:center;gap:12px;padding:38px 24px;overflow:hidden}
+  .hero::after{border-color:var(--neon-cyan);opacity:.75}
+  .hero h1{position:relative;font-family:var(--mono);font-size:36px;margin:0;letter-spacing:.06em;line-height:1.25;
+    background:linear-gradient(92deg,var(--neon-cyan),var(--neon-violet) 45%,var(--neon-magenta));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 14px rgba(0,229,255,.35))}
+  .hero h1 span{color:var(--neon-cyan);-webkit-text-fill-color:var(--neon-cyan);
+    animation:cursorBlink 1.1s steps(1,end) infinite}
+  @keyframes cursorBlink{0%,49%{opacity:1}50%,100%{opacity:0}}
+  /* 故障错位层：品红 / 青 双影，周期性抖动 */
+  .hero h1::before,.hero h1::after{content:attr(data-glitch);position:absolute;inset:0;
+    -webkit-background-clip:text;background-clip:text;color:transparent;pointer-events:none}
+  .hero h1::before{background:var(--neon-magenta);animation:glitchA 3.4s steps(2,end) infinite}
+  .hero h1::after{background:var(--neon-cyan);animation:glitchB 4.1s steps(2,end) infinite}
+  .hero p{color:var(--sub);margin:0;font-size:13.5px;font-family:var(--mono);letter-spacing:.04em}
   .stat{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
-  .stat .b{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;
-    padding:8px 16px;font-size:12.5px;color:var(--sub)}
-  .stat .b b{color:var(--txt);font-size:19px;margin-right:4px}
-  .stat .b b.live{color:var(--down)}   /* R69：后端已连 → 实时数据可用 */
-  .stat .b b.off{color:var(--inv)}     /* R69：后端未连 → 提示待连后端 */
-  .stat .b.clickable{cursor:pointer;transition:border-color .2s,filter .2s}        /* R72：chip 可点击 */
-  .stat .b.clickable:hover{border-color:var(--accent);filter:brightness(1.12)}
-  .pneed{font-size:10px;padding:1px 6px;border-radius:20px;white-space:nowrap;margin-left:6px;opacity:.9}
-  .pneed.back{color:var(--down)} .pneed.local{color:var(--sub)}                    /* R70：面板真实数据标识 */
+  .stat .b{position:relative;background:rgba(0,229,255,.045);border:1px solid var(--line);border-radius:4px;
+    padding:8px 16px;font-size:12.5px;color:var(--sub);font-family:var(--mono);
+    transition:border-color .2s,box-shadow .2s}
+  .stat .b b{color:var(--txt);font-size:19px;margin-right:4px;font-family:var(--mono)}
+  .stat .b b.live{color:var(--neon-lime);text-shadow:0 0 8px rgba(0,255,163,.5)}
+  .stat .b b.off{color:var(--inv);text-shadow:0 0 8px rgba(255,209,102,.4)}
+  .stat .b.clickable{cursor:pointer}
+  .stat .b.clickable:hover{border-color:var(--accent);box-shadow:var(--glow-cyan)}
+  .pneed{font-size:10px;padding:1px 6px;border-radius:3px;white-space:nowrap;margin-left:6px;opacity:.95;font-family:var(--mono)}
+  .pneed.back{color:var(--neon-lime)} .pneed.local{color:var(--sub)}
 
   /* ---------- 控件 ---------- */
   .searchbar{display:flex;gap:10px;align-items:center}
-  .searchbar input{flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);border-radius:14px;
-    padding:13px 16px;color:var(--txt);font-size:14px;outline:none;transition:border-color .2s}
-  .searchbar input:focus{border-color:var(--accent)}
+  .searchbar input{flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);border-radius:4px;
+    padding:13px 16px;color:var(--txt);font-size:14px;outline:none;
+    font-family:var(--mono);transition:border-color .2s,box-shadow .2s}
+  .searchbar input::placeholder{color:#54607a}
+  .searchbar input:focus{border-color:var(--neon-cyan);box-shadow:var(--glow-cyan)}
   .btnrow{display:flex;gap:8px;flex-wrap:wrap}
-  .randbtn{background:var(--card2);border:1px solid var(--line);color:var(--txt);
-    border-radius:14px;padding:11px 14px;font-size:13.5px;cursor:pointer;white-space:nowrap;transition:all .2s}
-  .randbtn:hover{border-color:var(--accent);filter:brightness(1.15)}
-  /* 命令面板 (R62) */
-  .palette{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding-top:13vh;z-index:60}
+  .randbtn{position:relative;background:var(--card2);border:1px solid var(--line);color:var(--txt);
+    border-radius:4px;padding:11px 14px;font-size:13px;cursor:pointer;white-space:nowrap;font-family:var(--mono);
+    transition:all .18s}
+  .randbtn:hover{border-color:var(--neon-cyan);color:#fff;box-shadow:var(--glow-cyan);transform:translateY(-1px)}
+
+  /* ---------- 命令面板 (R62) ---------- */
+  .palette{position:fixed;inset:0;background:rgba(2,4,8,.78);backdrop-filter:blur(3px);
+    display:none;align-items:flex-start;justify-content:center;padding-top:13vh;z-index:60}
   .palette.on{display:flex}
-  .palette .box{width:min(640px,92vw);background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.5);overflow:hidden}
+  .palette .box{width:min(640px,92vw);background:var(--card);border:1px solid rgba(0,229,255,.4);border-radius:6px;
+    box-shadow:0 0 0 1px rgba(0,229,255,.12),0 24px 70px rgba(0,0,0,.8),var(--glow-cyan);overflow:hidden}
   .palette .pin{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
-  .palette .pin .ico{font-size:16px;color:var(--sub)}
-  .palette .pin input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--txt);font-size:15px}
-  .palette .pin kbd{background:var(--card2);border:1px solid var(--line);border-radius:7px;padding:2px 8px;color:var(--sub);font-size:11px}
+  .palette .pin .ico{font-size:16px;color:var(--neon-cyan)}
+  .palette .pin input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--txt);
+    font-size:15px;font-family:var(--mono)}
+  .palette .pin kbd{background:var(--card2);border:1px solid var(--line);border-radius:3px;padding:2px 8px;
+    color:var(--sub);font-size:11px;font-family:var(--mono)}
   .palette .list{max-height:46vh;overflow:auto;padding:6px}
-  .palette .it{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;cursor:pointer}
+  .palette .it{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:4px;cursor:pointer;
+    border-left:2px solid transparent}
   .palette .it .ico{font-size:18px;width:24px;text-align:center}
   .palette .it .nm{font-size:14px;color:var(--txt)}
-  .palette .it .ds{font-size:12px;color:var(--sub);margin-left:auto}
-  .palette .it.sel{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff}
+  .palette .it .ds{font-size:12px;color:var(--sub);margin-left:auto;font-family:var(--mono)}
+  .palette .it.sel{background:linear-gradient(90deg,rgba(0,229,255,.2),rgba(255,46,151,.14));color:#fff;
+    border-left-color:var(--neon-cyan)}
   .palette .it.sel .ds{color:rgba(255,255,255,.85)}
-  .palette .empty{padding:22px;text-align:center;color:var(--sub);font-size:13px}
-  .help{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:60}
+  .palette .empty{padding:22px;text-align:center;color:var(--sub);font-size:13px;font-family:var(--mono)}
+  .help{position:fixed;inset:0;background:rgba(2,4,8,.78);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:60}
   .help.on{display:flex}
-  .help .box{width:min(560px,92vw);max-height:82vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.5);padding:20px 22px}
-  .help h3{margin:0 0 14px;font-size:16px;color:var(--txt);display:flex;align-items:center;gap:8px}
+  .help .box{width:min(560px,92vw);max-height:82vh;overflow:auto;background:var(--card);
+    border:1px solid rgba(255,46,151,.4);border-radius:6px;
+    box-shadow:0 24px 70px rgba(0,0,0,.8),var(--glow-magenta);padding:20px 22px}
+  .help h3{margin:0 0 14px;font-size:16px;color:var(--txt);display:flex;align-items:center;gap:8px;font-family:var(--mono)}
   .help .x{float:right;cursor:pointer;color:var(--sub);font-size:20px;line-height:1}
+  .help .x:hover{color:var(--neon-magenta)}
   .help .row{display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid var(--line)}
   .help .row:last-child{border-bottom:0}
-  .help .key{font-family:inherit;min-width:118px;text-align:center;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:4px 10px;color:var(--txt);font-size:12px;white-space:nowrap}
+  .help .key{font-family:var(--mono);min-width:118px;text-align:center;background:var(--card2);
+    border:1px solid var(--line);border-radius:3px;padding:4px 10px;color:var(--neon-cyan);font-size:12px;white-space:nowrap}
   .help .desc{font-size:13px;color:var(--sub)}
-  .help .foot{margin-top:14px;font-size:11.5px;color:var(--sub);text-align:center}
+  .help .foot{margin-top:14px;font-size:11.5px;color:var(--sub);text-align:center;font-family:var(--mono)}
   .help .foot .link{color:var(--accent);cursor:pointer}
-  .palette .pfoot{margin-top:8px;padding:9px 12px;font-size:12px;color:var(--accent);cursor:pointer;border-top:1px solid var(--line);text-align:center}
-  .card.flash{outline:2px solid var(--accent);box-shadow:0 0 0 5px rgba(120,140,255,.18);transition:box-shadow .3s,outline-color .3s}
+  .palette .pfoot{margin-top:8px;padding:9px 12px;font-size:12px;color:var(--accent);cursor:pointer;
+    border-top:1px solid var(--line);text-align:center;font-family:var(--mono)}
+  .card.flash{outline:2px solid var(--neon-cyan);box-shadow:0 0 0 5px rgba(0,229,255,.16),var(--glow-cyan);
+    transition:box-shadow .3s,outline-color .3s}
   .favbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-height:34px}
-  .favchip{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border:1px solid var(--line);border-radius:999px;background:var(--card2);color:var(--txt);font-size:13px;cursor:pointer;transition:border-color .2s,transform .1s}
-  .favchip:hover{border-color:var(--accent);transform:translateY(-1px)}
-  .favempty{color:var(--sub);font-size:12.5px}
+  .favchip{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border:1px solid var(--line);
+    border-radius:3px;background:var(--card2);color:var(--txt);font-size:13px;cursor:pointer;
+    font-family:var(--mono);transition:border-color .2s,box-shadow .2s,transform .1s}
+  .favchip:hover{border-color:var(--neon-cyan);box-shadow:var(--glow-cyan);transform:translateY(-1px)}
+  .favempty{color:var(--sub);font-size:12.5px;font-family:var(--mono)}
   .hint{font-size:11.5px;color:var(--sub);margin-top:10px;line-height:1.6}
-  .hint code{background:rgba(255,255,255,.06);padding:1px 6px;border-radius:6px;color:var(--txt)}
+  .hint code{background:rgba(0,229,255,.09);padding:1px 6px;border-radius:3px;color:var(--neon-cyan);font-family:var(--mono)}
 
   .apipanel{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .apilbl{font-size:13px;color:var(--txt);white-space:nowrap}
-  .apipanel input{flex:1;min-width:220px;background:var(--card2);border:1px solid var(--line);border-radius:12px;
-    padding:10px 12px;color:var(--txt);font-size:13px;outline:none;transition:border-color .2s}
-  .apipanel input:focus{border-color:var(--accent)}
-  .apistate{font-size:12px;font-weight:600}
-  .apistate.ok{color:var(--down)} .apistate.bad{color:var(--up)}
+  .apipanel input{flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);border-radius:4px;
+    padding:10px 12px;color:var(--txt);font-size:13px;outline:none;font-family:var(--mono);transition:border-color .2s,box-shadow .2s}
+  .apipanel input:focus{border-color:var(--neon-cyan);box-shadow:var(--glow-cyan)}
+  .apistate{font-size:12px;font-weight:600;font-family:var(--mono)}
+  .apistate.ok{color:var(--neon-lime);text-shadow:0 0 8px rgba(0,255,163,.4)}
+  .apistate.bad{color:var(--up);text-shadow:0 0 8px rgba(255,46,91,.4)}
   .apihint{font-size:11.5px;color:var(--sub);margin-top:10px;line-height:1.6}
-  .apihint code{background:rgba(255,255,255,.06);padding:1px 5px;border-radius:5px;color:var(--txt)}
+  .apihint code{background:rgba(0,229,255,.09);padding:1px 5px;border-radius:3px;color:var(--neon-cyan);font-family:var(--mono)}
 
   .filters{display:flex;gap:8px;flex-wrap:wrap}
   .filters button{background:var(--card2);border:1px solid var(--line);color:var(--sub);
-    border-radius:20px;padding:7px 14px;font-size:13px;cursor:pointer;transition:all .2s}
-  .filters button:hover{border-color:var(--accent);color:var(--txt)}
-  .filters button.on{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;border-color:transparent}
+    border-radius:3px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:var(--mono);transition:all .18s}
+  .filters button:hover{border-color:var(--neon-cyan);color:var(--txt);box-shadow:var(--glow-cyan)}
+  .filters button.on{background:linear-gradient(90deg,rgba(0,229,255,.22),rgba(255,46,151,.16));color:#fff;
+    border-color:var(--neon-cyan);box-shadow:var(--glow-cyan)}
   .filters button .cnt{opacity:.75;font-size:11px;margin-left:3px}
+
   .sortbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .sortlbl{font-size:12px;color:var(--sub);margin-right:2px}
   .sortbar button{background:var(--card2);border:1px solid var(--line);color:var(--sub);
-    border-radius:20px;padding:7px 14px;font-size:12.5px;cursor:pointer;transition:all .2s}
-  .sortbar button:hover{border-color:var(--accent);color:var(--txt)}
-  .sortbar button.on{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;border-color:transparent}
+    border-radius:3px;padding:7px 14px;font-size:12.5px;cursor:pointer;font-family:var(--mono);transition:all .18s}
+  .sortbar button:hover{border-color:var(--neon-cyan);color:var(--txt);box-shadow:var(--glow-cyan)}
+  .sortbar button.on{background:linear-gradient(90deg,rgba(0,229,255,.22),rgba(255,46,151,.16));color:#fff;
+    border-color:var(--neon-cyan);box-shadow:var(--glow-cyan)}
   .sortbar .sharebtn{margin-left:auto;background:transparent;border:1px dashed var(--line);color:var(--sub);
-    border-radius:20px;padding:7px 14px;font-size:12.5px;cursor:pointer;transition:all .2s}
-  .sortbar .sharebtn:hover{border-color:var(--accent);color:var(--txt)}
+    border-radius:3px;padding:7px 14px;font-size:12.5px;cursor:pointer;font-family:var(--mono);transition:all .18s}
+  .sortbar .sharebtn:hover{border-color:var(--neon-magenta);color:var(--txt);box-shadow:var(--glow-magenta)}
 
   /* ---------- 最近打开 ---------- */
-  .recent h3{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--sub);
-    margin:0 0 12px;font-weight:600}
+  .recent h3{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--neon-magenta);margin:0 0 12px;font-weight:600}
   .recent .chips{display:flex;gap:8px;flex-wrap:wrap}
-  .recent .chip{background:var(--card2);border:1px solid var(--line);border-radius:20px;
+  .recent .chip{background:var(--card2);border:1px solid var(--line);border-radius:3px;
     padding:7px 13px;font-size:12.5px;color:var(--txt);text-decoration:none;display:inline-flex;
-    align-items:center;gap:6px;transition:border-color .2s}
-  .recent .chip:hover{border-color:var(--accent)}
+    align-items:center;gap:6px;font-family:var(--mono);transition:border-color .2s,box-shadow .2s}
+  .recent .chip:hover{border-color:var(--neon-cyan);box-shadow:var(--glow-cyan)}
   .recent .chip .x{color:var(--sub);cursor:pointer;font-size:14px;line-height:1}
 
   /* ---------- 应用卡片网格（Bento） ---------- */
   .grid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:minmax(158px,auto);gap:var(--grid-gap)}
-  .card{grid-column:span 1;background:var(--card);border:1px solid var(--line);border-radius:var(--card-radius);
-    padding:18px;display:flex;flex-direction:column;gap:10px;position:relative;box-shadow:var(--shadow);
+  .card{grid-column:span 1;position:relative;background:var(--card);border:1px solid var(--line);
+    border-radius:var(--card-radius);padding:18px;display:flex;flex-direction:column;gap:10px;
+    box-shadow:var(--shadow);overflow:hidden;
     transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+  /* 卡片顶部霓虹数据条（hover 时点亮） */
+  .card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,var(--neon-cyan),var(--neon-violet),var(--neon-magenta));
+    opacity:.42;transition:opacity .2s}
   .card.wide{grid-column:span 2}
-  .card:hover{transform:translateY(-3px) scale(1.02);border-color:var(--accent);box-shadow:var(--shadow-hover)}
-  .card.faved{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset,var(--shadow)}
-  .card.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),var(--shadow-hover);background:var(--card2)}
+  .card:hover{transform:translateY(-3px);border-color:rgba(0,229,255,.5);box-shadow:var(--shadow-hover),var(--glow-cyan)}
+  .card:hover::before{opacity:1}
+  .card.faved{border-color:var(--neon-magenta);box-shadow:0 0 0 1px var(--neon-magenta) inset,var(--shadow),var(--glow-magenta)}
+  .card.faved::before{opacity:1;background:linear-gradient(90deg,var(--neon-magenta),var(--neon-violet))}
+  .card.sel{border-color:var(--neon-cyan);box-shadow:0 0 0 2px var(--neon-cyan),var(--shadow-hover),var(--glow-cyan);
+    background:var(--card2)}
   .ctop{display:flex;align-items:center;gap:12px;min-width:0}
-  .ico{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;
-    font-size:21px;background:linear-gradient(135deg,var(--g1),var(--g2));flex-shrink:0}
+  .ico{width:42px;height:42px;border-radius:5px;display:flex;align-items:center;justify-content:center;
+    font-size:21px;background:linear-gradient(135deg,rgba(0,229,255,.18),rgba(255,46,151,.18));
+    border:1px solid var(--line);flex-shrink:0}
+  .card:hover .ico{border-color:rgba(0,229,255,.5);box-shadow:var(--glow-cyan)}
   .cname{font-size:16px;font-weight:600;line-height:1.2}
-  .ctag{font-size:11px;color:var(--sub);margin-top:2px;cursor:pointer;transition:color .2s}
-  .ctag:hover{color:var(--accent);text-decoration:underline}
-  .cat{font-size:10px;padding:3px 8px;border-radius:20px;
+  .ctag{font-size:11px;color:var(--sub);margin-top:2px;cursor:pointer;transition:color .2s;font-family:var(--mono)}
+  .ctag:hover{color:var(--neon-cyan);text-decoration:underline}
+  .cat{font-size:10px;padding:3px 8px;border-radius:3px;font-family:var(--mono);
     border:1px solid var(--line);color:var(--sub);background:var(--card2)}
-  .cat.fin{color:var(--inv);border-color:#5a4a2a}
-  .cat.life{color:var(--down);border-color:#2a5a4a}
-  .cat.tool{color:var(--g1);border-color:#3a3a6a}
-  .needapi{font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;white-space:nowrap;
-    border:1px solid #2a5a4a;color:var(--down);background:var(--card2);cursor:pointer}
-  .needapi.off{border-color:#5a4a2a;color:#ffb74d}
-  .localbadge{font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;white-space:nowrap;
-    border:1px solid #3a4a6a;color:#8aa7ff;background:var(--card2);cursor:pointer}
+  .cat.fin{color:var(--neon-magenta);border-color:rgba(255,46,151,.4);background:rgba(255,46,151,.07)}
+  .cat.life{color:var(--neon-lime);border-color:rgba(0,255,163,.4);background:rgba(0,255,163,.07)}
+  .cat.tool{color:var(--neon-cyan);border-color:rgba(0,229,255,.4);background:rgba(0,229,255,.07)}
+  .needapi{font-size:10px;padding:1px 6px;border-radius:3px;margin-left:4px;white-space:nowrap;font-family:var(--mono);
+    border:1px solid rgba(0,255,163,.4);color:var(--neon-lime);background:rgba(0,255,163,.07);cursor:pointer}
+  .needapi.off{border-color:rgba(255,209,102,.45);color:var(--inv);background:rgba(255,209,102,.07)}
+  .localbadge{font-size:10px;padding:1px 6px;border-radius:3px;margin-left:4px;white-space:nowrap;font-family:var(--mono);
+    border:1px solid rgba(185,128,255,.4);color:var(--neon-violet);background:rgba(185,128,255,.08);cursor:pointer}
   .needapi:hover,.localbadge:hover{filter:brightness(1.25)}
   /* R59：数据新鲜度小标（仅期货缓存类 App 展示） */
-  .freshpill{font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;white-space:nowrap;
+  .freshpill{font-size:10px;padding:1px 6px;border-radius:3px;margin-left:4px;white-space:nowrap;font-family:var(--mono);
     border:1px solid var(--line);color:var(--sub);background:var(--card2)}
-  .freshpill.fresh{border-color:#2a5a4a;color:var(--down)}
-  .freshpill.warn{border-color:#5a4a2a;color:#ffb74d}
-  .freshpill.stale{border-color:#5a2a2a;color:#ff6b6b}
-  .freshpill.nodata{border-color:#3a3a6a;color:#8aa7ff}
+  .freshpill.fresh{border-color:rgba(0,255,163,.45);color:var(--neon-lime)}
+  .freshpill.warn{border-color:rgba(255,209,102,.45);color:var(--inv)}
+  .freshpill.stale{border-color:rgba(255,46,91,.5);color:#ff6b8a}
+  .freshpill.nodata{border-color:rgba(185,128,255,.45);color:var(--neon-violet)}
 
   /* ===== 端点详情弹窗（R52） ===== */
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;justify-content:center;z-index:60}
+  .modal{position:fixed;inset:0;background:rgba(2,4,8,.8);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:60}
   .modal.on{display:flex}
-  .modal .box{position:relative;background:var(--card);border:1px solid var(--line);border-radius:18px;
-    padding:22px 24px;max-width:480px;width:90%;box-shadow:var(--shadow-hover);animation:fadeUp .25s ease both}
-  .modal .box h3{margin:0 0 12px;font-size:17px}
+  .modal .box{position:relative;background:var(--card);border:1px solid rgba(0,229,255,.38);border-radius:6px;
+    padding:22px 24px;max-width:480px;width:90%;
+    box-shadow:0 24px 70px rgba(0,0,0,.8),var(--glow-cyan);animation:fadeUp .25s ease both}
+  .modal .box h3{margin:0 0 12px;font-size:17px;font-family:var(--mono)}
   .modal .box .x{position:absolute;top:12px;right:16px;cursor:pointer;color:var(--sub);font-size:20px;line-height:1}
-  .modal .box .x:hover{color:var(--txt)}
+  .modal .box .x:hover{color:var(--neon-magenta)}
   .modal .box ul{margin:6px 0 0;padding-left:18px;color:var(--sub);font-size:13px;line-height:1.95}
-  .modal .box ul .ep{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--accent)}
+  .modal .box ul .ep{font-family:var(--mono);color:var(--neon-cyan)}
   .modal .box .epnote{font-size:12px;color:var(--sub);margin:12px 0 0;line-height:1.6}
   .modal .box .epsrc{font-size:11.5px;color:var(--sub);margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
-  .modal .box .epsrc code{background:rgba(255,255,255,.06);padding:1px 6px;border-radius:5px;color:var(--txt)}
+  .modal .box .epsrc code{background:rgba(0,229,255,.09);padding:1px 6px;border-radius:3px;color:var(--neon-cyan);font-family:var(--mono)}
   .modal .box ul .epcopy{margin-left:8px;background:var(--card2);border:1px solid var(--line);color:var(--sub);
-    border-radius:8px;padding:1px 8px;font-size:11px;cursor:pointer;transition:border-color .2s,color .2s}
-  .modal .box ul .epcopy:hover{border-color:var(--accent);color:var(--txt)}
+    border-radius:3px;padding:1px 8px;font-size:11px;cursor:pointer;font-family:var(--mono);transition:all .18s}
+  .modal .box ul .epcopy:hover{border-color:var(--neon-cyan);color:var(--txt);box-shadow:var(--glow-cyan)}
   .modal .box .epactions{margin:2px 0 6px;display:flex;gap:8px}
   .modal .box.wide{max-width:640px;width:min(640px,92vw)}
   .modal .field{margin:10px 0}
   .modal label{display:block;font-size:13px;color:var(--sub);margin-bottom:5px}
-  .modal input[type=text],.modal input[type=file],.modal textarea{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:9px 11px;font-size:13px;font-family:inherit;box-sizing:border-box}
+  .modal input[type=text],.modal input[type=file],.modal textarea{width:100%;background:var(--card2);
+    border:1px solid var(--line);color:var(--txt);border-radius:4px;padding:9px 11px;font-size:13px;
+    font-family:var(--mono);box-sizing:border-box;transition:border-color .2s,box-shadow .2s}
+  .modal input[type=text]:focus,.modal textarea:focus{border-color:var(--neon-cyan);box-shadow:var(--glow-cyan);outline:none}
   .modal textarea{min-height:66px;resize:vertical}
   .modal .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
-  .modal .status{font-size:12.5px;margin-top:10px;color:var(--sub);min-height:18px;line-height:1.6}
-  .modal .status.ok{color:#00d486}
-  .modal .status.err{color:#ff4d4f}
-  .modal .genout{margin-top:8px;font-size:12.5px;line-height:1.7}
+  .modal .status{font-size:12.5px;margin-top:10px;color:var(--sub);min-height:18px;line-height:1.6;font-family:var(--mono)}
+  .modal .status.ok{color:var(--neon-lime)}
+  .modal .status.err{color:var(--up)}
+  .modal .genout{margin-top:8px;font-size:12.5px;line-height:1.7;font-family:var(--mono)}
   .modal .genout a{color:var(--accent)}
-  .modal .llmbadge{display:inline-block;font-size:12px;padding:4px 10px;border-radius:8px;margin:10px 0 2px;line-height:1.5;word-break:break-all}
-  .modal .llmbadge.on{background:rgba(0,212,134,.12);color:#00d486}
-  .modal .llmbadge.warn{background:rgba(255,176,0,.12);color:#ffb000}
-  .modal .llmbadge.off,.modal .llmbadge.loading{background:rgba(255,255,255,.06);color:var(--sub)}
+  .modal .llmbadge{display:inline-block;font-size:12px;padding:4px 10px;border-radius:4px;margin:10px 0 2px;
+    line-height:1.5;word-break:break-all;font-family:var(--mono)}
+  .modal .llmbadge.on{background:rgba(0,255,163,.1);color:var(--neon-lime);border:1px solid rgba(0,255,163,.3)}
+  .modal .llmbadge.warn{background:rgba(255,209,102,.1);color:var(--inv);border:1px solid rgba(255,209,102,.3)}
+  .modal .llmbadge.off,.modal .llmbadge.loading{background:rgba(255,255,255,.04);color:var(--sub);border:1px solid var(--line)}
   .desc{font-size:12.5px;color:var(--sub);line-height:1.6;flex:1;min-height:42px}
   .cact{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .open{display:inline-flex;align-items:center;justify-content:center;gap:6px;
-    background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;text-decoration:none;
-    border:none;border-radius:12px;padding:9px 15px;font-size:13px;font-weight:600;cursor:pointer;
-    transition:filter .2s}
-  .open:hover{filter:brightness(1.14)}
-  .copybtn{background:var(--card2);border:1px solid var(--line);color:var(--sub);border-radius:12px;
-    padding:9px 12px;font-size:12px;cursor:pointer;transition:border-color .2s,color .2s}
-  .copybtn:hover{border-color:var(--accent);color:var(--txt)}
-  .topright{position:absolute;top:14px;right:14px;display:flex;gap:6px;align-items:center}
-  .fav{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:20px;color:var(--sub);
-    font-size:13px;line-height:1;padding:4px 8px;cursor:pointer;transition:border-color .2s,color .2s}
-  .fav:hover{border-color:var(--accent);color:var(--txt)}
-  .empty{color:var(--sub);font-size:13px;text-align:center;padding:34px;grid-column:1/-1}
+    background:linear-gradient(90deg,rgba(0,229,255,.2),rgba(255,46,151,.2));color:#fff;text-decoration:none;
+    border:1px solid rgba(0,229,255,.45);border-radius:4px;padding:9px 15px;font-size:13px;font-weight:600;
+    cursor:pointer;font-family:var(--mono);transition:all .18s}
+  .open:hover{filter:brightness(1.2);box-shadow:var(--glow-cyan);border-color:var(--neon-cyan)}
+  .copybtn{background:var(--card2);border:1px solid var(--line);color:var(--sub);border-radius:4px;
+    padding:9px 12px;font-size:12px;cursor:pointer;font-family:var(--mono);transition:all .18s}
+  .copybtn:hover{border-color:var(--neon-cyan);color:var(--txt);box-shadow:var(--glow-cyan)}
+  .topright{position:absolute;top:14px;right:14px;display:flex;gap:6px;align-items:center;z-index:1}
+  .fav{background:rgba(0,229,255,.05);border:1px solid var(--line);border-radius:3px;color:var(--sub);
+    font-size:13px;line-height:1;padding:4px 8px;cursor:pointer;transition:all .18s}
+  .fav:hover{border-color:var(--neon-magenta);color:var(--neon-magenta);box-shadow:var(--glow-magenta)}
+  .empty{color:var(--sub);font-size:13px;text-align:center;padding:34px;grid-column:1/-1;font-family:var(--mono)}
   .clrbtn{margin-top:14px;background:var(--card2);border:1px solid var(--line);color:var(--txt);
-    border-radius:12px;padding:9px 18px;font-size:13px;cursor:pointer;transition:all .2s}
-  .clrbtn:hover{border-color:var(--accent);filter:brightness(1.15)}
-  .ft{text-align:center;color:var(--sub);font-size:12px;margin-top:30px;line-height:1.8}
-  .ft code{background:var(--card2);padding:2px 6px;border-radius:6px;color:var(--txt)}
+    border-radius:4px;padding:9px 18px;font-size:13px;cursor:pointer;font-family:var(--mono);transition:all .18s}
+  .clrbtn:hover{border-color:var(--neon-cyan);box-shadow:var(--glow-cyan);filter:brightness(1.15)}
+  .ft{text-align:center;color:var(--sub);font-size:12px;margin-top:30px;line-height:1.8;font-family:var(--mono)}
+  .ft code{background:rgba(0,229,255,.09);padding:2px 6px;border-radius:3px;color:var(--neon-cyan)}
 
   /* 列表视图 */
   .grid.list{grid-template-columns:1fr;gap:10px;grid-auto-rows:auto}
@@ -237,10 +330,23 @@
 
   /* 键盘可达性：所有可交互元素统一焦点轮廓 */
   button:focus-visible, a:focus-visible, .card:focus-visible, .chip:focus-visible, input:focus-visible{
-    outline:2px solid var(--accent); outline-offset:2px; border-radius:10px;
+    outline:2px solid var(--neon-cyan); outline-offset:2px; border-radius:4px;
   }
   @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
   .card.fade{animation:fadeUp .42s ease both}
+  /* 故障错位动效：左右极短位移 + 剪切，模拟信号不稳 */
+  @keyframes glitchA{
+    0%,92%,100%{transform:translate(0,0);opacity:0}
+    93%{transform:translate(-2px,1px);opacity:.85}
+    95%{transform:translate(2px,-1px);opacity:.7}
+    97%{transform:translate(-1px,0);opacity:.5}
+  }
+  @keyframes glitchB{
+    0%,90%,100%{transform:translate(0,0);opacity:0}
+    91%{transform:translate(2px,-1px);opacity:.8}
+    94%{transform:translate(-2px,1px);opacity:.6}
+    98%{transform:translate(1px,0);opacity:.45}
+  }
 
   /* ---------- 响应式 ---------- */
   @media (max-width:1080px){
@@ -251,22 +357,27 @@
     .bento,.grid{grid-template-columns:1fr}
     .s4,.s3,.s2,.s1,.card.wide{grid-column:span 1}
     body{padding:18px 14px 44px}
-    .hero{padding:24px 18px} .hero h1{font-size:26px}
+    .hero{padding:26px 18px} .hero h1{font-size:24px}
+    /* 网格底纹在小屏降低密度，避免视觉噪音 */
+    body::before{background-size:32px 32px,32px 32px,auto,auto}
   }
   /* 小屏（手机）进一步压缩 Bento 卡片密度与字号 */
   @media (max-width:480px){
     body{padding:14px 10px 40px}
-    .hero{padding:18px 14px} .hero h1{font-size:22px}
+    .hero{padding:20px 14px} .hero h1{font-size:20px}
     .bento,.grid{gap:12px}
     .card{padding:14px} .card .cname{font-size:15px}
     .card .desc{font-size:11.5px;min-height:0}
     .searchbar input,.randbtn{padding:10px 12px;font-size:13px}
     .filters button,.sortbar button{padding:5px 11px;font-size:12px}
+    /* 扫描线在手机上关掉，避免与高 DPI 屏产生摩尔纹 */
+    body::after{display:none}
   }
   /* 尊重系统「减少动效」偏好 */
   @media (prefers-reduced-motion: reduce){
     *{animation-duration:.001ms !important;transition-duration:.001ms !important}
     .card:hover{transform:none}
+    .hero h1::before,.hero h1::after{display:none}
   }
 </style>
 </head>
@@ -276,13 +387,13 @@
   <!-- ===== Hero：品牌 + 统计 ===== -->
   <div class="bento" data-page-node-id="gTuM8GrCsF4dJuCARVAWls">
     <section class="tile hero s4" data-page-node-id="qHMh92LlDcYkP1cU0UbrPv">
-      <h1 data-page-node-id="ovuUdrWnovtjFYZkyei7bO">🛠️ 微应用大厅 App Hub</h1>
-      <p data-page-node-id="DgzsN7vp5xN2EsfT79ejCm">零依赖单文件小工具集合 · 双击即开 · 数据本地存储</p>
+      <h1 data-glitch="APP HUB" data-page-node-id="ovuUdrWnovtjFYZkyei7bO">APP HUB<span>_</span> 微应用矩阵</h1>
+      <p data-page-node-id="DgzsN7vp5xN2EsfT79ejCm">ZERO-DEP SINGLE-FILE MICRO-APPS · 双击即开 · 数据只存在本机浏览器</p>
       <div class="stat" data-page-node-id="0MW2P7vwLHcgv4PSt00kNg">
-        <div class="b" data-page-node-id="4CWuqOCUfSwmf5vqa5sfCl"><b id="cnt" data-page-node-id="amrugcChioqbdCq5aU1jOc">0</b>个应用</div>
-        <div class="b" data-page-node-id="B0NMuHojp8l5qqO4WzNqoB"><b id="cntFin" data-page-node-id="YHrX71AiELcNb7BMonnXyQ">0</b>金融</div>
-        <div class="b" data-page-node-id="pBXCyUWFxrgyeN4taOOEXg"><b id="cntLife" data-page-node-id="oUtSiDJR4ekDGNDoMpgqgv">0</b>生活</div>
-        <div class="b" data-page-node-id="dKUuFssSH0Emd0ZlndHqAT"><b id="cntTool" data-page-node-id="ZCfOy6ogLGN5gMwWCzDmlS">0</b>效率</div>
+        <div class="b" data-page-node-id="4CWuqOCUfSwmf5vqa5sfCl"><b id="cnt" data-page-node-id="amrugcChioqbdCq5aU1jOc">0</b>NODES 节点</div>
+        <div class="b" data-page-node-id="B0NMuHojp8l5qqO4WzNqoB"><b id="cntFin" data-page-node-id="YHrX71AiELcNb7BMonnXyQ">0</b>FIN 金融</div>
+        <div class="b" data-page-node-id="pBXCyUWFxrgyeN4taOOEXg"><b id="cntLife" data-page-node-id="oUtSiDJR4ekDGNDoMpgqgv">0</b>LIFE 生活</div>
+        <div class="b" data-page-node-id="dKUuFssSH0Emd0ZlndHqAT"><b id="cntTool" data-page-node-id="ZCfOy6ogLGN5gMwWCzDmlS">0</b>TOOL 效率</div>
         <div class="b clickable" id="dataStatChip" title="点击查看数据状态大屏 data-status-dash" onclick="openApp(event, dataStatTarget())" data-page-node-id="GPhAcL2oFMWKk8gbkNLt31"><b id="dataStatN" class="off" data-page-node-id="TDpzq2UkcWHXFHCgRFE5xx">0</b><span id="dataStatLbl" data-page-node-id="ascFpe5iNTD6iZT9ee1OX7">个应用待连后端</span></div>
       </div>
     </section>
@@ -374,7 +485,7 @@
   <div class="grid" id="grid" data-page-node-id="TnwoZqkpJdNQDE8z0tWLOw"></div>
 
   <div class="ft" data-page-node-id="KEfeXH80HHuCvfigpgIN6x">
-    新增 App 后，在 <code data-page-node-id="2ZSknjMuBoVPfRK4L32ZEu">APPS</code> 数组里加一行即可自动出现在大厅。所有应用均为单文件 HTML，数据存于浏览器 localStorage。
+    NEON TERMINAL v88 · 新增 App 后，在 <code data-page-node-id="2ZSknjMuBoVPfRK4L32ZEu">APPS</code> 数组里加一行即可自动出现在大厅。所有应用均为单文件 HTML，数据存于浏览器 localStorage。
   </div>
 </div>
 
