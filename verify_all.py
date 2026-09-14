@@ -22,6 +22,8 @@ import re
 import sys
 import glob
 import time
+import shutil
+import tempfile
 import subprocess
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -33,9 +35,21 @@ def _resolve_node():
                   reverse=True)
     if hits:
         return hits[0]
-    return r"C:/Users/Administrator/.workbuddy/binaries/node/versions/22.22.2-2/node.exe"
+    # R88-11: 回退到 PATH 上的 node（本地托管路径不存在时），使本门禁可跑在 CI(ubuntu 等)。
+    _w = shutil.which("node")
+    if _w:
+        return _w
+    return "node"
 NODE = _resolve_node()
 BACKEND = os.path.join(ROOT, "backend")
+
+# R88-11: 前端语法校验的临时文件放在系统临时目录（固定子目录，覆盖写、不删除），
+# 不写仓库根、不做删除动作 —— 本环境删除保护 shim 会硬拦删除并可能中断进程。
+_JSCHECK_DIR = os.path.join(tempfile.gettempdir(), "apphub_jscheck")
+try:
+    os.makedirs(_JSCHECK_DIR, exist_ok=True)
+except Exception:
+    _JSCHECK_DIR = tempfile.mkdtemp(prefix="apphub_jscheck_")
 
 # ───────────────────────── 1. 前端 JS 校验 ─────────────────────────
 SCRIPT_BLOCK_RE = re.compile(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.S | re.I)
@@ -72,12 +86,14 @@ def check_frontend():
             src = m.group(2)
             print("  [外部脚本-违规] %s -> %s  (破坏零依赖单文件承诺)" % (rel, src))
             exts += 1
-        # 内联块校验
+        # 内联块校验（R88-11: 临时文件写入系统临时目录，不再写/删仓库根目录。
+        # 既避免污染仓库，也彻底移除「删除动作」——本环境删除保护 shim 会硬拦删除并可能
+        # 中断非交互进程，是 verify_all 此前必须靠外部 runner 才能跑完的根因。）
         for i, code in enumerate(SCRIPT_BLOCK_RE.findall(html)):
             if not code.strip():
                 continue
             blocks += 1
-            tmp = os.path.join(ROOT, "_jscheck_%d.tmp.js" % i)
+            tmp = os.path.join(_JSCHECK_DIR, "_jscheck_%d.tmp.js" % i)
             try:
                 with open(tmp, "w", encoding="utf-8") as f:
                     f.write("(function(){\n%s\n})();\n" % code)
@@ -90,12 +106,6 @@ def check_frontend():
             except Exception as e:
                 print("  [JS校验异常] %s block#%d: %s" % (rel, i, e))
                 errs += 1
-            finally:
-                if os.path.exists(tmp):
-                    try:
-                        os.remove(tmp)
-                    except OSError:
-                        pass  # 安全删除 shim 在回收站不可用时抛错, 不影响校验结论
     print("  扫描 %d 个 HTML, 校验 %d 个内联脚本块, 外部脚本违规 %d, 语法错误 %d"
           % (len(files), blocks, exts, errs))
     return errs + exts
@@ -224,16 +234,22 @@ def _ensure_runtime_harness():
         p = os.path.join(ROOT, fn)
         if os.path.isfile(p):
             continue
+        # R88-11: 先探测 git 是否存在该文件，再决定创建——不再「先建空壳再删除」
+        # （本环境删除保护会硬拦删除并可能中断进程）。
+        try:
+            probe = subprocess.run(["git", "show", "HEAD:%s" % fn], cwd=ROOT,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+        except Exception as e:
+            print("  [提示] 探测 %s 失败: %s" % (fn, e))
+            continue
+        if probe.returncode != 0:
+            print("  [提示] %s 不在 git HEAD，跳过（门禁将优雅跳过该项）" % fn)
+            continue
         try:
             with open(p, "w", encoding="utf-8") as f:
-                rc = subprocess.run(["git", "show", "HEAD:%s" % fn], cwd=ROOT,
-                                    stdout=f, stderr=subprocess.DEVNULL, timeout=30)
-            if rc.returncode == 0 and os.path.getsize(p) > 0:
-                print("  [自修复] 从 git 还原缺失的 %s" % fn)
-            else:
-                if os.path.exists(p):
-                    os.remove(p)
-                print("  [提示] %s 不在 git HEAD，跳过（门禁将优雅跳过该项）" % fn)
+                subprocess.run(["git", "show", "HEAD:%s" % fn], cwd=ROOT, stdout=f,
+                               stderr=subprocess.DEVNULL, timeout=30)
+            print("  [自修复] 从 git 还原缺失的 %s" % fn)
         except Exception as e:
             print("  [提示] 还原 %s 失败: %s" % (fn, e))
 
