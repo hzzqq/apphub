@@ -716,6 +716,94 @@ def check_ecosystem_endpoints():
     return rc
 
 
+def check_skin_contract():
+    """守卫(R90): 全站「皮肤契约」——每个微应用的 :root 必须定义 10 个契约变量。
+
+    契约真源 = theme-studio 的 themeToCssVars()：
+        bg card card2 accent accent2 up down txt sub line
+    背景（真实事故）：57 个微应用里曾有 3 套分裂的变量命名（--panel/--text/--chip 等），
+    导致「主题工坊」换肤只对 22 个 app 生效，另外 35 个静默不换 —— 页面照跑、测试照绿。
+    本守卫把「契约变量齐备 + 旧名已桥接为 var(--契约) + 桥接 JS 在位」固化为回归门禁。
+    """
+    print("─" * 60)
+    print("【皮肤守卫】全站皮肤契约（10 变量 + 旧名桥接 + 主题桥接 JS）")
+    errs = 0
+    try:
+        html = open(os.path.join(ROOT, "index.html"), encoding="utf-8").read()
+    except Exception as e:
+        print("  [读取失败] index.html: %s" % e)
+        return 1
+    registered = sorted(set(re.findall(r'dir:\s*"([^"]+)"', html)))
+    if not registered:
+        print("  [解析失败] 未能从大厅 APPS 数组解析出 dir")
+        return 1
+
+    CONTRACT_VARS = ["--bg", "--card", "--card2", "--accent", "--accent2",
+                     "--up", "--down", "--txt", "--sub", "--line"]
+    LEGACY = ["--panel", "--panel2", "--text", "--chip",
+              "--g1", "--g2", "--grad1", "--grad2"]
+
+    # 与 tools/skin_migrate.py 的 SKIP_APPS 保持一致
+    EXEMPT = {"futures-inventory"}
+
+    checked = 0
+    for d in registered:
+        if d in EXEMPT:
+            continue
+        p = os.path.join(ROOT, d, "index.html")
+        if not os.path.isfile(p):
+            continue
+        src = open(p, encoding="utf-8", errors="replace").read()
+        checked += 1
+
+        roots = []
+        for mm in re.finditer(r":root\s*\{", src):
+            i, depth = mm.end(), 1
+            while i < len(src) and depth:
+                if src[i] == "{":
+                    depth += 1
+                elif src[i] == "}":
+                    depth -= 1
+                i += 1
+            roots.append(src[mm.end():i - 1])
+        if not roots:
+            print("  [缺 :root] %s" % d)
+            errs += 1
+            continue
+        merged = "\n".join(roots)
+
+        # 1) 契约变量必须全部定义
+        defined = set(re.findall(r"(--[a-zA-Z0-9_-]+)\s*:", merged))
+        lack = [v for v in CONTRACT_VARS if v not in defined]
+        if lack:
+            print("  [缺契约变量] %-20s 缺少 %s" % (d, ",".join(lack)))
+            errs += 1
+
+        # 2) 旧变量名若在 :root 内被定义，必须已桥接为 var(--契约)
+        for old in LEGACY:
+            for val in re.findall(re.escape(old) + r"\s*:\s*([^;}]+)", merged):
+                v = val.strip()
+                if not v.startswith("var("):
+                    print("  [旧名未桥接] %-20s %s: %s （应为 var(--契约)）"
+                          % (d, old, v[:40]))
+                    errs += 1
+
+        # 3) 主题桥接 JS 必须在位（否则换肤对该 app 静默失效）
+        if "NEON-THEME-BRIDGE BEGIN" not in src:
+            print("  [缺主题桥接] %s 未注入 theme_config 读取脚本" % d)
+            errs += 1
+
+        # 4) 零依赖不变式
+        if re.search(r"<script[^>]*\bsrc\s*=", src, re.I):
+            print("  [零依赖违规] %s 含外部 <script src>" % d)
+            errs += 1
+
+    if errs == 0:
+        print("  ✓ %d 个微应用皮肤契约齐备（10 变量 + 旧名桥接 + 主题桥接 JS + 零依赖）"
+              % checked)
+    return errs
+
+
 def main():
     print("=" * 60)
     print("App Hub 全量校验 @ %s" % ROOT)
@@ -732,10 +820,11 @@ def main():
     e8 = check_gen_app_template()
     e9 = check_inventory_refresh_guard()
     e10 = check_ecosystem_endpoints()
-    total = e1 + e1b + e1c + e2 + e3 + e4 + e5 + e6 + e7 + e8 + e9 + e10
+    e11 = check_skin_contract()
+    total = e1 + e1b + e1c + e2 + e3 + e4 + e5 + e6 + e7 + e8 + e9 + e10 + e11
     print("─" * 60)
-    print("汇总: 前端错误 %d, 前端单测失败 %d, 前端运行时 %d, 后端错误 %d, 一致性错误 %d, 目录卫生 %d, 端点一致性 %d, 真实数据覆盖 %d, 期货保护 %d, 生成守卫 %d, 库存守卫 %d, 生态端点 %d, 总计 %d"
-          % (e1, e1b, e1c, e2, e3, e4, e5, e6, e7, e8, e9, e10, total))
+    print("汇总: 前端错误 %d, 前端单测失败 %d, 前端运行时 %d, 后端错误 %d, 一致性错误 %d, 目录卫生 %d, 端点一致性 %d, 真实数据覆盖 %d, 期货保护 %d, 生成守卫 %d, 库存守卫 %d, 生态端点 %d, 皮肤守卫 %d, 总计 %d"
+          % (e1, e1b, e1c, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, total))
     if total == 0:
         print("✅ 全部通过")
     else:

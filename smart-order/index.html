@@ -8,8 +8,37 @@
   :root{
     --bg:#0f0f23; --card:#1a1a2e; --line:#2a2a44;
     --up:#ff4d4f; --down:#00d486; --accent:#667eea; --accent2:#764ba2;
-    --text:#e8e8f0; --sub:#8a8a9a;
+    --text:var(--txt); --sub:#8a8a9a;
   }
+/* == NEON-TERMINAL SKIN · BEGIN (auto, do not edit) == */
+:root{
+  /* —— 契约变量（10 项，theme-studio 唯一真源）—— */
+  --bg:#05060b;
+  --card:#0c1018;
+  --card2:#121826;
+  --accent:#00e5ff;
+  --accent2:#7c4dff;
+  --up:#ff2e5b;
+  --down:#00ffa3;
+  --txt:#e6f1ff;
+  --sub:#7c8aa0;
+  --line:rgba(0,229,255,.16);
+
+  /* —— 赛博朋克霓虹扩展令牌 —— */
+  --neon-cyan:#00e5ff;
+  --neon-magenta:#ff2e97;
+  --neon-violet:#b980ff;
+  --neon-lime:#00ffa3;
+  --neon-amber:#ffd166;
+  --grid-line:rgba(0,229,255,.055);
+  --scan:rgba(0,0,0,.16);
+
+  /* —— 旧变量名别名桥接（保证既有 var() 引用不失效）—— */
+  --text:var(--txt);
+  --g1:var(--accent);
+}
+/* == NEON-TERMINAL SKIN · END == */
+
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);padding:20px;max-width:1000px;margin:0 auto}
   h1{font-size:24px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
@@ -208,5 +237,40 @@ render();
     <a href="../index.html">← 返回 App 大厅</a> &nbsp;·&nbsp;
     <span>数据来自公开接口或本地演示，仅供学习与参考，不构成任何投资建议。</span>
   </footer>
+<script>
+/* NEON-THEME-BRIDGE BEGIN */
+/* 主题桥接：读大厅「主题工坊」写入的 theme_config，覆盖契约变量。
+   零依赖、幂等；reduced-motion 与容器查询均不受影响。 */
+(function(){
+  function apply(){
+    var raw=null;
+    try{ raw=localStorage.getItem("theme_config"); }catch(e){ return; }
+    if(!raw) return;
+    var t; try{ t=JSON.parse(raw); }catch(e){ return; }
+    if(!t||typeof t!=="object") return;
+    var map={bg:"--bg",card:"--card",card2:"--card2",accent:"--accent",
+             accent2:"--accent2",up:"--up",down:"--down",txt:"--txt",
+             sub:"--sub",line:"--line"};
+    var css="";
+    for(var k in map){
+      var v=t[k];
+      if(typeof v==="string"&&v) css+=map[k]+":"+v+";";
+    }
+    if(!css) return;
+    var el=document.getElementById("neon-theme-bridge");
+    if(!el){
+      el=document.createElement("style");
+      el.id="neon-theme-bridge";
+      (document.head||document.documentElement).appendChild(el);
+    }
+    el.textContent=":root{"+css+"}";
+  }
+  apply();
+  window.addEventListener("storage",function(e){
+    if(e&&e.key==="theme_config") apply();
+  });
+})();
+/* NEON-THEME-BRIDGE END */
+</script>
 </body>
 </html>
