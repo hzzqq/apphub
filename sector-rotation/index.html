@@ -176,7 +176,7 @@ async function loadSectors(){
       const j=await r.json();
       if(j.ok && Array.isArray(j.rows) && j.rows.length){
         SECTORS=j.rows.map(x=>({name:x.name,chg:x.chg!=null?x.chg:0,strength5:x.strength5!=null?x.strength5:0}));
-        dataSrc=j.offline?"离线静态样本(本地 data/sector.json)":"真实板块行情(akshare)";
+        dataSrc=(j.source==="local")?"本地真实数据(data/sector.json)":(j.source==="live")?"真实板块行情(akshare)":(j.offline?"离线静态样本":"真实板块行情(akshare)");
         if(j.updated) showFresh(j.updated,"板块行情");
         render(); return;
       }

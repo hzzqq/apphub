@@ -637,7 +637,9 @@ async function loadETFs(){
       const j = await r.json();
       if(j && j.ok && Array.isArray(j.rows) && j.rows.length){
         ETFS = j.rows.map(sanitizeETF);
-        dataSrc = j.offline ? "离线静态样本(本地 data/etf.json)" : "真实 ETF 行情(akshare)";
+        dataSrc = (j.source==="local") ? "本地真实数据(data/etf.json)"
+               : (j.source==="live") ? "真实 ETF 行情(akshare)"
+               : (j.offline ? "离线静态样本" : "真实 ETF 行情(akshare)");
         if(j.updated) showFresh(j.updated,"ETF行情");
         refreshIndustryOptions(); loadFilters(); render(); return;
       }

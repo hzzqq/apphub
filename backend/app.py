@@ -857,6 +857,7 @@ def api_futures():
                     offline = True
         r_val = pearson([x["close"] for x in data], [x["inventory"] for x in data])
         return jsonify({"ok": True, "offline": offline,
+                        "source": "local" if not offline else "sample",
                         "listing_date": LISTING_DATES.get(symbol, ""),
                         "data": data, "corr": round(r_val, 3)})
     except Exception as e:
@@ -956,7 +957,7 @@ def api_inventory_overview():
                       "source": "EIA" if is_crude else "WH"})
     exch_order = {"SHFE": 0, "DCE": 1, "CZCE": 2, "INE": 3}
     items.sort(key=lambda x: (exch_order.get(x["exchange"], 9), x["symbol"]))
-    return jsonify({"ok": True, "count": len(items), "items": items})
+    return jsonify({"ok": True, "source": "local", "count": len(items), "items": items})
 
 
 @app.route("/api/eia_crude", methods=["GET"])
@@ -983,7 +984,7 @@ def api_eia_crude():
         value = row.get("value")
         if value is None:
             return jsonify({"ok": False, "reason": "empty", "error": "EIA 返回空数据"})
-        return jsonify({"ok": True, "period": period,
+        return jsonify({"ok": True, "source": "eia", "period": period,
                         "value_mbbl": round(float(value) / 1000.0, 1), "unit": "百万桶"})
     except Exception as e:
         return jsonify({"ok": False, "reason": "fetch_error", "error": str(e)})
@@ -1044,8 +1045,8 @@ def api_corr_top():
             "strength": "强" if abs(best_r) >= 0.6 else ("中" if abs(best_r) >= 0.3 else "弱"),
         })
     rows.sort(key=lambda x: abs(x["corr"]), reverse=True)
-    return jsonify({"ok": True, "offline": OFFLINE_MODE, "top": rows[:n],
-                    "note": "离线样本计算; 有网环境 OFFLINE_MODE=False 即真实排名。"})
+    return jsonify({"ok": True, "offline": OFFLINE_MODE, "source": "sample", "top": rows[:n],
+                    "note": "离线样本计算(基于本地 futures 缓存合成); 有网环境 OFFLINE_MODE=False 即真实排名。"})
 
 
 @app.route("/api/futures_chain", methods=["GET"])
@@ -1091,6 +1092,7 @@ def api_futures_chain():
     if not res.get("ok"):
         err = res.get("data", {}).get("error") or res.get("error") or "分析失败"
         return jsonify({"ok": False, "error": err}), 404
+    res["source"] = "local"
     _cache_put(key, res)
     return jsonify(res)
 
@@ -1144,7 +1146,7 @@ def _list_available_varieties():
 def api_futures_varieties():
     """轻量品种列表：返回 data/ 下所有已缓存品种 (symbol,exchange,name)。
     供 futures-chain 等页面直接填充下拉候选，无需先算一遍共振矩阵（省掉全量相关计算）。"""
-    return jsonify({"ok": True, "available": _list_available_varieties()})
+    return jsonify({"ok": True, "source": "local", "available": _list_available_varieties()})
 
 
 @app.route("/api/futures_sector_matrix", methods=["GET"])
@@ -1197,6 +1199,7 @@ def api_futures_sector_matrix():
     res["default"] = ["%s:%s" % (s, e) for s, e in MATRIX_VARIETIES]
     res["from"] = from_d
     res["to"] = to_d
+    res["source"] = "local"
     res["updated"] = _cache_newest_mtime()
     _cache_put(key, res)
     return jsonify(res)
@@ -1240,7 +1243,7 @@ def api_quote():
         price = round(5 + (seed % 199500) / 100.0, 2)
         chg = round(((seed >> 16) % 1001) / 100.0 - 5.0, 2)  # -5%~+5%
         prev = round(price / (1 + chg / 100.0), 2)
-        return jsonify({"ok": True, "offline": True,
+        return jsonify({"ok": True, "offline": True, "source": "sample",
                         "name": code, "price": price, "prev": prev,
                         "chg": chg, "updated": None,
                         "note": "离线样本(确定性, 同代码价格稳定)。有网环境填新浪接口即真行情。"})
@@ -1268,7 +1271,7 @@ def _build_quote_live(code):
             raise ValueError("新浪返回字段不足: %r" % parts[:8])
         name, price, prev = parts[0], float(parts[3]), float(parts[2])
         chg = round((price - prev) / prev * 100, 2)
-        return {"ok": True, "offline": False, "name": name, "price": price,
+        return {"ok": True, "offline": False, "source": "live", "name": name, "price": price,
                 "prev": prev, "chg": chg,
                 "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
     except Exception as e:
@@ -1276,7 +1279,7 @@ def _build_quote_live(code):
         import akshare as ak
         df = ak.stock_zh_a_spot_em()
         row = df[df["代码"] == code[2:]].iloc[0]
-        return {"ok": True, "offline": False, "name": row["名称"],
+        return {"ok": True, "offline": False, "source": "live", "name": row["名称"],
                 "price": float(row["最新价"]), "prev": float(row["昨收"]),
                 "chg": round(float(row["涨跌幅"]), 2),
                 "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
@@ -1290,12 +1293,15 @@ def api_shepherd():
     结果缓存 _SHEP_TTL 秒(日频数据), 抓取失败回退陈旧缓存或离线快照。"""
     if OFFLINE_MODE:
         r = _shepherd_offline()
+        r["source"] = "sample"
     else:
         resp, stale = _cached_build("shepherd", _req_ttl(_SHEP_TTL), _shepherd_live)
         if resp is None:
             r = _shepherd_offline(extra_note="真抓取失败且无缓存")
+            r["source"] = "sample"
         else:
             r = resp
+            r["source"] = "live"
     r["updated"] = r.get("date") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return jsonify(r)
 
@@ -1436,17 +1442,19 @@ def api_etf():
             data = _load_static("etf.json")
             if typ:
                 data = [x for x in data if x.get("type") == typ]
-            return jsonify({"ok": True, "offline": True, "rows": data,
+            return jsonify({"ok": True, "offline": True, "source": "local", "rows": data,
                             "updated": _file_mtime("etf.json"),
-                            "note": "离线静态样本(沙箱禁网)。有网环境 OFFLINE_MODE=False 即真实 ETF 行情。"})
+                            "note": "本地真实数据(data/etf.json)，非实时行情。有网环境 OFFLINE_MODE=False 即真实 ETF 行情。"})
         except Exception:
-            return jsonify({"ok": True, "offline": True, "rows": [], "note": "本地 etf.json 缺失"})
+            return jsonify({"ok": True, "offline": True, "source": "sample", "rows": [], "note": "本地 etf.json 缺失"})
     resp, stale = _cached_build("etf", _req_ttl(_ETF_TTL), lambda: _build_etf_live(typ))
+    if resp is not None:
+        resp["source"] = "live"
     if resp is None:
         try:
             data = _load_static("etf.json")
-            return jsonify({"ok": True, "offline": True, "rows": data,
-                            "note": "真实抓取失败, 回退静态样本"})
+            return jsonify({"ok": True, "offline": True, "source": "local", "rows": data,
+                            "note": "真实抓取失败, 回退本地真实数据(data/etf.json)"})
         except Exception:
             return jsonify({"ok": False, "error": "ETF 抓取与静态均失败"}), 500
     resp["updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1478,17 +1486,19 @@ def api_sector():
     if OFFLINE_MODE:
         try:
             data = _load_static("sector.json")
-            return jsonify({"ok": True, "offline": True, "rows": data,
+            return jsonify({"ok": True, "offline": True, "source": "local", "rows": data,
                             "updated": _file_mtime("sector.json"),
-                            "note": "离线静态样本。有网环境 OFFLINE_MODE=False 即真实板块行情。"})
+                            "note": "本地真实数据(data/sector.json)，非实时行情。有网环境 OFFLINE_MODE=False 即真实板块行情。"})
         except Exception:
-            return jsonify({"ok": True, "offline": True, "rows": [], "note": "本地 sector.json 缺失"})
+            return jsonify({"ok": True, "offline": True, "source": "sample", "rows": [], "note": "本地 sector.json 缺失"})
     resp, stale = _cached_build("sector", _req_ttl(_SECTOR_TTL), _build_sector_live)
+    if resp is not None:
+        resp["source"] = "live"
     if resp is None:
         try:
             data = _load_static("sector.json")
-            return jsonify({"ok": True, "offline": True, "rows": data,
-                            "note": "真实抓取失败, 回退静态样本"})
+            return jsonify({"ok": True, "offline": True, "source": "local", "rows": data,
+                            "note": "真实抓取失败, 回退本地真实数据(data/sector.json)"})
         except Exception:
             return jsonify({"ok": False, "error": "板块抓取与静态均失败"}), 500
     resp["updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1524,12 +1534,12 @@ def api_market_cube():
         metric_meta 标 "weekly_pe"
     离线降级: 返回 offline=True, 前端用内置样本。"""
     if OFFLINE_MODE:
-        return jsonify({"ok": True, "offline": True,
+        return jsonify({"ok": True, "offline": True, "source": "sample",
                         "note": "离线模式(OFFLINE_MODE=True)，前端用内置样本。有网环境 OFFLINE_MODE=False 即真实板块行情。"})
     # TTL 缓存壳: 命中直返 / 未命中真抓 / 失败回退陈旧缓存(标 stale) 或离线样本
     resp, stale = _cached_build("market_cube", _req_ttl(_MARKET_CUBE_TTL), _build_market_cube)
     if resp is None:
-        return jsonify({"ok": True, "offline": True,
+        return jsonify({"ok": True, "offline": True, "source": "sample",
                         "note": "真实抓取失败且无缓存, 前端用内置样本。"})
     return jsonify(resp)
 
@@ -1621,7 +1631,7 @@ def _build_market_cube():
     if not weeks_labels:
         weeks_labels = ["W-7", "W-6", "W-5", "W-4", "W-3", "W-2", "W-1", "本周"]
     sectors = [{"n": n, "g": g} for n, g, _ in SECTOR_MAP]
-    return {"ok": True, "offline": False, "sectors": sectors,
+    return {"ok": True, "offline": False, "source": "live", "sectors": sectors,
             "weeks": weeks_labels, "cube": cube, "metric_meta": metric_meta,
             "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
@@ -1647,7 +1657,7 @@ def api_data():
         fpath = os.path.join(DATA_DIR, fname)
         mtime = _file_mtime(fname)
         data = _load_static(fname)
-        return jsonify({"ok": True, "rows": data, "updated": mtime})
+        return jsonify({"ok": True, "source": "local", "rows": data, "updated": mtime})
     except FileNotFoundError:
         return jsonify({"ok": False, "error": "文件不存在: %s" % fname}), 404
     except Exception as e:
@@ -1670,7 +1680,8 @@ def api_futures_events():
     except Exception as e:
         logger.warning("futures_events 读取失败, 回退空: %s", str(e)[:120])
         events = []
-    return jsonify({"ok": True, "offline": OFFLINE_MODE, "key": key, "events": events})
+    return jsonify({"ok": True, "offline": OFFLINE_MODE, "source": "local" if events else "sample",
+                    "key": key, "events": events})
 
 
 def _load_static(fname):
@@ -1765,6 +1776,7 @@ def api_futures_spread():
     return jsonify({
         "ok": True,
         "offline": offline,
+        "source": "live" if not offline else "sample",
         "updated": (datetime.now().strftime("%Y-%m-%d %H:%M:%S") if not offline else _cache_newest_mtime()),
         "variety": variety,
         "monthA": monthA,
@@ -2470,7 +2482,7 @@ def api_search():
     if typ not in SEARCH_SAMPLE:
         return jsonify({"ok": False, "error": "type 不支持: %s" % typ}), 400
     if not q:
-        return jsonify({"ok": True, "offline": OFFLINE_MODE, "results": SEARCH_SAMPLE[typ],
+        return jsonify({"ok": True, "offline": OFFLINE_MODE, "source": "sample", "results": SEARCH_SAMPLE[typ],
                         "note": "未传入关键词, 返回热门示例。"})
     ql = q.lower()
     if OFFLINE_MODE:
@@ -2481,7 +2493,7 @@ def api_search():
             # 传了关键词但无匹配 -> 返回空(而非降级为全量), 前端据此提示"无结果"
             res = [r for r in SEARCH_SAMPLE[typ]
                    if ql in (str(r["code"]).lower()) or ql in (str(r["name"]).lower())]
-        return jsonify({"ok": True, "offline": True, "type": typ, "results": res,
+        return jsonify({"ok": True, "offline": True, "source": "sample", "type": typ, "results": res,
                         "note": "离线示例库。有网环境 OFFLINE_MODE=False 即真实全市场搜索。"})
     try:
         results = []

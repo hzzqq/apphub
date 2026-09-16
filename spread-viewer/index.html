@@ -119,6 +119,10 @@
   .big{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:8px}
   .big .bp{font-size:34px;font-weight:800;line-height:1.1} .big .bc{font-size:15px;margin-top:4px}
 
+  .src-badge{display:inline-block;margin-left:10px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;vertical-align:middle;border:1px solid var(--line)}
+  .src-live{color:var(--up);border-color:var(--up);background:rgba(0,212,134,.14)}
+  .src-local{color:var(--accent);border-color:var(--accent);background:rgba(0,229,255,.14)}
+  .src-sample{color:var(--sub);border-color:var(--line);background:rgba(124,138,160,.14)}
 </style>
 </head>
 <body>
@@ -126,7 +130,7 @@
 <h1>📐 期货跨期价差</h1>
 <p class="sub">跨期价差</p>
 <div class="controls" id="controls"></div>
-<div class="status"><span id="dot" class="dot bad"></span><span id="statusTxt">未连接</span></div>
+<div class="status"><span id="dot" class="dot bad"></span><span id="statusTxt">未连接</span><span id="srcBadge"></span></div>
 <div id="out"></div>
 <div class="note">需经 <b>后端</b> 访问（http://&lt;host&gt;:8787/spread-viewer/）。以 file:// 打开则无法读取数据。</div>
 
@@ -143,6 +147,20 @@
   function setStatus(kind, txt){
     dot.className = "dot " + kind;
     statusTxt.textContent = txt;
+  }
+  function srcBadgeHtml(j){
+    var s = j && j.source, cls, txt;
+    if(s==="live"){cls="src-live";txt="● 实时行情";}
+    else if(s==="local"){cls="src-local";txt="● 本地真实数据";}
+    else if(s==="sample"){cls="src-sample";txt="○ 离线示例";}
+    else if(j && j.offline===false){cls="src-live";txt="● 实时/真实";}
+    else if(j && j.offline===true){cls="src-sample";txt="○ 离线示例";}
+    else {cls="src-sample";txt="○ 来源未知";}
+    return '<span class="src-badge '+cls+'">'+txt+'</span>';
+  }
+  function setSrcBadge(j){
+    var el=document.getElementById("srcBadge");
+    if(el) el.innerHTML = srcBadgeHtml(j);
   }
   function esc(s){
     return String(s==null?"":s).replace(/[&<>"']/g, function(c){
@@ -304,7 +322,7 @@
     showLoading("加载中…");
     var url = buildUrl(gatherInputs());
     fetchT(BASE+url, {cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
-      .then(function(j){ setStatus("ok","已加载"); render("rows", j); })
+      .then(function(j){ setStatus("ok","已加载"); render("rows", j); setSrcBadge(j); })
       .catch(function(e){ showError("加载失败: "+e.message); });
   }
   drawControls();
