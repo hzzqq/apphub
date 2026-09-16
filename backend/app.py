@@ -762,6 +762,19 @@ def _safe_real_spread(variety, monthA, monthB, ytype, start, end, timeout=20):
     return None
 
 
+def _safe_build(builder, timeout=60):
+    """在子线程里跑任意构建函数(通常含 akshare 真抓), 超时/异常返回 None (上层回退样本)。"""
+    box = {}
+    def _run():
+        try:
+            box["d"] = builder()
+        except Exception as _e:  # noqa
+            box["e"] = _e
+    t = threading.Thread(target=_run, daemon=True)
+    t.start(); t.join(timeout)
+    return box.get("d")
+
+
 def _load_cached_futures(exchange, symbol):
     """若本地存在真实缓存文件 backend/data/futures_<exch>_<symbol>.json 则优先返回。
        fetch_real_futures.py 在有网机器上生成这些文件, 实现"默认真实数据"。
@@ -1533,14 +1546,21 @@ def api_market_cube():
         逐周 PE_t = 周收盘_t / EPS (EPS 按季更新, 8 周内近似恒定, 故逐周 PE 随真实周价格走),
         metric_meta 标 "weekly_pe"
     离线降级: 返回 offline=True, 前端用内置样本。"""
-    if OFFLINE_MODE:
+    force_live = request.args.get("force_live", "0") == "1"
+    if OFFLINE_MODE and not force_live:
         return jsonify({"ok": True, "offline": True, "source": "sample",
-                        "note": "离线模式(OFFLINE_MODE=True)，前端用内置样本。有网环境 OFFLINE_MODE=False 即真实板块行情。"})
+                        "note": "离线模式(OFFLINE_MODE=True)，前端用内置样本。有网环境 OFFLINE_MODE=False 或加 ?force_live=1 即真实板块行情。"})
     # TTL 缓存壳: 命中直返 / 未命中真抓 / 失败回退陈旧缓存(标 stale) 或离线样本
-    resp, stale = _cached_build("market_cube", _req_ttl(_MARKET_CUBE_TTL), _build_market_cube)
+    if force_live:
+        # 绕过缓存, 直接真抓(线程超时保护, 失败回退样本), 有网机器即出真实 24 板块×8 周 PE+主力净流入
+        resp = _safe_build(_build_market_cube, timeout=60)
+    else:
+        resp, stale = _cached_build("market_cube", _req_ttl(_MARKET_CUBE_TTL), _build_market_cube)
     if resp is None:
         return jsonify({"ok": True, "offline": True, "source": "sample",
-                        "note": "真实抓取失败且无缓存, 前端用内置样本。"})
+                        "note": "真实抓取失败(可能无网络), 前端用内置样本。"})
+    resp["source"] = "live"
+    resp["updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return jsonify(resp)
 
 
