@@ -1,5 +1,76 @@
 @echo off
 setlocal EnableDelayedExpansion
+set "HUB_CMD=%1"
+if "%HUB_CMD%"=="" set "HUB_CMD=start"
+if /i "%HUB_CMD%"=="start"   goto :do_start
+if /i "%HUB_CMD%"=="stop"    goto :do_stop
+if /i "%HUB_CMD%"=="restart" goto :do_restart
+if /i "%HUB_CMD%"=="status"  goto :do_status
+goto :usage
+
+:usage
+echo ============================================================
+echo   App Hub - Unified Launcher
+echo   Usage: hub.bat [start^|stop^|restart^|status]
+echo     start   (default) launch backend + open browser
+echo     stop    kill backend, clean lock
+echo     restart stop + start
+echo     status  show if port 8787 is listening
+echo ============================================================
+pause
+exit /b 1
+
+:do_status
+set PORT=8787
+set "HUBFOUND="
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr "LISTENING" ^| findstr ":%PORT%"') do set "HUBFOUND=1"
+if defined HUBFOUND (
+  echo [status] port %PORT% LISTENING
+) else (
+  echo [status] port %PORT% NOT listening
+)
+echo   Run "hub.bat" or "hub.bat start" to launch.
+pause
+exit /b 0
+:do_stop
+set PORT=8787
+set "LOCKF=%TEMP%\hub_backend.lock"
+echo ============================================================
+echo   App Hub - Stop Backend
+echo ============================================================
+echo.
+set "HUBFOUND=0"
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr "LISTENING" ^| findstr ":%PORT%"') do (
+  echo [*] Found backend on port %PORT% PID=%%P - killing ...
+  taskkill /F /PID %%P >nul 2>&1
+  if errorlevel 1 (
+    echo [WARN] Failed to kill PID %%P - may have died or be protected.
+  ) else (
+    echo [ok] PID %%P stopped.
+  )
+  set /a HUBFOUND+=1
+)
+if exist "%LOCKF%" (
+  del "%LOCKF%" >nul 2>&1
+  echo [ok] Lock file removed: %LOCKF%
+)
+if "!HUBFOUND!"=="0" (
+  echo [INFO] No process is listening on port %PORT%.
+  echo        Maybe you never ran hub.bat, or the backend already stopped.
+)
+echo.
+pause
+exit /b 0
+:do_restart
+echo ============================================================
+echo   App Hub - Restart (stop + start)
+echo ============================================================
+echo.
+call :do_stop
+echo.
+goto :do_start
+
+:do_start
 set PORT=8787
 set "LOCKF=%TEMP%\hub_backend.lock"
 
@@ -17,7 +88,7 @@ set "PYEXE=E:\python\python.exe"
 if not exist "%PYEXE%" (
   echo [ERROR] Python not found at %PYEXE%.
   echo          Project expects E:\python\python.exe - 3.11.x with pythonw.exe.
-  echo          Install it there, or edit start.bat line 16 to point at another install.
+  echo          Install it there, or edit the PYEXE line in hub.bat to point at another install.
   pause
   exit /b 1
 )
@@ -53,7 +124,7 @@ if exist "%LOCKF%" (
   for /f "usebackq delims=" %%L in ("%LOCKF%") do set "OLDPID=%%L"
   if defined OLDPID (
     tasklist /FI "PID eq !OLDPID!" /NH 2>nul | findstr /I "python" >nul && (
-      echo [ERROR] Another HubBackend already running. PID=!OLDPID! still alive. Run stop.bat first.
+      echo [ERROR] Another HubBackend already running. PID=!OLDPID! still alive. Run "hub.bat stop" first.
       pause
       exit /b 1
     )
@@ -144,10 +215,10 @@ echo ---- backend log ----
 if exist "%TEMP%\hub_backend.log" (
   type "%TEMP%\hub_backend.log"
 ) else (
-  echo         (hub_backend.log missing - pythonw never started)
+  echo         hub_backend.log missing - pythonw never started
 )
 echo.
-echo         Fix: run stop.bat, then start.bat again.
+echo         Fix: run "hub.bat stop", then "hub.bat start" again.
 pause
 exit /b 1
 :wait_done
@@ -191,7 +262,8 @@ echo   Done
 echo   - Backend runs WINDOWLESS (pythonw). No backend window to worry about.
 echo   - LAUNCHER window: press any key (or close with X) - project keeps running.
 echo     The backend is fully detached; closing this window does NOT stop the apps.
-echo   - To STOP the backend: double-click stop.bat
+echo   - To STOP the backend: run "hub.bat stop"
+echo   - To RESTART the backend: run "hub.bat restart"
 echo     (or from a shell: taskkill /F /IM pythonw.exe)
 echo   - Browser opened http://127.0.0.1:%PORT%/ - backend serves frontend, same-origin.
 echo   - If Edge shows ERR_CONNECTION_REFUSED: bypass the proxy for 127.0.0.1
