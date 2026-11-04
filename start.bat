@@ -101,13 +101,26 @@ REM "won't start" in the browser after double-click.
 REM The fix: launch pythonw via WMI (Invoke-CimMethod Win32_Process.Create).
 REM WMI is a SYSTEM service outside cmd's Job, so the spawned pythonw lives
 REM independently of cmd. (We tried CREATE_BREAKAWAY_FROM_JOB first but cmd's
-REM Job rejects it with WinError 5 拒绝访问.)
+REM Job rejects it with WinError 5 (access denied).)
 REM Strip trailing backslash from %~dp0 so /D "path" has no backslash-before-quote (cmd parse break)
 set "APPDIR=%~dp0"
 if "%APPDIR:~-1%"=="\" set "APPDIR=%APPDIR:~0,-1%"
 echo [*] Starting backend (windowless) at http://127.0.0.1:%PORT% - OFFLINE_MODE=%OFFLINE_MODE% ...
 echo         Logs: %TEMP%\hub_backend.log
-powershell -NoProfile -ExecutionPolicy Bypass -File "%APPDIR%\backend\_spawn.ps1" "%PYEXEW%" "%APPDIR%" >nul 2>&1
+if not exist "%APPDIR%\backend\_spawn.ps1" (
+  echo [ERROR] backend/_spawn.ps1 missing - launcher cannot start the backend.
+  echo         This helper must ship with the repo; it is no longer gitignored.
+  pause
+  exit /b 1
+)
+powershell -NoProfile -ExecutionPolicy Bypass -File "%APPDIR%\backend\_spawn.ps1" "%PYEXEW%" "%APPDIR%" "%OFFLINE_MODE%" > "%TEMP%\hub_spawn.log" 2>&1
+if errorlevel 1 (
+  echo [ERROR] Backend spawn failed. Details:
+  type "%TEMP%\hub_spawn.log"
+  pause
+  exit /b 1
+)
+echo [ok] Backend process spawned (windowless).
 
 REM ===== 7) Smart wait: poll /api/health via python urllib (no curl dependency) =====
 echo [*] Waiting for backend - up to 20s ...
@@ -115,16 +128,28 @@ set /a WAIT=0
 :wait_loop
 set /a WAIT+=1
 if !WAIT! gtr 20 goto :wait_timeout
-"%PYEXE%" -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:%PORT%/api/health', timeout=2)" >nul 2>&1 && (
+"%PYEXE%" -c "import urllib.request; urllib.request.build_opener(urllib.request.ProxyHandler({})).open('http://127.0.0.1:%PORT%/api/health', timeout=2)" >nul 2>&1 && (
   echo [ok] Backend ready after !WAIT! s
   goto :wait_done
 )
 ping -n 2 127.0.0.1 >nul
 goto :wait_loop
 :wait_timeout
-echo [WARN] Backend not responding after 20s. Opening hub anyway - data apps may fail.
-echo         Check the backend log for the error traceback:
-echo           %TEMP%\hub_backend.log
+echo [ERROR] Backend not responding after 20s - webpage CANNOT be opened.
+echo         Refusing to open the browser. Old behaviour opened it anyway and
+echo         produced ERR_CONNECTION_REFUSED. Diagnostics:
+echo ---- spawn log ----
+if exist "%TEMP%\hub_spawn.log" type "%TEMP%\hub_spawn.log"
+echo ---- backend log ----
+if exist "%TEMP%\hub_backend.log" (
+  type "%TEMP%\hub_backend.log"
+) else (
+  echo         (hub_backend.log missing - pythonw never started)
+)
+echo.
+echo         Fix: run stop.bat, then start.bat again.
+pause
+exit /b 1
 :wait_done
 
 REM ===== 8) Record backend PID to lock file =====
@@ -143,12 +168,13 @@ if defined NEWPID (
 )
 
 REM ===== 9) Fetch real futures data (optional, needs internet) =====
-REM 关键修复：此前同步调用会阻塞启动器（SHFE/CZCE 接口无响应时永久挂起，造成"启动失败"假象）。
-REM 现改为「后台最小化窗口」执行：启动器立即继续打开浏览器，数据抓取在后台进行（已加 12s 全局超时 + 原子写）。
-REM 后端已在第 6 步启动，不依赖本步；抓到的新数据下次刷新/重启后生效。
+REM Fix: the old synchronous call blocked the launcher when SHFE/CZCE hung,
+REM       creating a false "startup failed" impression. Now run it in a
+REM       minimized background window (12s timeout + atomic write). Backend is
+REM       already up from step 6; new data takes effect after next refresh.
 "%PYEXE%" -c "import akshare" >nul 2>nul
 if not errorlevel 1 (
-  echo [*] 后台抓取真实期货数据（不阻塞启动，约 60s 内自行结束）...
+  echo [*] Fetching real futures data in background (non-blocking, ~60s) ...
   if exist "%TEMP%\hub_fetch.log" del "%TEMP%\hub_fetch.log" >nul 2>&1
   start "" /MIN "%PYEXE%" backend/fetch_real_futures.py ^> "%TEMP%\hub_fetch.log" 2^>^&1
 ) else (
@@ -168,6 +194,8 @@ echo     The backend is fully detached; closing this window does NOT stop the ap
 echo   - To STOP the backend: double-click stop.bat
 echo     (or from a shell: taskkill /F /IM pythonw.exe)
 echo   - Browser opened http://127.0.0.1:%PORT%/ - backend serves frontend, same-origin.
+echo   - If Edge shows ERR_CONNECTION_REFUSED: bypass the proxy for 127.0.0.1
+echo     (Proxy settings ^> "Do not use proxy for local addresses").
 echo   - Diagnostic log : %TEMP%\hub_backend.log
 echo   - Lock file      : %LOCKF% - auto maintained
 echo ============================================================

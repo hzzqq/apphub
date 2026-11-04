@@ -31,7 +31,8 @@ Artifacts/
 _fe_test.js
 _gen_samples.py
 backend/_hub_run.pyw
-backend/_spawn.ps1
+# backend/_spawn.ps1 MUST ship with the repo: start.bat calls it to launch the
+# backend via WMI. It was gitignored before, so a fresh clone had a dead launcher.
 backend/_sample_chain_*.html
 
 # 桌面壳层构建产物（Rust target 体积巨大；dist/gen 由脚本生成，不入库）
