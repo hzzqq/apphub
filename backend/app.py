@@ -1704,6 +1704,165 @@ def api_futures_events():
                     "key": key, "events": events})
 
 
+# ───────── 信息照妖镜 info-lens：股票 / 期货 / 宏观 新闻事件源 (R92) ─────────
+# 数据透明化(R91)：source=local(本地真实文件) / live(有网真抓取)。沙箱出网被拦时
+# degraded=True 并给出 reason，绝不编造新闻事件；影响方向为规则初判，仅作参考。
+_INFOLENS_LIVE_KWS = ["期货", "库存", "仓单", "A股", "央行", "利率", "CPI", "财报",
+                      "政策", "纸浆", "铜", "螺纹", "原油", "美联储", "进出口",
+                      "开工", "停产", "基差", "现货"]
+
+
+def _infolens_impact(text):
+    """规则初判影响方向（可解释）；无明确信号返回空串 → 前端不标，不做中性标签。"""
+    pos = ("利好", "净投放", "净流入", "去库", "减产", "停产", "供给收缩", "反弹",
+           "上涨", "增长", "改善", "超预期", "获批", "触底", "修复")
+    neg = ("利空", "净回笼", "净流出", "累库", "增产", "过剩", "承压", "下跌",
+           "压制", "回落", "低于预期", "亏损", "关停", "疲弱")
+    p = sum(1 for k in pos if k in text)
+    n = sum(1 for k in neg if k in text)
+    if p > n: return "利好"
+    if n > p: return "利空"
+    return ""
+
+
+def _infolens_event_type(text, market, hint=""):
+    """事件类型确认：hint 优先（来自原始数据 tag），否则按关键词规则归类。"""
+    if hint in ("库存", "价格"): return hint
+    rules = (("库存", ("库存", "仓单", "港口", "去库", "累库")),
+             ("停产", ("停产", "关停", "检修", "减产", "森林山火")),
+             ("外盘", ("外盘", "Arauco", "LME", "COMEX", "进口", "出口")),
+             ("价格", ("收盘", "报价", "主力", "元/吨", "支撑", "阻力", "涨", "跌")),
+             ("财报", ("财报", "季报", "年报", "营收", "净利")),
+             ("政策", ("央行", "政策", "利率", "美联储", "CPI", "公告")),
+             ("数据", ("数据接口", "开放调用", "API", "回测")),
+             ("模型", ("模型", "开源", "权重", "论文")))
+    for name, kws in rules:
+        if any(k in text for k in kws): return name
+    return "公司" if market == "stock" else "事件"
+
+
+def _infolens_confirmed(text):
+    """确认状态：有具体数字/来源 = 已确认；预期/讨论类 = 待确认；纯情绪 = 仅传闻。"""
+    if any(k in text for k in ("传闻", "无来源", "宣传稿", "刷屏", "示例样本")): return "仅传闻"
+    if any(k in text for k in ("预期", "可能", "讨论", "关注", "或有", "若", "等待")): return "待确认"
+    return "已确认"
+
+
+def _infolens_event(eid, title, body, date, source, market, symbol, etype, src):
+    txt = (title or "") + " " + (body or "")
+    return {
+        "id": eid, "title": title, "body": body, "date": (date or "")[:10],
+        "source": source, "market": market, "symbol": symbol,
+        "eventType": _infolens_event_type(txt, market, etype),
+        "impact": _infolens_impact(txt),
+        "confirmed": _infolens_confirmed(txt),
+        "src": src
+    }
+
+
+@app.route("/api/info_lens_feed", methods=["GET"])
+def api_info_lens_feed():
+    """聚合股票 / 期货 / 宏观新闻事件，供 info-lens 事件面确认与三桶打分。
+
+    参数: market=all|stock|futures|macro, limit=1..200(默认 60)
+    返回: {ok, source, offline, degraded, reason, count, live_count, events:[...]}
+    沙箱(OFFLINE_MODE=True)只返回 backend/data 下的本地真实事件，degraded=True；
+    有网环境 OFFLINE_MODE=False 追加 akshare 财经快讯/宏观日历 → source=live。
+    """
+    m = (request.args.get("market", "all") or "all").strip().lower()
+    if m not in ("all", "stock", "futures", "macro"): m = "all"
+    try:
+        lim = max(1, min(200, int(request.args.get("limit", 60))))
+    except Exception:
+        lim = 60
+    events, reasons, degraded = [], [], False
+
+    # 1) 期货：futures_events.json（真实研究事件：SHFE:sp 纸浆 / SHFE:cu 铜等）
+    try:
+        fe = _load_static("futures_events.json") or {}
+        for key, arr in fe.items():
+            if not isinstance(arr, list): continue
+            for i, e in enumerate(arr):
+                title = str(e.get("title", "")).strip()
+                if not title: continue
+                events.append(_infolens_event(
+                    "f:%s:%d" % (key, i), title, str(e.get("desc", "")).strip(),
+                    str(e.get("date", "")), "futures_events.json · " + key,
+                    "futures", key, str(e.get("tag", "")), "local"))
+    except Exception as ex:
+        reasons.append("期货事件读取失败: %s" % str(ex)[:80])
+
+    # 2) 股票：stocknote.json（真实个股事件笔记）
+    try:
+        sn = _load_static("stocknote.json") or []
+        for i, e in enumerate(sn if isinstance(sn, list) else []):
+            title = str(e.get("title", "")).strip()
+            if not title: continue
+            events.append(_infolens_event(
+                "s:%d" % i, title, str(e.get("body", "")).strip(),
+                str(e.get("date", "")), "stocknote.json · " + str(e.get("symbol", "")),
+                "stock", str(e.get("symbol", "")), "", "local"))
+    except Exception as ex:
+        reasons.append("股票事件读取失败: %s" % str(ex)[:80])
+
+    # 3) 宏观 / 板块：market_brief.json
+    try:
+        mb = _load_static("market_brief.json") or {}
+        upd = str(mb.get("updated", ""))
+        for i, e in enumerate(mb.get("macro", []) or []):
+            title = str(e.get("title", "")).strip()
+            if not title: continue
+            events.append(_infolens_event(
+                "m:%d" % i, title, str(e.get("body", "")).strip(), upd,
+                "market_brief.json · 宏观", "macro", "宏观", "政策", "local"))
+        for i, e in enumerate(mb.get("sectors", []) or []):
+            title = str(e.get("name", "")).strip() + "：" + str(e.get("view", "")).strip()
+            if not title.strip("："): continue
+            events.append(_infolens_event(
+                "b:%d" % i, title, "板块观点（本地真实简报）", upd,
+                "market_brief.json · 板块", "macro", "板块", "", "local"))
+    except Exception as ex:
+        reasons.append("宏观简报读取失败: %s" % str(ex)[:80])
+
+    # 4) 真抓取：仅 OFFLINE_MODE=False 且有网环境；沙箱内明确降级、不编造
+    live = 0
+    if not OFFLINE_MODE:
+        try:
+            import chain_events as _ce
+            raw = []
+            for fn in (lambda: _ce._fetch_mainnews(_INFOLENS_LIVE_KWS),
+                       lambda: _ce._fetch_macro(_INFOLENS_LIVE_KWS)):
+                try: raw += fn() or []
+                except Exception: pass
+            for i, e in enumerate(raw):
+                txt = str(e.get("text", "")).strip()
+                if not txt: continue
+                events.append(_infolens_event(
+                    "l:%d" % i, txt[:110], "来源：" + str(e.get("source", "")),
+                    str(e.get("date", "")), str(e.get("source", "akshare")),
+                    "macro", "财经快讯", "", "live"))
+                live += 1
+            if not live: reasons.append("有网但未取到相关快讯")
+        except Exception as ex:
+            degraded = True
+            reasons.append("真抓取不可用: %s" % str(ex)[:80])
+    else:
+        degraded = True
+        reasons.append("OFFLINE_MODE=True：沙箱出网被拦，返回本地真实事件（非实时抓取）")
+
+    if m != "all":
+        events = [e for e in events if e.get("market") == m]
+    events.sort(key=lambda e: e.get("date", ""), reverse=True)
+    events = events[:lim]
+    return jsonify({
+        "ok": True, "source": "live" if live else "local",
+        "offline": OFFLINE_MODE, "degraded": degraded,
+        "reason": " | ".join(reasons) if reasons else "本地真实事件",
+        "market": m, "count": len(events), "live_count": live,
+        "events": events, "updated": _t.strftime("%Y-%m-%d %H:%M:%S")
+    })
+
+
 def _load_static(fname):
     """从 backend/data/ 读 JSON 文件(项目内真实结构化数据)，进程内带 mtime 失效缓存。"""
     cached = _static_cache.get(fname)

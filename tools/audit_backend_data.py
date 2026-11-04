@@ -43,6 +43,7 @@ APP_ENDPOINTS = {
     "holdings-check": ["/api/data"],
     "holdings-health": ["/api/quote"],
     "info-board": ["/api/info"],
+    "info-lens": ["/api/info_lens_feed", "/api/llm"],
     "inv-refresh": ["/api/refresh"],
     "inventory-watch": ["/api/inventory_overview"],
     "itinerary": ["/api/itinerary/generate"],
