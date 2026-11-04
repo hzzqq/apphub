@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>信息照妖镜 · AppHub</title>
+<style>
+:root{
+  /* — 皮肤契约 10 项（theme-studio 唯一真源） — */
+  --bg:#05060b; --card:#0c1018; --card2:#121826;
+  --accent:#00e5ff; --accent2:#7c4dff;
+  --up:#ff2e5b; --down:#00ffa3;
+  --txt:#e6f1ff; --sub:#7c8aa0; --line:rgba(0,229,255,.16);
+  /* — 赛博朋克霓虹扩展 — */
+  --neon-cyan:#00e5ff; --neon-magenta:#ff2e97; --neon-violet:#b980ff;
+  --neon-lime:#00ffa3; --neon-amber:#ffd166;
+  --grid-line:rgba(0,229,255,.055); --scan:rgba(0,0,0,.16);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font:14px/1.5 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;min-height:100vh;position:relative}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
+  background-size:44px 44px;mask-image:linear-gradient(180deg,rgba(0,0,0,.5),transparent 70%)}
+body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:repeating-linear-gradient(180deg,transparent 0 3px,var(--scan) 3px 4px);opacity:.35}
+.wrap{position:relative;z-index:1}
+a.hubhome{position:fixed;left:14px;top:14px;z-index:60;text-decoration:none;
+  background:var(--card2);color:var(--txt);padding:5px 10px;border-radius:8px;font-size:12px;border:1px solid var(--line)}
+/* 顶栏 56px */
+.topbar{height:56px;display:flex;align-items:center;gap:14px;padding:0 24px 0 96px;
+  border-bottom:1px solid var(--line);background:rgba(12,16,24,.86);backdrop-filter:blur(8px)}
+.topbar h1{margin:0;font-size:20px;font-weight:600;letter-spacing:.5px;white-space:nowrap}
+.topbar h1 span{color:var(--accent)}
+.topbar .tagline{color:var(--sub);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .spacer{flex:1}
+.srcbadge{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 9px;border-radius:10px;
+  border:1px solid var(--line);background:var(--card2);white-space:nowrap}
+.srcbadge i{width:7px;height:7px;border-radius:50%;display:inline-block}
+/* 布局：240px 侧栏 + 1200px 主区 */
+.layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px;max-width:1464px;margin:0 auto;padding:24px}
+.side{min-width:0}
+.main{min-width:0;max-width:1200px;width:100%;margin:0 auto}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.35);padding:14px;margin-bottom:16px;position:relative}
+.panel::before{content:"";position:absolute;left:12px;right:12px;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.55}
+.panel h3{margin:0 0 10px;font-size:14px;font-weight:600;color:var(--txt)}
+.panel .hint{color:var(--sub);font-size:12px;margin:8px 0 0;line-height:1.5}
+label.fld{display:block;color:var(--sub);font-size:12px;margin:10px 0 4px}
+input[type=text],input[type=number],textarea,select{width:100%;background:var(--card2);border:1px solid var(--line);
+  color:var(--txt);border-radius:6px;padding:8px 10px;font:14px/1.5 inherit;font-family:inherit;font-size:13px;min-height:40px}
+textarea{min-height:76px;resize:vertical;font-family:var(--mono);font-size:12px}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+button{background:var(--accent);color:#04121a;border:0;border-radius:8px;padding:8px 14px;
+  font-size:13px;cursor:pointer;font-weight:600;min-height:36px}
+button.ghost{background:var(--card2);color:var(--txt);border:1px solid var(--line);font-weight:500}
+button.tiny{padding:4px 9px;min-height:28px;font-size:12px;border-radius:6px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.seg{display:flex;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border-radius:0;flex:1;background:var(--card2);color:var(--sub);border:0;font-weight:500}
+.seg button.on{background:var(--accent);color:#04121a;font-weight:600}
+/* 漏斗 */
+.gate{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.gate:last-child{border-bottom:0}
+.gate .gn{color:var(--sub);flex:1;white-space:nowrap}
+.gate .gv{font-family:var(--mono);color:var(--accent);font-weight:600}
+.gate .gbar{height:4px;border-radius:2px;background:var(--accent);opacity:.75;min-width:2px}
+/* 统计条 */
+.stats{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-width:96px}
+.stat .k{color:var(--sub);font-size:12px}
+.stat .v{font-size:20px;font-weight:600;font-family:var(--mono);margin-top:2px}
+.chip{font-size:11px;padding:3px 9px;border-radius:10px;background:var(--card2);border:1px solid var(--line);color:var(--sub);cursor:pointer;user-select:none}
+.chip.on{color:#04121a;background:var(--accent);border-color:var(--accent);font-weight:600}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.toolbar input[type=text]{max-width:260px}
+/* 卡片 */
+.cards{display:grid;gap:24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.35);
+  padding:16px 18px;position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--sub);opacity:.7}
+.card.b-hype::before{background:var(--neon-amber)}
+.card.b-fact::before{background:var(--neon-cyan)}
+.card.b-signal::before{background:var(--neon-lime)}
+.card.high{border-color:rgba(0,255,163,.38)}
+.card .chead{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.card h4{margin:0;font-size:14px;font-weight:600;line-height:1.5;flex:1;min-width:220px}
+.card .meta{color:var(--sub);font-size:12px;margin:4px 0 10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.card .body{color:var(--sub);font-size:13px;margin:0 0 12px}
+.bucket{font-size:11px;padding:2px 8px;border-radius:9px;font-weight:600;white-space:nowrap}
+.bucket.hype{color:var(--neon-amber);background:rgba(255,209,102,.12)}
+.bucket.fact{color:var(--neon-cyan);background:rgba(0,229,255,.12)}
+.bucket.signal{color:var(--neon-lime);background:rgba(0,255,163,.12)}
+.bucket.none{color:var(--sub);background:var(--card2)}
+.flag{font-size:11px;padding:2px 8px;border-radius:9px;color:var(--neon-magenta);background:rgba(255,46,151,.1)}
+/* 三分条 */
+.scores{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 12px}
+.score{min-width:0}
+.score .sl{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-bottom:4px}
+.score .sv{font-family:var(--mono);font-weight:600;color:var(--txt)}
+.bar{height:6px;border-radius:3px;background:var(--card2);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:3px}
+.s-hype i{background:var(--neon-amber)} .s-fact i{background:var(--neon-cyan)} .s-signal i{background:var(--neon-lime)}
+.why{font-size:11px;color:var(--sub);margin-top:4px;line-height:1.4;word-break:break-all}
+.angle{font-size:12px;color:var(--txt);background:var(--card2);border-left:2px solid var(--accent2);
+  border-radius:0 6px 6px 0;padding:8px 10px;margin:0 0 10px}
+.angle b{color:var(--accent)}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.acts .fb{font-size:11px;color:var(--sub);margin-left:auto;align-self:center}
+/* 简报 / 说明 */
+.brief{font-family:var(--mono);font-size:12px;white-space:pre-wrap;background:var(--card2);
+  border:1px solid var(--line);border-radius:8px;padding:12px;max-height:320px;overflow:auto;color:var(--txt)}
+.notice{font-size:12px;color:var(--sub);line-height:1.6;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:12px 14px;margin-top:20px}
+.notice b{color:var(--neon-amber)}
+.empty{color:var(--sub);text-align:center;padding:36px;font-size:13px}
+.live-off{opacity:.5}
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr;gap:16px;padding:16px}
+  .topbar{padding-left:96px}
+  .topbar .tagline{display:none}
+  .scores{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<a class="hubhome" href="../index.html">← 大厅</a>
+<header class="topbar">
+  <h1>🔍 信息<span>照妖镜</span></h1>
+  <div class="tagline">炒作 / 事实 / 信号 三桶打分 · 先过滤，再决定花不花时间</div>
+  <div class="spacer"></div>
+  <div id="srcBadge" class="srcbadge"><i style="background:var(--sub)"></i>离线示例</div>
+</header>
+
+<div class="layout">
+  <aside class="side">
+    <div class="panel">
+      <h3>① 判断视角</h3>
+      <div class="seg" id="viewSeg">
+        <button type="button" data-view="learner" class="on">AI 学习者</button>
+        <button type="button" data-view="quant">量化信号</button>
+      </div>
+      <p class="hint" id="viewHint">信号 = 值不值得马上花时间去看 / 去试；每张卡附「选题角度」。</p>
+    </div>
+
+    <div class="panel">
+      <h3>② 六道关口（漏斗）</h3>
+      <div id="funnel"></div>
+      <p class="hint" id="costHint">成本示意：本地规则引擎，LLM 调用 0 次。</p>
+    </div>
+
+    <div class="panel">
+      <h3>③ 筛选</h3>
+      <label class="fld" for="q">搜索标题 / 正文</label>
+      <input type="text" id="q" placeholder="例：开源 / 回测 / 论文">
+      <label class="fld" for="th">信号阈值（≥ 进高价值池）</label>
+      <input type="number" id="th" value="40" min="0" max="100" step="5">
+      <div class="btnrow" id="bucketChips">
+        <span class="chip on" data-b="all">全部</span>
+        <span class="chip" data-b="high">高价值</span>
+        <span class="chip" data-b="signal">信号</span>
+        <span class="chip" data-b="fact">事实</span>
+        <span class="chip" data-b="hype">炒作</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>④ 规则文件（可改）</h3>
+      <label class="fld" for="rHype">炒作词（逗号分隔）</label>
+      <textarea id="rHype"></textarea>
+      <label class="fld" for="rFact">事实词</label>
+      <textarea id="rFact"></textarea>
+      <label class="fld" for="rSignal">信号词（随视角切换）</label>
+      <textarea id="rSignal"></textarea>
+      <div class="btnrow">
+        <button type="button" id="saveRules">保存并重算</button>
+        <button type="button" class="ghost" id="resetRules">恢复预设</button>
+      </div>
+      <p class="hint">规则存本机 localStorage，改完立刻重算所有卡片。</p>
+    </div>
+
+    <div class="panel">
+      <h3>⑤ 加一条信息</h3>
+      <label class="fld" for="nTitle">标题</label>
+      <input type="text" id="nTitle" placeholder="粘贴新闻标题">
+      <label class="fld" for="nBody">正文 / 摘要</label>
+      <textarea id="nBody" placeholder="粘贴摘要，规则会据此打分"></textarea>
+      <div class="btnrow">
+        <button type="button" id="addCard">打分并加入</button>
+        <button type="button" class="ghost" id="loadLocal">载入本地真实简报</button>
+      </div>
+      <p class="hint" id="localHint">本地真实 = backend/data 下的真实文件，经 /api/data 读取；非实时。</p>
+    </div>
+
+    <div class="panel">
+      <h3>⑥ 每日选题简报</h3>
+      <p class="hint">汇总当前高价值池，可直接复制或导出。<b>手动生成</b>，非定时任务。</p>
+      <div class="btnrow">
+        <button type="button" id="briefMd">生成简报</button>
+        <button type="button" class="ghost" id="dlMd">下载 MD</button>
+        <button type="button" class="ghost" id="dlCsv">下载 CSV</button>
+      </div>
+      <div id="brief" class="brief" style="margin-top:10px">点「生成简报」预览。</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="stats" id="stats"></div>
+    <div class="toolbar">
+      <span class="chip on" id="srcSample">离线示例</span>
+      <span class="chip" id="srcLocal">本地真实</span>
+      <span class="chip live-off" id="srcLive">实时（沙箱不可用）</span>
+      <span style="flex:1"></span>
+      <span id="countHint" style="color:var(--sub);font-size:12px"></span>
+    </div>
+    <div class="cards" id="cards"></div>
+    <div class="notice">
+      <b>⚠️ 诚实声明：</b>本工具是<b>本地规则引擎演示</b>，不做实时抓取、不调用 LLM、不跑定时任务。
+      三分来自可解释的关键词规则命中，只是<b>初筛参考，不是结论</b>；分数高低不等于真伪。
+      数据来源分三态：<b>离线示例</b>（内置演示）、<b>本地真实</b>（backend/data 真实文件、非实时）、
+      <b>手动录入</b>（你自己粘贴）。<b>实时</b>需有网环境，本沙箱出网被拦故置灰。
+      漏斗成本为「按 $0.004/次 的示意折算」，非真实计费。
+    </div>
+  </main>
+</div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+ * 信息照妖镜 InfoLens · 零依赖单文件
+ * 核心：炒作/事实/信号 三桶可解释打分 + 六道关口漏斗 + 反馈调权 + 简报
+ * ============================================================ */
+
+/* ---------- 常量 ---------- */
+var LABEL = { hype:"炒作", fact:"事实", signal:"信号" };
+var BUCKET_LABEL = { hype:"炒作主导", fact:"事实主导", signal:"信号主导", none:"信息不足" };
+
+var RULE_PRESETS = {
+  learner: {
+    name:"AI 学习者",
+    hint:"信号 = 值不值得马上花时间去看 / 去试；每张卡附「选题角度」。",
+    hype:["颠覆","革命性","炸裂","史上最","刷屏","引爆","重磅","彻底改变","万亿","超越人类","封神","碾压","全网沸腾","神话"],
+    fact:["发布","开源","论文","数据集","基准","公布","上线","证明","版本","参数","测试","报告","财报","获批","权重","实验"],
+    signal:["可调用","开放API","免费额度","开源权重","可复现","教程","Colab","立即体验","现在可用","实战","上手","代码已放出","已开放","可下载","notebook","已上线"]
+  },
+  quant: {
+    name:"量化信号",
+    hint:"信号 = 能不能马上用于策略 / 决策；每张卡附「落地动作」。",
+    hype:["颠覆","革命性","炸裂","史上最","刷屏","引爆","重磅","彻底改变","万亿","史诗级","暴涨","神话","碾压"],
+    fact:["发布","上线","公布","数据","回测","因子","公告","财报","政策","库存","利率","开盘","收盘","成交","持仓","口径"],
+    signal:["数据接口","行情开放","可回测","实盘","因子","上线可用","API文档","样本外","可接入","实时推送","已开放调用","参数已公开","可下载数据","信号已触发","已可调用"]
+  }
+};
+
+var SAMPLE_CARDS = [
+  { title:"某新模型被吹成「史上最强、彻底改变行业」，全网刷屏", body:"目前只有宣传稿与演示视频，无论文、无权重、无可调用接口。", source:"演示源 A", date:"2026-11-04" },
+  { title:"新的数学证明公布，与日常开发无直接关联", body:"论文已公开，结论成立，但短期内用不到工作里。", source:"演示源 B", date:"2026-11-03" },
+  { title:"某模型开放 API：免费额度已上线，附 Colab 教程与可复现 notebook", body:"代码已放出、现在可用，可立即上手实测。", source:"演示源 C", date:"2026-11-04" },
+  { title:"交易所历史行情数据接口已开放调用，附 API 文档与样本外回测样例", body:"参数已公开、可下载数据，能直接接进回测链路。", source:"演示源 D", date:"2026-11-02" },
+  { title:"重磅：新一代开源模型发布，权重与基准测试同时公布，已开放立即体验", body:"信息真实且可马上试，但标题里的「重磅」属炒作表达。", source:"演示源 E", date:"2026-11-04" },
+  { title:"某基准分数提升，未披露测试集与参数", body:"只给了结论，没给可核验的实验细节——只讲一半的信息。", source:"演示源 F", date:"2026-11-01" },
+  { title:"季报公布：营收与库存口径调整", body:"事实成立，数据可读，但暂无可直接行动的接口或触发条件。", source:"演示源 G", date:"2026-10-31" },
+  { title:"开源权重放出，附实战教程与可复现代码", body:"可下载、可上手，适合安排一次动手实测。", source:"演示源 H", date:"2026-11-03" },
+  { title:"政策公告：某项数据口径调整，相关因子需重算", body:"公告属实，但需等数据接口更新后才能落地。", source:"演示源 I", date:"2026-10-30" },
+  { title:"刷屏级「万亿市场」说法引爆讨论，无任何数据来源", body:"只有情绪，没有可核验的事实或可用入口。", source:"演示源 J", date:"2026-10-29" }
+];
+
+var SRC_META = {
+  sample:{ label:"离线示例", color:"var(--sub)", title:"内置演示数据，非实时抓取" },
+  local: { label:"本地真实", color:"var(--neon-cyan)", title:"来自 backend/data 本地真实文件（经 /api/data），沙箱可用、非实时" },
+  manual:{ label:"手动录入", color:"var(--neon-violet)", title:"你自己粘贴录入，存本机 localStorage" },
+  live:  { label:"实时", color:"var(--sub)", title:"需有网环境；本沙箱出网被拦，不可用" }
+};
+
+/* ---------- 纯工具 ---------- */
+function esc(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+    return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+  });
+}
+function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+function lsGet(k, d){ try { var v = localStorage.getItem(k); return v == null ? d : v; } catch(e){ return d; } }
+function lsSet(k, v){ try { localStorage.setItem(k, String(v)); } catch(e){} }
+function parseRules(txt){
+  var out = [], seen = {};
+  String(txt == null ? "" : txt).split(/[,，、\n\r;；]+/).forEach(function(w){
+    w = w.trim(); if(!w || seen[w]) return; seen[w] = 1; out.push(w);
+  });
+  return out;
+}
+function today(){ try { return new Date().toISOString().slice(0,10); } catch(e){ return "—"; } }
+
+/* ---------- 打分引擎（可解释：命中词即理由） ---------- */
+function scoreCard(card, rules, weights){
+  rules = rules || RULE_PRESETS.learner;
+  weights = weights || {};
+  var text = String(card.title == null ? "" : card.title) + " " +
+             String(card.body == null ? "" : card.body) + " " +
+             String(card.source == null ? "" : card.source);
+  var out = { hype:0, fact:0, signal:0, hits:{ hype:[], fact:[], signal:[] } };
+  ["hype","fact","signal"].forEach(function(k){
+    var hits = [], sum = 0;
+    (rules[k] || []).forEach(function(w){
+      if(!w) return;
+      if(text.indexOf(w) >= 0){ hits.push(w); sum += 12 + (weights[w] || 0); }
+    });
+    out.hits[k] = hits;
+    out[k] = clamp(Math.round(sum + (hits.length ? 8 : 0)), 0, 100);
+  });
+  return out;
+}
+function bucketOf(s){
+  if(s.signal > 0 && s.signal >= s.fact && s.signal >= s.hype) return "signal";
+  if(s.hype > 0 && s.hype >= s.fact) return "hype";
+  if(s.fact > 0) return "fact";
+  return "none";
+}
+function reasonOf(hits, k){
+  if(!hits || !hits.length) return "未命中" + LABEL[k] + "词 → 该项无支撑";
+  return "命中" + LABEL[k] + "词：" + hits.join("、");
+}
+function angleOf(view, bucket, s){
+  if(view === "quant"){
+    if(bucket === "signal") return "落地：接进数据链 / 因子池做样本外验证，先小仓试，别直接上实盘。";
+    if(bucket === "hype") return "排除：无实证支撑，不进策略池，仅记录市场情绪。";
+    if(bucket === "fact") return "归档：事实入库，等可用接口或触发条件出现再动。";
+    return "搁置：证据不足，先补来源，不占用研究时间。";
+  }
+  if(bucket === "signal") return "选题：做一期「现在就能上手」实测，讲清能不能复现、要花多少时间。";
+  if(bucket === "hype") return "选题：炒作拆解 —— 热在哪、实质缺口在哪、别被标题带走。";
+  if(bucket === "fact") return "选题：背景知识卡 —— 事实成立，但暂不占用动手时间。";
+  return "选题：信息不足，先补来源再决定要不要花时间。";
+}
+function actionOf(bucket, s, th){
+  if(s.signal >= th) return "✅ 值得现在花 30 分钟去看 / 去试";
+  if(bucket === "hype") return "⏭ 先跳过，等实证";
+  if(bucket === "fact") return "📌 收藏，暂不行动";
+  return "❓ 证据不足，先补来源";
+}
+
+/* ---------- 六道关口漏斗 ---------- */
+function runFunnel(cards, opts){
+  opts = opts || {};
+  var th = opts.threshold == null ? 40 : opts.threshold;
+  var rules = opts.rules || RULE_PRESETS.learner;
+  var weights = opts.weights || {};
+  var view = opts.view || "learner";
+  var stages = [], seen = {}, uniq = [];
+
+  (cards || []).forEach(function(c){
+    var k = String(c.title == null ? "" : c.title).trim();
+    if(!k || seen[k]) return;
+    seen[k] = 1; uniq.push(c);
+  });
+  stages.push({ name:"① 去重", count:uniq.length, note:"同标题只留一条" });
+
+  var valid = uniq.filter(function(c){ return String(c.title || "").length >= 4; });
+  stages.push({ name:"② 有效性", count:valid.length, note:"标题 ≥4 字" });
+
+  var scored = valid.map(function(c){
+    var s = scoreCard(c, rules, weights);
+    return { card:c, scores:s, bucket:bucketOf(s), high:s.signal >= th, flag:null,
+             angle:angleOf(view, bucketOf(s), s) };
+  });
+  var hypeOnly = 0;
+  scored.forEach(function(x){
+    if(x.scores.hype >= 40 && x.scores.fact === 0){ x.flag = "仅炒作"; hypeOnly++; }
+  });
+  stages.push({ name:"③ 炒作初筛", count:scored.length, note:hypeOnly + " 条标「仅炒作」" });
+
+  var unver = 0;
+  scored.forEach(function(x){
+    if(x.scores.fact === 0 && !x.flag){ x.flag = "未证实"; unver++; }
+  });
+  stages.push({ name:"④ 事实核验", count:scored.length, note:unver + " 条标「未证实」" });
+
+  var high = scored.filter(function(x){ return x.high; });
+  stages.push({ name:"⑤ 信号阈值 ≥" + th, count:high.length, note:"进高价值池" });
+
+  high.sort(function(a,b){
+    var pa = a.scores.signal - (a.flag === "未证实" ? 30 : 0) - (a.flag === "仅炒作" ? 20 : 0);
+    var pb = b.scores.signal - (b.flag === "未证实" ? 30 : 0) - (b.flag === "仅炒作" ? 20 : 0);
+    return pb - pa;
+  });
+  stages.push({ name:"⑥ 视角加权", count:high.length, note:RULE_PRESETS[view] ? RULE_PRESETS[view].name : view });
+
+  return {
+    total: (cards || []).length, stages: stages, scored: scored, high: high,
+    cost: +((cards || []).length * 0.004).toFixed(3), llmCalls: 0
+  };
+}
+
+/* ---------- 反馈调权（点赞 / 点踩 / 多看这类） ---------- */
+function newFeedback(){ return { weights:{}, up:{}, down:{} }; }
+function applyFeedback(fb, item, type){
+  fb = fb || newFeedback();
+  var key = String(item && item.card && item.card.title ? item.card.title : "").slice(0, 40);
+  if(type === "up"){
+    fb.up[key] = (fb.up[key] || 0) + 1;
+    (item.scores.hits.signal || []).forEach(function(w){ fb.weights[w] = (fb.weights[w] || 0) + 3; });
+  } else if(type === "down"){
+    fb.down[key] = (fb.down[key] || 0) + 1;
+    (item.scores.hits.signal || []).forEach(function(w){ fb.weights[w] = (fb.weights[w] || 0) - 3; });
+  } else if(type === "more"){
+    var all = (item.scores.hits.fact || []).concat(item.scores.hits.signal || []);
+    all.forEach(function(w){ fb.weights[w] = (fb.weights[w] || 0) + 6; });
+  }
+  return fb;
+}
+
+/* ---------- 简报（MD / CSV，矩形表 + 转义） ---------- */
+function buildBrief(scored, fmt, opts){
+  opts = opts || {};
+  var th = opts.threshold == null ? 40 : opts.threshold;
+  var view = opts.view || "learner";
+  var list = (scored || []).filter(function(x){ return x.high; });
+  if(fmt === "csv"){
+    var head = ["标题","来源","日期","数据来源","炒作分","事实分","信号分","主桶","标记","命中词","选题角度"];
+    var q = function(v){ return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; };
+    var lines = [head.map(q).join(",")];
+    list.forEach(function(x){
+      lines.push([
+        x.card.title, x.card.source, x.card.date, x.card.src || "sample",
+        x.scores.hype, x.scores.fact, x.scores.signal, BUCKET_LABEL[x.bucket],
+        x.flag || "", x.scores.hits.signal.join("|"), x.angle
+      ].map(q).join(","));
+    });
+    return lines.join("\n");
+  }
+  var md = "# 信息照妖镜 · 每日选题简报（" + today() + "）\n\n";
+  md += "- 视角：" + (RULE_PRESETS[view] ? RULE_PRESETS[view].name : view) + "\n";
+  md += "- 信号阈值：≥" + th + "\n";
+  md += "- 扫描 " + (scored ? scored.length : 0) + " 条 → 高价值 " + list.length + " 条\n";
+  md += "- 说明：本地规则引擎初筛，分数仅为参考，不是结论。\n\n";
+  if(!list.length) return md + "> 当前无高价值条目。\n";
+  list.forEach(function(x, i){
+    md += "## " + (i + 1) + ". " + x.card.title + "\n\n";
+    md += "- 来源：" + (x.card.source || "—") + " · " + (x.card.date || "—") + " · " + (SRC_META[x.card.src] ? SRC_META[x.card.src].label : "离线示例") + "\n";
+    md += "- 三分：炒作 " + x.scores.hype + " / 事实 " + x.scores.fact + " / 信号 " + x.scores.signal + "\n";
+    md += "- 主桶：" + BUCKET_LABEL[x.bucket] + (x.flag ? "（" + x.flag + "）" : "") + "\n";
+    md += "- 为什么：" + reasonOf(x.scores.hits.signal, "signal") + "；" + reasonOf(x.scores.hits.fact, "fact") + "\n";
+    md += "- " + x.angle + "\n";
+    md += "- " + actionOf(x.bucket, x.scores, th) + "\n\n";
+  });
+  return md;
+}
+
+/* ---------- 状态 ---------- */
+var STATE = {
+  view:"learner", threshold:40, bucket:"all", query:"",
+  rules:null, feedback:newFeedback(), cards:[], funnel:null
+};
+function cloneRules(r){
+  return { hype:(r.hype||[]).slice(), fact:(r.fact||[]).slice(), signal:(r.signal||[]).slice() };
+}
+function loadState(){
+  var v = lsGet("infolens_view", "learner");
+  STATE.view = (v === "quant") ? "quant" : "learner";
+  STATE.rules = cloneRules(RULE_PRESETS[STATE.view]);
+  try {
+    var raw = lsGet("infolens_rules", "");
+    if(raw){ var o = JSON.parse(raw); if(o && o[STATE.view]) STATE.rules = cloneRules(o[STATE.view]); }
+  } catch(e){}
+  try {
+    var fb = lsGet("infolens_feedback", "");
+    if(fb){ var f = JSON.parse(fb); if(f && f.weights) STATE.feedback = { weights:f.weights||{}, up:f.up||{}, down:f.down||{} }; }
+  } catch(e){}
+  try {
+    var cc = lsGet("infolens_manual", "");
+    if(cc){ var arr = JSON.parse(cc); if(arr && arr.length) STATE.cards = arr; }
+  } catch(e){}
+}
+function persist(){
+  var all = {};
+  try { all = JSON.parse(lsGet("infolens_rules", "{}")) || {}; } catch(e){ all = {}; }
+  all[STATE.view] = STATE.rules;
+  lsSet("infolens_rules", JSON.stringify(all));
+  lsSet("infolens_view", STATE.view);
+  lsSet("infolens_feedback", JSON.stringify(STATE.feedback));
+  lsSet("infolens_manual", JSON.stringify(STATE.cards.filter(function(c){ return c.src === "manual"; })));
+}
+function allCards(){
+  var base = SAMPLE_CARDS.map(function(c){ return { title:c.title, body:c.body, source:c.source, date:c.date, src:"sample" }; });
+  return base.concat(STATE.cards);
+}
+function recompute(){
+  STATE.funnel = runFunnel(allCards(), {
+    threshold:STATE.threshold, rules:STATE.rules,
+    weights:STATE.feedback.weights, view:STATE.view
+  });
+  return STATE.funnel;
+}
+
+/* ---------- 渲染（全部 DOM 操作容错，供冒烟/沙箱） ---------- */
+function byId(id){ return (typeof document !== "undefined" && document.getElementById) ? document.getElementById(id) : null; }
+function setHtml(id, h){ var el = byId(id); if(el) el.innerHTML = h; }
+function srcBadgeHtml(src){
+  var m = SRC_META[src] || SRC_META.sample;
+  return '<span class="srcbadge" title="' + esc(m.title) + '"><i style="background:' + m.color + '"></i>' + esc(m.label) + '</span>';
+}
+function renderStats(){
+  var f = STATE.funnel; if(!f) return;
+  var c = { hype:0, fact:0, signal:0, none:0 };
+  f.scored.forEach(function(x){ c[x.bucket]++; });
+  var h = "";
+  h += '<div class="stat"><div class="k">扫描条目</div><div class="v">' + f.total + '</div></div>';
+  h += '<div class="stat"><div class="k">高价值池</div><div class="v" style="color:var(--neon-lime)">' + f.high.length + '</div></div>';
+  h += '<div class="stat"><div class="k">炒作主导</div><div class="v" style="color:var(--neon-amber)">' + c.hype + '</div></div>';
+  h += '<div class="stat"><div class="k">事实主导</div><div class="v" style="color:var(--neon-cyan)">' + c.fact + '</div></div>';
+  h += '<div class="stat"><div class="k">信号主导</div><div class="v" style="color:var(--neon-lime)">' + c.signal + '</div></div>';
+  setHtml("stats", h);
+}
+function renderFunnel(){
+  var f = STATE.funnel; if(!f) return;
+  var max = f.total || 1, h = "";
+  f.stages.forEach(function(s){
+    var w = Math.max(2, Math.round(s.count / max * 100));
+    h += '<div class="gate"><span class="gn" title="' + esc(s.note || "") + '">' + esc(s.name) + '</span>'
+       + '<span class="gbar" style="width:' + Math.round(w * 0.5) + 'px"></span>'
+       + '<span class="gv">' + s.count + '</span></div>';
+  });
+  setHtml("funnel", h);
+  setHtml("costHint", "成本示意：本地规则引擎 LLM 调用 <b>0</b> 次；若按 $0.004/次 折算约 <b>$" +
+    f.cost + "</b>（非真实计费）。六道关口仅初筛，不替你下结论。");
+}
+function visibleItems(){
+  var f = STATE.funnel; if(!f) return [];
+  var q = STATE.query.trim().toLowerCase();
+  return f.scored.filter(function(x){
+    if(STATE.bucket === "high" && !x.high) return false;
+    if(STATE.bucket !== "all" && STATE.bucket !== "high" && x.bucket !== STATE.bucket) return false;
+    if(q){
+      var t = String(x.card.title || "") + " " + String(x.card.body || "");
+      if(t.toLowerCase().indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+}
+function renderCards(){
+  var list = visibleItems(), h = "";
+  if(!list.length) h = '<div class="empty">没有符合条件的信息。换个筛选，或在左侧「加一条信息」。</div>';
+  list.forEach(function(x, i){
+    var s = x.scores, c = x.card;
+    h += '<article class="card b-' + x.bucket + (x.high ? " high" : "") + '">';
+    h += '<div class="chead"><h4>' + esc(c.title) + '</h4>'
+       + '<span class="bucket ' + x.bucket + '">' + BUCKET_LABEL[x.bucket] + '</span>'
+       + (x.flag ? '<span class="flag">' + esc(x.flag) + '</span>' : "")
+       + (x.high ? '<span class="bucket signal">高价值</span>' : "") + '</div>';
+    h += '<div class="meta"><span>' + esc(c.source || "—") + '</span><span>' + esc(c.date || "—") + '</span>'
+       + srcBadgeHtml(c.src || "sample") + '</div>';
+    if(c.body) h += '<p class="body">' + esc(c.body) + '</p>';
+    h += '<div class="scores">';
+    ["hype","fact","signal"].forEach(function(k){
+      h += '<div class="score"><div class="sl"><span>' + LABEL[k] + '</span><span class="sv">' + s[k] + '</span></div>'
+         + '<div class="bar s-' + k + '"><i style="width:' + s[k] + '%"></i></div>'
+         + '<div class="why">' + esc(reasonOf(s.hits[k], k)) + '</div></div>';
+    });
+    h += '</div>';
+    h += '<div class="angle"><b>' + (STATE.view === "quant" ? "落地动作" : "选题角度") + '：</b>' + esc(x.angle) + '</div>';
+    h += '<div class="acts"><button type="button" class="ghost tiny" data-act="up" data-i="' + i + '">👍 有用</button>'
+       + '<button type="button" class="ghost tiny" data-act="down" data-i="' + i + '">👎 别推</button>'
+       + '<button type="button" class="ghost tiny" data-act="more" data-i="' + i + '">＋ 多看这类</button>'
+       + '<span class="fb">' + esc(actionOf(x.bucket, s, STATE.threshold)) + '</span></div>';
+    h += '</article>';
+  });
+  setHtml("cards", h);
+  setHtml("countHint", "显示 " + list.length + " / " + (STATE.funnel ? STATE.funnel.scored.length : 0) + " 条");
+}
+function renderAll(){ recompute(); renderStats(); renderFunnel(); renderCards(); }
+
+/* ---------- 事件 ---------- */
+function switchView(v){
+  if(v !== "learner" && v !== "quant") return;
+  STATE.view = v;
+  STATE.rules = cloneRules(RULE_PRESETS[v]);
+  var seg = byId("viewSeg");
+  if(seg && seg.querySelectorAll){
+    Array.prototype.forEach.call(seg.querySelectorAll("button"), function(b){
+      if(b.classList && b.classList.toggle) b.classList.toggle("on", b.getAttribute("data-view") === v);
+    });
+  }
+  setHtml("viewHint", RULE_PRESETS[v].hint);
+  fillRuleInputs();
+  persist(); renderAll();
+}
+function fillRuleInputs(){
+  var h = byId("rHype"), f = byId("rFact"), s = byId("rSignal");
+  if(h) h.value = (STATE.rules.hype || []).join(",");
+  if(f) f.value = (STATE.rules.fact || []).join(",");
+  if(s) s.value = (STATE.rules.signal || []).join(",");
+}
+function saveRules(){
+  var h = byId("rHype"), f = byId("rFact"), s = byId("rSignal");
+  STATE.rules = {
+    hype: parseRules(h ? h.value : ""), fact: parseRules(f ? f.value : ""), signal: parseRules(s ? s.value : "")
+  };
+  persist(); renderAll();
+}
+function addCard(){
+  var t = byId("nTitle"), b = byId("nBody");
+  var title = t ? String(t.value || "").trim() : "";
+  if(!title) return;
+  STATE.cards.push({ title:title, body:b ? String(b.value || "").trim() : "", source:"手动录入", date:today(), src:"manual" });
+  if(t) t.value = ""; if(b) b.value = "";
+  persist(); renderAll();
+}
+function loadLocal(){
+  if(typeof fetch !== "function") return;
+  try {
+    fetch("/api/data?file=market_brief.json").then(function(r){ return r.json(); }).then(function(j){
+      if(!j || !j.ok) return;
+      var rows = j.rows || {}, added = 0;
+      (rows.macro || []).forEach(function(x){
+        STATE.cards.push({ title:String(x.title || ""), body:String(x.body || ""), source:"market_brief.json · 宏观", date:j.updated || today(), src:"local" });
+        added++;
+      });
+      (rows.sectors || []).forEach(function(x){
+        STATE.cards.push({ title:String(x.name || "") + "：" + String(x.view || ""), body:"板块观点（本地真实简报）", source:"market_brief.json · 板块", date:j.updated || today(), src:"local" });
+        added++;
+      });
+      if(added){ persist(); renderAll(); }
+      var lh = byId("localHint");
+      if(lh) lh.innerHTML = "已载入 " + added + " 条<b>本地真实</b>简报条目（非实时）。";
+    }).catch(function(){});
+  } catch(e){}
+}
+function doFeedback(idx, type){
+  var list = visibleItems();
+  var item = list[idx];
+  if(!item) return;
+  applyFeedback(STATE.feedback, item, type);
+  persist(); renderAll();
+}
+function download(name, text, type){
+  try {
+    if(typeof Blob === "undefined" || typeof URL === "undefined" || !URL.createObjectURL) return;
+    var blob = new Blob(["\ufeff" + text], { type:type || "text/plain;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name;
+    if(a.click) a.click();
+  } catch(e){}
+}
+function bind(id, ev, fn){
+  var el = byId(id);
+  if(el && el.addEventListener) el.addEventListener(ev, fn);
+}
+function boot(){
+  try {
+    loadState();
+    var th = byId("th"); if(th) th.value = String(STATE.threshold);
+    fillRuleInputs();
+    setHtml("viewHint", RULE_PRESETS[STATE.view].hint);
+    setHtml("srcBadge", '<i style="background:var(--sub)"></i>离线示例 + 手动录入');
+
+    bind("viewSeg", "click", function(e){
+      var t = e && e.target; if(!t || !t.getAttribute) return;
+      var v = t.getAttribute("data-view"); if(v) switchView(v);
+    });
+    bind("q", "input", function(e){ STATE.query = e && e.target ? String(e.target.value || "") : ""; renderCards(); });
+    bind("th", "input", function(e){
+      var v = e && e.target ? parseInt(e.target.value, 10) : 40;
+      STATE.threshold = isFinite(v) ? clamp(v, 0, 100) : 40;
+      renderAll();
+    });
+    bind("bucketChips", "click", function(e){
+      var t = e && e.target; if(!t || !t.getAttribute) return;
+      var b = t.getAttribute("data-b"); if(!b) return;
+      STATE.bucket = b;
+      var box = byId("bucketChips");
+      if(box && box.querySelectorAll){
+        Array.prototype.forEach.call(box.querySelectorAll(".chip"), function(c){
+          if(c.classList && c.classList.toggle) c.classList.toggle("on", c.getAttribute("data-b") === b);
+        });
+      }
+      renderCards();
+    });
+    bind("saveRules", "click", saveRules);
+    bind("resetRules", "click", function(){ STATE.rules = cloneRules(RULE_PRESETS[STATE.view]); fillRuleInputs(); persist(); renderAll(); });
+    bind("addCard", "click", addCard);
+    bind("loadLocal", "click", loadLocal);
+    bind("cards", "click", function(e){
+      var t = e && e.target; if(!t || !t.getAttribute) return;
+      var act = t.getAttribute("data-act"); if(!act) return;
+      doFeedback(parseInt(t.getAttribute("data-i"), 10), act);
+    });
+    bind("briefMd", "click", function(){
+      var f = STATE.funnel;
+      setHtml("brief", esc(buildBrief(f ? f.scored : [], "md", { threshold:STATE.threshold, view:STATE.view })));
+    });
+    bind("dlMd", "click", function(){
+      var f = STATE.funnel;
+      download("信息照妖镜_选题简报_" + today() + ".md",
+        buildBrief(f ? f.scored : [], "md", { threshold:STATE.threshold, view:STATE.view }), "text/markdown;charset=utf-8");
+    });
+    bind("dlCsv", "click", function(){
+      var f = STATE.funnel;
+      download("信息照妖镜_选题简报_" + today() + ".csv",
+        buildBrief(f ? f.scored : [], "csv", { threshold:STATE.threshold, view:STATE.view }), "text/csv;charset=utf-8");
+    });
+    renderAll();
+  } catch(e){
+    if(typeof console !== "undefined" && console.warn) console.warn("InfoLens boot skipped:", e && e.message);
+  }
+}
+boot();
+</script>
+<script>
+/* NEON-THEME-BRIDGE BEGIN */
+/* 主题桥接：读大厅「主题工坊」写入的 theme_config，覆盖契约变量。零依赖、幂等。 */
+(function(){
+  function apply(){
+    var raw=null;
+    try{ raw=localStorage.getItem("theme_config"); }catch(e){ return; }
+    if(!raw) return;
+    var t; try{ t=JSON.parse(raw); }catch(e){ return; }
+    if(!t||typeof t!=="object") return;
+    var map={bg:"--bg",card:"--card",card2:"--card2",accent:"--accent",
+             accent2:"--accent2",up:"--up",down:"--down",txt:"--txt",
+             sub:"--sub",line:"--line"};
+    var css="";
+    for(var k in map){
+      var v=t[k];
+      if(typeof v==="string"&&v) css+=map[k]+":"+v+";";
+    }
+    if(!css) return;
+    var el=document.getElementById("neon-theme-bridge");
+    if(!el){
+      el=document.createElement("style");
+      el.id="neon-theme-bridge";
+      (document.head||document.documentElement).appendChild(el);
+    }
+    el.textContent=":root{"+css+"}";
+  }
+  apply();
+  window.addEventListener("storage",function(e){
+    if(e&&e.key==="theme_config") apply();
+  });
+})();
+/* NEON-THEME-BRIDGE END */
+</script>
+</body>
+</html>
