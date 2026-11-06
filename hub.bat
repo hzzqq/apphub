@@ -6,20 +6,42 @@ if /i "%HUB_CMD%"=="start"   goto :do_start
 if /i "%HUB_CMD%"=="stop"    goto :do_stop
 if /i "%HUB_CMD%"=="restart" goto :do_restart
 if /i "%HUB_CMD%"=="status"  goto :do_status
+if /i "%HUB_CMD%"=="doctor"  goto :do_doctor
 goto :usage
 
 :usage
 echo ============================================================
 echo   App Hub - Unified Launcher
-echo   Usage: hub.bat [start^|stop^|restart^|status]
+echo   Usage: hub.bat [start^|stop^|restart^|status^|doctor]
 echo     start   (default) launch backend + open browser
 echo     stop    kill backend, clean lock
 echo     restart stop + start
 echo     status  show if port 8787 is listening
+echo     doctor  self-check launcher deps and runtime state
 echo ============================================================
 pause
 exit /b 1
 
+:do_doctor
+set PORT=8787
+set "APPDIR=%~dp0"
+if "%APPDIR:~-1%"=="\" set "APPDIR=%APPDIR:~0,-1%"
+echo ============================================================
+echo   App Hub - Doctor
+echo ============================================================
+echo.
+if not exist "%APPDIR%\backend\doctor.py" (
+  echo [ERROR] backend\doctor.py is missing - cannot run the self-check.
+  pause
+  exit /b 1
+)
+set "DRPY=E:\python\python.exe"
+if not exist "%DRPY%" set "DRPY=python"
+"%DRPY%" "%APPDIR%\backend\doctor.py"
+set "DRC=!ERRORLEVEL!"
+echo.
+pause
+exit /b !DRC!
 :do_status
 set PORT=8787
 set "HUBFOUND="
