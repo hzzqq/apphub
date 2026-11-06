@@ -2,7 +2,7 @@
 setlocal
 REM Use `pushd "%~dp0"` (NOT `cd /d "%~dp0"`): cd chokes on the trailing
 REM backslash in %~dp0 ("E:\project\app\" -> cmd sees an escaped quote ->
-REM "文件名、目录名或卷标语法不正确" -> cd fails, breaking the python calls).
+REM "The filename, directory name, or volume label syntax is incorrect" -> cd fails, breaking the python calls).
 pushd "%~dp0"
 
 echo [*] Fetching or refreshing real futures data, e.g. pulp SP ...
