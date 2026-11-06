@@ -1,5 +1,8 @@
 @echo off
 setlocal EnableDelayedExpansion
+REM Port: read .port.env (allocated by port-doctor); fall back to 8787 when absent
+if exist "%~dp0.port.env" for /f "usebackq tokens=1,* delims==" %%A in ("%~dp0.port.env") do if not "%%A"=="#" set "%%A=%%B"
+if not defined PORT set "PORT=8787"
 set "HUB_CMD=%1"
 if "%HUB_CMD%"=="" set "HUB_CMD=start"
 if /i "%HUB_CMD%"=="start"   goto :do_start
@@ -23,7 +26,7 @@ pause
 exit /b 1
 
 :do_doctor
-set PORT=8787
+rem port comes from .port.env (see header)
 set "APPDIR=%~dp0"
 if "%APPDIR:~-1%"=="\" set "APPDIR=%APPDIR:~0,-1%"
 echo ============================================================
@@ -43,7 +46,7 @@ echo.
 pause
 exit /b !DRC!
 :do_status
-set PORT=8787
+rem port comes from .port.env (see header)
 set "HUBFOUND="
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr "LISTENING" ^| findstr ":%PORT%"') do set "HUBFOUND=1"
 if defined HUBFOUND (
@@ -55,7 +58,7 @@ echo   Run "hub.bat" or "hub.bat start" to launch.
 pause
 exit /b 0
 :do_stop
-set PORT=8787
+rem port comes from .port.env (see header)
 set "LOCKF=%TEMP%\hub_backend.lock"
 echo ============================================================
 echo   App Hub - Stop Backend
@@ -93,7 +96,7 @@ echo.
 goto :do_start
 
 :do_start
-set PORT=8787
+rem port comes from .port.env (see header)
 set "LOCKF=%TEMP%\hub_backend.lock"
 
 echo ============================================================
