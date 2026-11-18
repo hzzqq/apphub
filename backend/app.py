@@ -1553,7 +1553,8 @@ def api_market_cube():
     # TTL 缓存壳: 命中直返 / 未命中真抓 / 失败回退陈旧缓存(标 stale) 或离线样本
     if force_live:
         # 绕过缓存, 直接真抓(线程超时保护, 失败回退样本), 有网机器即出真实 24 板块×8 周 PE+主力净流入
-        resp = _safe_build(_build_market_cube, timeout=60)
+        # 2026-11-18 提到 150s：新增 24 板块成分股 PE 请求（约 +40s），60s 会半途超时回退样本
+        resp = _safe_build(_build_market_cube, timeout=150)
     else:
         resp, stale = _cached_build("market_cube", _req_ttl(_MARKET_CUBE_TTL), _build_market_cube)
     if resp is None:
@@ -1567,15 +1568,19 @@ def api_market_cube():
 def _build_market_cube():
     """真实抓取并组装 24 板块 × 近 8 周 × 5 指标; 失败抛异常由调用方处理(走缓存/离线降级)。"""
     # 与前端 market-cube 对齐的 24 板块: (前端名, 风格, 东方财富行业板块名)
+    # 2026-11-18: 东财行业分类改版，12 个旧名在 stock_board_industry_name_em() 的 496 个板块中已不存在
+    # (取周线抛 IndexError)。逐一实测新名周线+成分股 PE 均可取后校准:
+    # 证券->证券Ⅱ 保险->保险Ⅱ 白酒->白酒Ⅱ 家电行业->白色家电 医药->医药生物 文化传媒->传媒
+    # 汽车整车->汽车 军工->国防军工 煤炭行业->煤炭 钢铁行业->钢铁 物流行业->仓储物流 农牧饲渔->养殖业
     SECTOR_MAP = [
-        ("银行", "金融", "银行"), ("证券", "金融", "证券"), ("保险", "金融", "保险"),
-        ("白酒", "消费", "白酒"), ("食品饮料", "消费", "食品饮料"), ("家电", "消费", "家电行业"),
-        ("医药", "消费", "医药"), ("半导体", "科技", "半导体"), ("计算机", "科技", "软件开发"),
-        ("通信", "科技", "通信设备"), ("传媒", "科技", "文化传媒"), ("新能源", "制造", "电池"),
-        ("汽车", "制造", "汽车整车"), ("机械", "制造", "通用设备"), ("军工", "制造", "军工"),
-        ("电力", "周期", "电力"), ("煤炭", "周期", "煤炭行业"), ("钢铁", "周期", "钢铁行业"),
+        ("银行", "金融", "银行"), ("证券", "金融", "证券Ⅱ"), ("保险", "金融", "保险Ⅱ"),
+        ("白酒", "消费", "白酒Ⅱ"), ("食品饮料", "消费", "食品饮料"), ("家电", "消费", "白色家电"),
+        ("医药", "消费", "医药生物"), ("半导体", "科技", "半导体"), ("计算机", "科技", "软件开发"),
+        ("通信", "科技", "通信设备"), ("传媒", "科技", "传媒"), ("新能源", "制造", "电池"),
+        ("汽车", "制造", "汽车"), ("机械", "制造", "通用设备"), ("军工", "制造", "国防军工"),
+        ("电力", "周期", "电力"), ("煤炭", "周期", "煤炭"), ("钢铁", "周期", "钢铁"),
         ("有色", "周期", "小金属"), ("化工", "周期", "化学制品"), ("建材", "周期", "装修建材"),
-        ("地产", "周期", "房地产"), ("农牧", "消费", "农牧饲渔"), ("交运", "周期", "物流行业"),
+        ("地产", "周期", "房地产"), ("农牧", "消费", "养殖业"), ("交运", "周期", "仓储物流"),
     ]
     import akshare as ak
     import pandas as pd
@@ -1592,6 +1597,11 @@ def _build_market_cube():
     weeks_labels = []
     metric_meta = {"chg": "weekly", "amt": "weekly", "turn": "weekly",
                    "pe": "weekly_pe", "net": "weekly"}
+    today = datetime.now()
+    # 2026-11-18 修复前置：新版 akshare(1.18.64) 周线签名 (symbol, start_date, end_date, period='日k')，
+    # 必须显式传日期窗口，否则只返回 2021-12~2022-04 默认死区间；period 合法值是 '周k'（旧 'w' 抛 KeyError）。
+    start_str = (today - pd.Timedelta(weeks=10)).strftime("%Y%m%d")  # 多留 2 周缓冲防缺周
+    end_str = today.strftime("%Y%m%d")
     for _fname, _group, akname in SECTOR_MAP:
         # --- 逐周真实: 周线行情(涨跌幅/成交额/换手率/收盘) ---
         row = []
@@ -1599,7 +1609,8 @@ def _build_market_cube():
         wlabels = []
         week_ends = []
         try:
-            wk = ak.stock_board_industry_hist_em(symbol=akname, period="w")
+            wk = ak.stock_board_industry_hist_em(symbol=akname, start_date=start_str,
+                                                 end_date=end_str, period="周k")
             wk = wk.tail(8)
             for _, wr in wk.iterrows():
                 chg = _num(wr.get("涨跌幅", 0))
@@ -1609,7 +1620,9 @@ def _build_market_cube():
                 closes.append(_num(wr.get("收盘", 0)))
             wlabels = [str(d)[:10] for d in wk["日期"].tolist()]
             week_ends = [pd.to_datetime(d) for d in wk["日期"].tolist()]
-        except Exception:
+        except Exception as e:
+            # 不再静默吞：日志可见，避免「source=live 但全零」的假 live 复发
+            app.logger.warning("market_cube 周线 %s 失败: %r", akname, e)
             row = []
         if not row:
             row = [{"chg": 0, "amt": 0, "turn": 0} for _ in range(8)]
@@ -1629,22 +1642,32 @@ def _build_market_cube():
                 net_weekly[wi] = ff.loc[mask, "主力净流入-净额"].sum() / 1e8
         except Exception:
             net_weekly = [None] * len(row)
-        # --- 市盈率: 逐周真实(价格驱动, EPS 取最新 TTM 静态) ---
-        # 最新 PE = 最新收盘 / EPS  =>  EPS = 最新收盘 / 最新PE
-        # 逐周 PE_t = 周收盘_t / EPS = 周收盘_t * 最新PE / 最新收盘
-        # (EPS 按季更新, 8 周内近似恒定, 故逐周 PE 随真实周价格走 -> 真实周度行为)
-        rec = snap_recs.get(akname) or {}
-        snap_pe = _num(rec.get("市盈率", rec.get("市盈率-动态", 0))) if rec else 0
-        snap_net = _num(rec.get("主力净流入-净额", rec.get("主力净流入", 0))) / 1e8 if rec else 0
+        # --- 市盈率: 逐周真实(价格驱动, 板块快照 PE 取成分股动态 PE 中位数) ---
+        # 2026-11-18 修复：新版东财行业快照(stock_board_industry_name_em)已无「市盈率」/
+        # 「主力净流入」列（12 列），旧取数得 0 → PE/net 全零假 live。
+        # 新口径：成分股(stock_board_industry_cons_em)「市盈率-动态」中位数作板块快照 PE
+        # （中位数抗亏损股负值离群）；取不到 → pe=None 诚实显示 —，绝不用 0 充数。
+        snap_pe = None
+        try:
+            cons = ak.stock_board_industry_cons_em(symbol=akname)
+            pes = pd.to_numeric(cons["市盈率-动态"], errors="coerce").dropna()
+            pes = pes[pes > 0]
+            if len(pes):
+                snap_pe = float(pes.median())
+        except Exception as e:
+            app.logger.warning("market_cube 成分股PE %s 失败: %r", akname, e)
+        snap_net = 0.0  # 新版快照无净流入列；net 主路径=资金流历史逐日按周聚合（下方）
         last_close = closes[-1] if closes else 0.0
-        eps = (last_close / snap_pe) if (snap_pe > 0 and last_close > 0) else 0.0
+        eps = (last_close / snap_pe) if (snap_pe and last_close > 0) else 0.0
         for wi, c in enumerate(row):
             if eps > 0 and closes[wi] > 0:
                 c["pe"] = round(closes[wi] / eps, 1)
-            else:
+            elif snap_pe:
                 c["pe"] = round(snap_pe, 1)
+            else:
+                c["pe"] = None
             nv = net_weekly[wi]
-            c["net"] = round(nv, 1) if nv is not None else round(snap_net, 1)
+            c["net"] = round(nv, 1) if nv is not None else None
         cube.append(row)
         if not weeks_labels:
             weeks_labels = wlabels

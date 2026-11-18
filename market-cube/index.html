@@ -301,7 +301,7 @@ function cellColor(v, m, st){
     return "rgba(124,92,255,"+(0.12+0.6*t2).toFixed(3)+")";
   }
 }
-function fmtVal(v, m){ return v.toFixed(m.dec); }
+function fmtVal(v, m){ return v==null ? "—" : v.toFixed(m.dec); }  // null=源缺失(诚实显示—, 2026-11-18)
 
 function render(){
   var m = METRICS[cfg.metric];
@@ -316,9 +316,9 @@ function render(){
   });
   rows.sort(function(a,b){ return sortKey[b]-sortKey[a]; });
 
-  // 统计
+  // 统计（null=源缺失，不参与统计，避免均值/最值被污染成 NaN）
   var vals=[];
-  rows.forEach(function(ri){ cols.forEach(function(ci){ vals.push(pairVal(ri,ci)); }); });
+  rows.forEach(function(ri){ cols.forEach(function(ci){ var pv=pairVal(ri,ci); if(pv!=null) vals.push(pv); }); });
   var st={min:Infinity,max:-Infinity,maxAbs:0,sum:0,up:0,n:0};
   vals.forEach(function(v){ if(v<st.min)st.min=v; if(v>st.max)st.max=v; if(Math.abs(v)>st.maxAbs)st.maxAbs=Math.abs(v); st.sum+=v; st.n++; if(v>0)st.up++; });
   var avg=st.n?st.sum/st.n:0;
